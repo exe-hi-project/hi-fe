@@ -540,7 +540,7 @@ export default function AdminPage() {
                       startAngle={180}
                       endAngle={0}
                     >
-                      <RadialBar background clockWise dataKey="value" cornerRadius={10} />
+                      <RadialBar background dataKey="value" cornerRadius={10} />
                       <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
                       <Tooltip formatter={(value, name) => [`${Number(value ?? 0).toFixed(1)}%`, String(name)]} />
                     </RadialBarChart>
