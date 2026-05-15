@@ -1,3 +1,24 @@
+interface FBAuthResponse {
+  accessToken: string;
+  userID: string;
+  expiresIn: number;
+  signedRequest: string;
+}
+
+interface FBLoginResponse {
+  status: 'connected' | 'not_authorized' | 'unknown';
+  authResponse: FBAuthResponse | null;
+}
+
+declare global {
+  interface Window {
+    FB: {
+      login: (callback: (response: FBLoginResponse) => void, options?: { scope: string }) => void;
+      getLoginStatus: (callback: (response: FBLoginResponse) => void) => void;
+    };
+  }
+}
+
 export interface User {
   _id: string;
   name: string;
