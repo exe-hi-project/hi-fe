@@ -9,6 +9,7 @@ interface AuthState {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { name: string; email: string; password: string; gender: string }) => Promise<void>;
+  socialLogin: (provider: 'google' | 'facebook', payload: Record<string, string>) => Promise<void>;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
   setUser: (user: User) => void;
@@ -42,6 +43,18 @@ export const useAuthStore = create<AuthState>()(
         } catch (err: any) {
           set({ isLoading: false });
           throw new Error(err.response?.data?.message || 'Đăng ký thất bại');
+        }
+      },
+
+      socialLogin: async (provider, payload) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await api.post(`/auth/${provider}`, payload);
+          localStorage.setItem('token', data.token);
+          set({ user: data.user, token: data.token, isLoading: false });
+        } catch (err: any) {
+          set({ isLoading: false });
+          throw new Error(err.response?.data?.message || `Đăng nhập ${provider} thất bại`);
         }
       },
 

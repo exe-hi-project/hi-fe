@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-hot-toast';
+import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../store/authStore';
 import HiLogo from '../components/ui/HiLogo';
 
@@ -36,11 +37,45 @@ function getStrength(pw: string): { score: number; label: string; color: string 
 }
 
 export default function RegisterPage() {
-  const { register: registerUser, isLoading } = useAuthStore();
+  const { register: registerUser, socialLogin, isLoading } = useAuthStore();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  const handleSocialSuccess = async () => {
+    const { user } = useAuthStore.getState();
+    if (!user) return;
+    if (user.role === 'admin') navigate('/admin');
+    else if (!user.onboardingCompleted) navigate('/onboarding');
+    else if (user.gender === 'female') navigate('/female-dashboard');
+    else navigate('/male-dashboard');
+  };
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        await socialLogin('google', { accessToken: tokenResponse.access_token });
+        toast.success('Đăng nhập Google thành công!');
+        await handleSocialSuccess();
+      } catch (err: any) {
+        toast.error(err.message);
+      }
+    },
+    onError: () => toast.error('Đăng nhập Google thất bại'),
+  });
+
+  const handleFacebookLogin = () => {
+    if (!window.FB) return toast.error('Facebook SDK chưa tải xong');
+    window.FB.login((response) => {
+      if (response.authResponse) {
+        const { accessToken, userID } = response.authResponse;
+        socialLogin('facebook', { accessToken, userID })
+          .then(() => { toast.success('Đăng nhập Facebook thành công!'); return handleSocialSuccess(); })
+          .catch((err: any) => toast.error(err.message));
+      }
+    }, { scope: 'email,public_profile' });
+  };
 
   useEffect(() => {
     const t = setInterval(() => setActiveSlide(s => (s + 1) % 3), 4000);
@@ -240,7 +275,7 @@ export default function RegisterPage() {
               <div className="flex-grow border-t border-gray-100" />
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <button type="button" className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all text-sm font-semibold text-gray-700">
+              <button type="button" onClick={() => googleLogin()} className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all text-sm font-semibold text-gray-700">
                 <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -249,7 +284,7 @@ export default function RegisterPage() {
                 </svg>
                 Google
               </button>
-              <button type="button" className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white hover:border-blue-200 hover:shadow-sm transition-all text-sm font-semibold text-gray-700">
+              <button type="button" onClick={handleFacebookLogin} className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white hover:border-blue-200 hover:shadow-sm transition-all text-sm font-semibold text-gray-700">
                 <svg className="w-5 h-5 flex-shrink-0 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
