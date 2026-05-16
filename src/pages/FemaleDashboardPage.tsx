@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
+import api from '../lib/api';
 
 /* ─── types & helpers ───────────────────────────────── */
-interface FakeCycle { startDate: string; cycleLength: number; periodLength: number; }
+interface CycleData { _id?: string; startDate: string; cycleLength: number; periodLength: number; }
 
-function getCycleInfo(cycle: FakeCycle) {
+function getCycleInfo(cycle: CycleData) {
   const today = new Date();
   const start = new Date(cycle.startDate);
   const cycleDay = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1);
@@ -28,15 +30,16 @@ function getGreeting() {
 }
 
 /* ─── static data ───────────────────────────────────── */
-const EMOTION_BARS = [
-  { day: 'T2',      h: '40%', cls: 'bg-purple-200', active: false },
-  { day: 'T3',      h: '60%', cls: 'bg-purple-300', active: false },
-  { day: 'T4',      h: '50%', cls: 'bg-purple-200', active: false },
-  { day: 'Hôm\nnay',h: '90%', cls: 'bg-pink-400',   active: true  },
-  { day: 'T6',      h: '0%',  cls: 'bg-gray-200',   active: false },
-  { day: 'T7',      h: '0%',  cls: 'bg-gray-200',   active: false },
-  { day: 'CN',      h: '0%',  cls: 'bg-gray-200',   active: false },
-];
+function getWeekBars() {
+  const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const todayIndex = (new Date().getDay() + 6) % 7;
+  return days.map((day, i) => ({
+    day,
+    h: i === todayIndex ? '70%' : i < todayIndex ? '20%' : '0%',
+    cls: i === todayIndex ? 'bg-pink-400' : i < todayIndex ? 'bg-purple-200' : 'bg-gray-100',
+    active: i === todayIndex,
+  }));
+}
 
 const SYMPTOMS_LIST = [
   { id: 'cramps',   emoji: '😣', label: 'Đau bụng', bg: '#fce7f3', selFrom: '#fb7185', selTo: '#f472b6' },
@@ -52,7 +55,7 @@ const SYMPTOMS_LIST = [
 
 const AI_INTRO: { role: 'ai' | 'user'; text: string; product?: { image: string; name: string; price: string; desc: string; shopeeUrl: string } }[] = [
   { role: 'ai' as const, text: 'Xin chào! Mình là Hi AI 🌸 Hôm nay bạn cảm thấy thế nào?' },
-  { role: 'ai' as const, text: 'Bạn đang ở giai đoạn Rụng trứng — đây là giai đoạn năng lượng cao nhất! Hãy hỏi mình bất cứ điều gì về chu kỳ của bạn nhé 💕' },
+  { role: 'ai' as const, text: 'Hãy hỏi mình bất cứ điều gì về chu kỳ, sức khỏe sinh sản, hoặc cảm xúc của bạn nhé 💕' },
   { role: 'user' as const, text: 'Bụng mình đang đau quá 😢 có cách nào giảm đau không?' },
   {
     role: 'ai' as const,
@@ -119,15 +122,25 @@ export default function FemaleDashboardPage() {
   const firstName = user?.name?.split(' ').pop() ?? 'bạn';
   const greeting  = getGreeting();
 
-  /* ── Cycle state ── */
-  const [cycle, setCycle] = useState<FakeCycle>({
-    startDate: new Date(Date.now() - 13 * 86_400_000).toISOString(),
-    cycleLength: 28,
-    periodLength: 5,
+  /* ── Cycle query ── */
+  const queryClient = useQueryClient();
+  const cycleQuery = useQuery({
+    queryKey: ['cycles'],
+    queryFn: async () => {
+      const { data } = await api.get('/cycles');
+      return data as { success: boolean; cycles: CycleData[] };
+    },
   });
-  const { cycleDay, phase, daysUntilPeriod, fertilityPct, cycleLen } = getCycleInfo(cycle);
+  const latestCycle = cycleQuery.data?.cycles?.[0] ?? null;
+  const cycleInfo = latestCycle ? getCycleInfo(latestCycle) : null;
+  const cycleDay       = cycleInfo?.cycleDay       ?? 0;
+  const phase          = cycleInfo?.phase          ?? '—';
+  const daysUntilPeriod = cycleInfo?.daysUntilPeriod ?? 0;
+  const fertilityPct   = cycleInfo?.fertilityPct   ?? 0;
+  const cycleLen       = cycleInfo?.cycleLen       ?? 28;
+
   const circumference = 251.2;
-  const dashoffset = circumference - (cycleDay / cycleLen) * circumference;
+  const dashoffset = circumference - (latestCycle ? (cycleDay / cycleLen) * circumference : circumference);
   const today = new Date();
   const monthLabel = today.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 
@@ -137,18 +150,49 @@ export default function FemaleDashboardPage() {
   const close = () => setPanel(null);
 
   /* ── Cycle editor state ── */
-  const [editStart, setEditStart] = useState(cycle.startDate.slice(0, 10));
-  const [editLen, setEditLen] = useState(cycle.cycleLength);
-  const [editPeriodLen, setEditPeriodLen] = useState(cycle.periodLength);
+  const [editStart, setEditStart] = useState('');
+  const [editLen, setEditLen] = useState(28);
+  const [editPeriodLen, setEditPeriodLen] = useState(5);
   const [cycleSaved, setCycleSaved] = useState(false);
-  const [editCalYear, setEditCalYear] = useState(new Date(cycle.startDate).getFullYear());
-  const [editCalMonth, setEditCalMonth] = useState(new Date(cycle.startDate).getMonth());
+  const [editCalYear, setEditCalYear] = useState(today.getFullYear());
+  const [editCalMonth, setEditCalMonth] = useState(today.getMonth());
+
+  useEffect(() => {
+    if (latestCycle) {
+      setEditStart(latestCycle.startDate.slice(0, 10));
+      setEditLen(latestCycle.cycleLength ?? 28);
+      setEditPeriodLen(latestCycle.periodLength ?? 5);
+      const d = new Date(latestCycle.startDate);
+      setEditCalYear(d.getFullYear());
+      setEditCalMonth(d.getMonth());
+    }
+  }, [latestCycle?._id]);
+
   const editPrevMonth = () => { if (editCalMonth === 0) { setEditCalMonth(11); setEditCalYear(y => y - 1); } else setEditCalMonth(m => m - 1); };
   const editNextMonth = () => { if (editCalMonth === 11) { setEditCalMonth(0); setEditCalYear(y => y + 1); } else setEditCalMonth(m => m + 1); };
+
+  const saveCycleMutation = useMutation({
+    mutationFn: async (payload: { startDate: string; cycleLength: number; periodLength: number }) => {
+      if (latestCycle?._id) {
+        const { data } = await api.put(`/cycles/${latestCycle._id}`, payload);
+        return data;
+      }
+      const { data } = await api.post('/cycles', payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cycles'] });
+      setCycleSaved(true);
+      setTimeout(() => { setCycleSaved(false); close(); }, 1000);
+    },
+  });
+
   const saveCycle = () => {
-    setCycle({ startDate: new Date(editStart).toISOString(), cycleLength: editLen, periodLength: editPeriodLen });
-    setCycleSaved(true);
-    setTimeout(() => { setCycleSaved(false); close(); }, 1000);
+    saveCycleMutation.mutate({
+      startDate: new Date(editStart).toISOString(),
+      cycleLength: editLen,
+      periodLength: editPeriodLen,
+    });
   };
 
   /* ── Symptom state ── */
@@ -197,7 +241,7 @@ export default function FemaleDashboardPage() {
     }, 1200);
   };
 
-  const hasPartner = true;
+  const hasPartner = !!user?.partnerId;
 
   return (
     <div className="min-h-screen bg-[#f8f6f7] overflow-x-hidden relative font-sans">
@@ -479,7 +523,7 @@ export default function FemaleDashboardPage() {
                 </select>
               </div>
               <div className="h-36 w-full flex items-end justify-between gap-2 px-2">
-                {EMOTION_BARS.map(({ day, h, cls, active }) => (
+                {getWeekBars().map(({ day, h, cls, active }) => (
                   <div key={day} className="flex flex-col items-center gap-2 w-full group cursor-pointer">
                     <div
                       className={`relative w-full bg-gray-100 rounded-t-xl rounded-b-sm h-32 flex items-end overflow-hidden ${

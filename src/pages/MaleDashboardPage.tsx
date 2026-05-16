@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
+import api from '../lib/api';
 
 /* ── Helpers ── */
 function getGreeting() {
@@ -11,12 +13,20 @@ function getGreeting() {
   return { text: 'Chào buổi tối', icon: 'nightlight' };
 }
 
-/* ── Fake partner data ── */
-const PARTNER_NAME = 'Lan Anh';
-const PARTNER_PHASE = 'Rụng trứng';
-const PARTNER_DAY = 14;
-const PARTNER_CYCLE_LEN = 28;
-const PARTNER_DAYS_UNTIL_PERIOD = 14;
+interface PartnerCycle { _id: string; startDate: string; cycleLength: number; periodLength: number; }
+
+function getPartnerCycleInfo(cycle: PartnerCycle) {
+  const today = new Date();
+  const start = new Date(cycle.startDate);
+  const cycleDay = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1);
+  const cycleLen = cycle.cycleLength || 28;
+  const daysUntilPeriod = cycleLen - cycleDay;
+  let phase = 'Hoàng thể';
+  if (cycleDay <= cycle.periodLength) phase = 'Kinh nguyệt';
+  else if (cycleDay <= 13)            phase = 'Nang trứng';
+  else if (cycleDay <= 16)            phase = 'Rụng trứng';
+  return { cycleDay, phase, daysUntilPeriod, cycleLen };
+}
 
 function getCareTips(phase: string): string[] {
   if (phase === 'Kinh nguyệt') return ['🌡️ Chuẩn bị túi chườm ấm', '🍫 Mua chocolate / đồ ăn em thích', '🤗 Nhẹ nhàng và thông cảm hơn'];
@@ -25,16 +35,16 @@ function getCareTips(phase: string): string[] {
   return ['🌙 Em cần nghỉ ngơi nhiều hơn', '☕ Pha cho em ly trà ấm nhé', '🎵 Cùng thư giãn với nhạc nhẹ'];
 }
 
-/* ── Activity bars ── */
-const ACTIVITY_BARS = [
-  { day: 'T2',      h: '70%', cls: 'bg-blue-200',  active: false },
-  { day: 'T3',      h: '85%', cls: 'bg-blue-300',  active: false },
-  { day: 'T4',      h: '60%', cls: 'bg-blue-200',  active: false },
-  { day: 'Hôm\nnay',h:'90%', cls: 'bg-gradient-to-t from-blue-500 to-indigo-400', active: true },
-  { day: 'T6',      h: '40%', cls: 'bg-blue-100',  active: false },
-  { day: 'T7',      h: '30%', cls: 'bg-blue-100',  active: false },
-  { day: 'CN',      h: '20%', cls: 'bg-blue-100',  active: false },
-];
+function getActivityBars() {
+  const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const todayIndex = (new Date().getDay() + 6) % 7;
+  return days.map((day, i) => ({
+    day,
+    h: i === todayIndex ? '70%' : i < todayIndex ? '40%' : '0%',
+    cls: i === todayIndex ? 'bg-gradient-to-t from-blue-500 to-indigo-400' : i < todayIndex ? 'bg-blue-200' : 'bg-blue-100',
+    active: i === todayIndex,
+  }));
+}
 
 /* ── Mood options ── */
 const MOOD_OPTIONS = [
@@ -47,7 +57,7 @@ const MOOD_OPTIONS = [
 /* ── AI ── */
 const MALE_AI_INTRO: { role: 'ai' | 'user'; text: string }[] = [
   { role: 'ai', text: 'Chào anh! Mình là Hi AI 💙 Hôm nay anh cảm thấy thế nào?' },
-  { role: 'ai', text: `Lan Anh đang ở giai đoạn ${PARTNER_PHASE} — Ngày ${PARTNER_DAY}. Năng lượng của cô ấy đang rất cao. Đây là thời điểm tuyệt vời để cùng nhau làm điều gì đó 💙` },
+  { role: 'ai', text: 'Mình có thể giúp anh hiểu hơn về sức khỏe của bạn đời và cách chăm sóc tốt hơn 💙' },
 ];
 const MALE_AI_CHIPS = ['Hôm nay nên làm gì?', 'Tips chăm bạn gái?', 'Bạn gái đang ở phase nào?', 'Cách giảm stress?'];
 
@@ -88,7 +98,26 @@ export default function MaleDashboardPage() {
 
   const firstName = user.name?.split(' ').pop() ?? 'bạn';
   const greeting = getGreeting();
-  const careTips = getCareTips(PARTNER_PHASE);
+
+  /* ── Partner cycle query ── */
+  const partnerQuery = useQuery({
+    queryKey: ['partner-cycles'],
+    queryFn: async () => {
+      const { data } = await api.get('/users/partner-cycles');
+      return data as { success: boolean; cycles: PartnerCycle[]; partner?: { name: string } };
+    },
+    enabled: !!user.partnerId,
+  });
+  const partnerCycle = partnerQuery.data?.cycles?.[0] ?? null;
+  const partnerInfo  = partnerCycle ? getPartnerCycleInfo(partnerCycle) : null;
+  const partnerName  = partnerQuery.data?.partner?.name ?? 'Bạn đời';
+  const partnerPhase = partnerInfo?.phase ?? '—';
+  const partnerDay   = partnerInfo?.cycleDay ?? 0;
+  const partnerCycleLen = partnerInfo?.cycleLen ?? 28;
+  const partnerDaysUntilPeriod = partnerInfo?.daysUntilPeriod ?? 0;
+  const hasPartner   = !!user.partnerId;
+
+  const careTips = getCareTips(partnerPhase);
 
   /* ── Panels ── */
   type PanelId = 'health' | 'mood' | 'chat' | null;
@@ -125,11 +154,15 @@ export default function MaleDashboardPage() {
       const t = text.toLowerCase();
       let reply = 'Mình đã ghi nhận! Bạn có muốn tìm hiểu thêm không? 💙';
       if (t.includes('hôm nay') || t.includes('làm gì'))
-        reply = `Hôm nay ${PARTNER_NAME} đang ở giai đoạn ${PARTNER_PHASE}. ${careTips[1].slice(2)} Hãy dành thời gian chất lượng cho nhau nhé! 💙`;
+        reply = hasPartner && partnerPhase !== '—'
+          ? `Hôm nay ${partnerName} đang ở giai đoạn ${partnerPhase}. ${careTips[1].slice(2)} Hãy dành thời gian chất lượng cho nhau nhé! 💙`
+          : 'Hãy kết nối bạn đời để mình có thể giúp anh tốt hơn nhé! 💙';
       else if (t.includes('tips') || t.includes('chăm'))
         reply = `Tips hôm nay: ${careTips.map(t2 => t2.slice(2)).join(', ')}. Sự quan tâm chân thành luôn được đánh giá cao! 🌟`;
       else if (t.includes('phase') || t.includes('bạn gái') || t.includes('giai đoạn'))
-        reply = `${PARTNER_NAME} đang ở Ngày ${PARTNER_DAY} — giai đoạn ${PARTNER_PHASE}. Kỳ kinh tiếp theo sau ${PARTNER_DAYS_UNTIL_PERIOD} ngày. 📅`;
+        reply = hasPartner && partnerDay > 0
+          ? `${partnerName} đang ở Ngày ${partnerDay} — giai đoạn ${partnerPhase}. Kỳ kinh tiếp theo sau ${partnerDaysUntilPeriod} ngày. 📅`
+          : 'Chưa có dữ liệu chu kỳ của bạn đời. Hãy kết nối tài khoản của cô ấy nhé! 💙';
       else if (t.includes('stress') || t.includes('căng thẳng'))
         reply = 'Hít thở sâu 4-7-8, đi bộ 15 phút, hoặc nghe nhạc nhẹ. Nếu stress kéo dài hãy chia sẻ với người thân nhé! 🧘';
       setMessages(p => [...p, { id: Date.now() + 1, role: 'ai', text: reply }]);
@@ -188,7 +221,7 @@ export default function MaleDashboardPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="material-symbols-outlined text-pink-500 text-[22px]">favorite</span>
-                    <h3 className="text-lg font-bold text-slate-800">Sức khỏe của {PARTNER_NAME}</h3>
+                    <h3 className="text-lg font-bold text-slate-800">Sức khỏe của {hasPartner ? partnerName : 'Bạn đời'}</h3>
                     <span className="flex h-2.5 w-2.5 relative ml-1">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-pink-500" />
@@ -196,7 +229,7 @@ export default function MaleDashboardPage() {
                   </div>
                   <p className="text-slate-400 text-sm ml-7">Theo dõi chu kỳ — Cập nhật tự động</p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide text-pink-600 bg-pink-50 border border-pink-100">{PARTNER_PHASE}</span>
+                <span className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide text-pink-600 bg-pink-50 border border-pink-100">{partnerPhase}</span>
               </div>
 
               <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
@@ -206,7 +239,7 @@ export default function MaleDashboardPage() {
                     <circle cx="50" cy="50" r="40" fill="none" stroke="#fce7f3" strokeWidth="8" />
                     <circle cx="50" cy="50" r="40" fill="none" stroke="url(#cycleGrad)" strokeWidth="8"
                       strokeDasharray={circumference}
-                      strokeDashoffset={circumference * (1 - PARTNER_DAY / PARTNER_CYCLE_LEN)}
+                      strokeDashoffset={partnerDay > 0 ? circumference * (1 - partnerDay / partnerCycleLen) : circumference}
                       strokeLinecap="round" />
                     <defs>
                       <linearGradient id="cycleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -217,9 +250,9 @@ export default function MaleDashboardPage() {
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                     <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Ngày chu kỳ</span>
-                    <span className="text-4xl font-extrabold text-slate-900">{PARTNER_DAY}</span>
-                    <span className="text-[11px] text-slate-400 font-medium">/ {PARTNER_CYCLE_LEN} ngày</span>
-                    <span className="text-pink-500 text-xs font-bold mt-1">{PARTNER_PHASE}</span>
+                    <span className="text-4xl font-extrabold text-slate-900">{partnerDay > 0 ? partnerDay : '—'}</span>
+                    <span className="text-[11px] text-slate-400 font-medium">/ {partnerCycleLen} ngày</span>
+                    <span className="text-pink-500 text-xs font-bold mt-1">{partnerPhase}</span>
                   </div>
                 </div>
 
@@ -230,11 +263,11 @@ export default function MaleDashboardPage() {
                       <span className="material-symbols-outlined text-pink-500 text-[22px]">water_drop</span>
                       <div>
                         <p className="text-[10px] text-pink-500 font-extrabold uppercase tracking-wider">Giai đoạn hiện tại</p>
-                        <p className="text-xl font-extrabold text-slate-900">{PARTNER_PHASE}</p>
+                        <p className="text-xl font-extrabold text-slate-900">{partnerPhase}</p>
                       </div>
                     </div>
                     <span className="text-3xl">
-                      {PARTNER_PHASE === 'Rụng trứng' ? '🌸' : PARTNER_PHASE === 'Kinh nguyệt' ? '🌡️' : '✨'}
+                      {partnerPhase === 'Rụng trứng' ? '🌸' : partnerPhase === 'Kinh nguyệt' ? '🌡️' : '✨'}
                     </span>
                   </div>
 
@@ -245,10 +278,10 @@ export default function MaleDashboardPage() {
                         <span className="material-symbols-outlined text-rose-400 text-[18px]">calendar_month</span>
                         Kỳ kinh tiếp theo
                       </span>
-                      <span className="text-lg font-extrabold text-rose-500">{PARTNER_DAYS_UNTIL_PERIOD} ngày</span>
+                      <span className="text-lg font-extrabold text-rose-500">{partnerDaysUntilPeriod > 0 ? `${partnerDaysUntilPeriod} ngày` : '—'}</span>
                     </div>
                     <div className="h-2.5 bg-rose-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${(PARTNER_DAY / PARTNER_CYCLE_LEN) * 100}%`, background: 'linear-gradient(90deg,#fb7185,#f472b6)' }} />
+                      <div className="h-full rounded-full" style={{ width: `${partnerDay > 0 ? (partnerDay / partnerCycleLen) * 100 : 0}%`, background: 'linear-gradient(90deg,#fb7185,#f472b6)' }} />
                     </div>
                     <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
                       <span>Ngày 1</span>
@@ -422,7 +455,7 @@ export default function MaleDashboardPage() {
                 </select>
               </div>
               <div className="h-36 w-full flex items-end justify-between gap-2 px-2">
-                {ACTIVITY_BARS.map(({ day, h, cls, active }) => (
+                {getActivityBars().map(({ day, h, cls, active }) => (
                   <div key={day} className="flex flex-col items-center gap-2 w-full group cursor-pointer">
                     <div className={`relative w-full bg-gray-100 rounded-t-xl rounded-b-sm h-32 flex items-end overflow-hidden ${active ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}>
                       <div className={`w-full ${cls} transition-colors rounded-t-xl`} style={{ height: h }} />
