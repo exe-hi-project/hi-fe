@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import api from '../lib/api';
+import { ChatMessage } from '../types';
 
 /* ── Helpers ── */
 function getGreeting() {
@@ -54,11 +55,6 @@ const MOOD_OPTIONS = [
   { id: 'stressed',  emoji: '😤', label: 'Căng thẳng',  bg: '#fff7ed', selBg: '#fed7aa', ring: '#fb923c' },
 ] as const;
 
-/* ── AI ── */
-const MALE_AI_INTRO: { role: 'ai' | 'user'; text: string }[] = [
-  { role: 'ai', text: 'Chào anh! Mình là Hi AI 💙 Hôm nay anh cảm thấy thế nào?' },
-  { role: 'ai', text: 'Mình có thể giúp anh hiểu hơn về sức khỏe của bạn đời và cách chăm sóc tốt hơn 💙' },
-];
 const MALE_AI_CHIPS = ['Hôm nay nên làm gì?', 'Tips chăm bạn gái?', 'Bạn gái đang ở phase nào?', 'Cách giảm stress?'];
 
 /* ── Panel component ── */
@@ -94,9 +90,9 @@ function Panel({ open, onClose, title, icon, iconBg, children }: {
 /* ══════════════════════════════════════════════ */
 export default function MaleDashboardPage() {
   const { user } = useAuthStore();
-  if (!user) return <Navigate to="/login" replace />;
+  const queryClient = useQueryClient();
 
-  const firstName = user.name?.split(' ').pop() ?? 'bạn';
+  const firstName = user?.name?.split(' ').pop() ?? 'bạn';
   const greeting = getGreeting();
 
   /* ── Partner cycle query ── */
@@ -106,7 +102,7 @@ export default function MaleDashboardPage() {
       const { data } = await api.get('/users/partner-cycles');
       return data as { success: boolean; cycles: PartnerCycle[]; partner?: { name: string } };
     },
-    enabled: !!user.partnerId,
+    enabled: !!user?.partnerId,
   });
   const partnerCycle = partnerQuery.data?.cycles?.[0] ?? null;
   const partnerInfo  = partnerCycle ? getPartnerCycleInfo(partnerCycle) : null;
@@ -115,7 +111,7 @@ export default function MaleDashboardPage() {
   const partnerDay   = partnerInfo?.cycleDay ?? 0;
   const partnerCycleLen = partnerInfo?.cycleLen ?? 28;
   const partnerDaysUntilPeriod = partnerInfo?.daysUntilPeriod ?? 0;
-  const hasPartner   = !!user.partnerId;
+  const hasPartner   = !!user?.partnerId;
 
   const careTips = getCareTips(partnerPhase);
 
@@ -137,41 +133,32 @@ export default function MaleDashboardPage() {
   const saveMood = () => { setMoodSaved(true); setTimeout(() => { setMoodSaved(false); close(); }, 1500); };
 
   /* ── Chat ── */
-  type MsgRole = 'ai' | 'user';
-  type Msg = { id: number; role: MsgRole; text: string };
-  const [messages, setMessages] = useState<Msg[]>(MALE_AI_INTRO.map((m, i) => ({ ...m, id: i })));
+  const chatQuery = useQuery<ChatMessage[]>({
+    queryKey: ['chat'],
+    queryFn: () => api.get('/chat').then((r) => r.data.messages),
+  });
+  const messages = chatQuery.data ?? [];
   const [chatInput, setChatInput] = useState('');
-  const [aiTyping, setAiTyping] = useState(false);
   const chatBottom = useRef<HTMLDivElement>(null);
-  useEffect(() => { chatBottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, aiTyping]);
+  useEffect(() => { chatBottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const sendChatMutation = useMutation({
+    mutationFn: (content: string) => api.post('/chat', { content }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat'] });
+    },
+  });
 
   const sendMessage = (text = chatInput.trim()) => {
     if (!text) return;
-    setMessages(p => [...p, { id: Date.now(), role: 'user', text }]);
     setChatInput('');
-    setAiTyping(true);
-    setTimeout(() => {
-      const t = text.toLowerCase();
-      let reply = 'Mình đã ghi nhận! Bạn có muốn tìm hiểu thêm không? 💙';
-      if (t.includes('hôm nay') || t.includes('làm gì'))
-        reply = hasPartner && partnerPhase !== '—'
-          ? `Hôm nay ${partnerName} đang ở giai đoạn ${partnerPhase}. ${careTips[1].slice(2)} Hãy dành thời gian chất lượng cho nhau nhé! 💙`
-          : 'Hãy kết nối bạn đời để mình có thể giúp anh tốt hơn nhé! 💙';
-      else if (t.includes('tips') || t.includes('chăm'))
-        reply = `Tips hôm nay: ${careTips.map(t2 => t2.slice(2)).join(', ')}. Sự quan tâm chân thành luôn được đánh giá cao! 🌟`;
-      else if (t.includes('phase') || t.includes('bạn gái') || t.includes('giai đoạn'))
-        reply = hasPartner && partnerDay > 0
-          ? `${partnerName} đang ở Ngày ${partnerDay} — giai đoạn ${partnerPhase}. Kỳ kinh tiếp theo sau ${partnerDaysUntilPeriod} ngày. 📅`
-          : 'Chưa có dữ liệu chu kỳ của bạn đời. Hãy kết nối tài khoản của cô ấy nhé! 💙';
-      else if (t.includes('stress') || t.includes('căng thẳng'))
-        reply = 'Hít thở sâu 4-7-8, đi bộ 15 phút, hoặc nghe nhạc nhẹ. Nếu stress kéo dài hãy chia sẻ với người thân nhé! 🧘';
-      setMessages(p => [...p, { id: Date.now() + 1, role: 'ai', text: reply }]);
-      setAiTyping(false);
-    }, 1200);
+    sendChatMutation.mutate(text);
   };
 
   const circumference = 2 * Math.PI * 40;
   const energyOffset = circumference * (1 - health.energyLevel / 100);
+
+  if (!user) return <Navigate to="/login" replace />;
 
   return (
     <div className="min-h-screen bg-[#f0f7ff] overflow-x-hidden relative font-sans">
@@ -285,7 +272,7 @@ export default function MaleDashboardPage() {
                     </div>
                     <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
                       <span>Ngày 1</span>
-                      <span>Ngày {PARTNER_CYCLE_LEN}</span>
+                      <span>Ngày {partnerCycleLen}</span>
                     </div>
                   </div>
 
@@ -430,9 +417,9 @@ export default function MaleDashboardPage() {
               </div>
               <div className="flex-grow flex flex-col justify-center relative z-10">
                 <p className="text-base font-medium leading-snug mb-4">
-                  {PARTNER_PHASE === 'Rụng trứng'
-                    ? `"Hôm nay ${PARTNER_NAME} đang rất năng động! Đây là lúc tuyệt vời để lên kế hoạch hẹn hò 💙"`
-                    : PARTNER_PHASE === 'Kinh nguyệt'
+                  {partnerPhase === 'Rụng trứng'
+                    ? `"Hôm nay ${partnerName} đang rất năng động! Đây là lúc tuyệt vời để lên kế hoạch hẹn hò 💙"`
+                    : partnerPhase === 'Kinh nguyệt'
                     ? '"Người ấy cần sự quan tâm hơn hôm nay. Một cử chỉ nhỏ cũng có ý nghĩa lớn!"'
                     : '"Duy trì thói quen tốt và dành thời gian chất lượng với người ấy!"'}
                 </p>
@@ -471,7 +458,7 @@ export default function MaleDashboardPage() {
               <div className="flex justify-between items-center mb-5">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <span className="material-symbols-outlined text-blue-500 text-[22px]">calendar_month</span>
-                  Chu kỳ của {PARTNER_NAME} — Tháng 3
+                  Chu kỳ của {partnerName} — Tháng 3
                 </h3>
                 <Link to="/male-settings/notifications" className="text-xs font-bold text-slate-500 hover:text-blue-500 transition-colors">Cài đặt</Link>
               </div>
@@ -480,7 +467,7 @@ export default function MaleDashboardPage() {
                   <div key={i} className="text-[10px] uppercase font-bold text-slate-400 mb-2">{d}</div>
                 ))}
                 {[10, 11, 12, 13, 14, 15, 16].map(d => {
-                  const isToday = d === PARTNER_DAY;
+                  const isToday = d === partnerDay;
                   const isOvul = d >= 13 && d <= 16;
                   return (
                     <div key={d}
@@ -782,7 +769,7 @@ export default function MaleDashboardPage() {
             </div>
             <div className="text-right">
               <p className="text-[10px] text-slate-400 font-medium">Người ấy</p>
-              <p className="text-[10px] font-bold text-pink-400">{PARTNER_PHASE} · Ngày {PARTNER_DAY}</p>
+              <p className="text-[10px] font-bold text-pink-400">{partnerPhase} · Ngày {partnerDay}</p>
             </div>
           </div>
 
@@ -799,9 +786,18 @@ export default function MaleDashboardPage() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 min-h-0" style={{ background: 'linear-gradient(160deg,#f8fbff 0%,#eef2ff 100%)' }}>
+            {messages.length === 0 && !sendChatMutation.isPending && (
+              <div className="h-full flex flex-col items-center justify-center text-center px-6">
+                <div className="w-12 h-12 rounded-2xl mb-3 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>
+                  <span className="material-symbols-outlined text-white text-[22px]">auto_awesome</span>
+                </div>
+                <p className="font-extrabold text-slate-800">Bắt đầu trò chuyện với Hi AI</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs">Tin nhắn sẽ được lấy từ hệ thống AI và lưu vào lịch sử thật của bạn.</p>
+              </div>
+            )}
             {messages.map(msg => (
-              <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === 'ai' && (
+              <div key={msg._id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {msg.role === 'assistant' && (
                   <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm" style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>
                     <span className="material-symbols-outlined text-white text-[15px]">auto_awesome</span>
                   </div>
@@ -814,7 +810,7 @@ export default function MaleDashboardPage() {
                     background: 'linear-gradient(135deg,#eff6ff,#e0e7ff)', color: '#1e3a8a',
                     borderBottomLeftRadius: 4, boxShadow: '0 4px 14px rgba(59,130,246,0.12)',
                   }}>
-                  {msg.text}
+                  {msg.content}
                 </div>
                 {msg.role === 'user' && (
                   <div className="w-8 h-8 rounded-xl bg-blue-100 flex-shrink-0 flex items-center justify-center border border-blue-200">
@@ -823,7 +819,7 @@ export default function MaleDashboardPage() {
                 )}
               </div>
             ))}
-            {aiTyping && (
+            {sendChatMutation.isPending && (
               <div className="flex items-end gap-2">
                 <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm" style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>
                   <span className="material-symbols-outlined text-white text-[15px]">auto_awesome</span>

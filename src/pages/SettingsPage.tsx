@@ -132,15 +132,25 @@ function AITab() {
 function PartnerTab() {
   const { user, setUser } = useAuthStore();
   const [code, setCode] = useState('');
+  const refreshProfile = async () => {
+    const { data } = await api.get('/users/profile');
+    return data.user;
+  };
 
   const { mutate: connect, isPending: connecting } = useMutation({
-    mutationFn: () => api.post('/users/connect-partner', { partnerCode: code }).then((r) => r.data.user),
+    mutationFn: async () => {
+      await api.post('/users/connect-partner', { partnerCode: code });
+      return refreshProfile();
+    },
     onSuccess: (u) => { setUser(u); toast.success('Kết nối thành công! 💑'); setCode(''); },
     onError: () => toast.error('Mã kết nối không đúng hoặc đã hết hạn'),
   });
 
   const { mutate: disconnect, isPending: disconnecting } = useMutation({
-    mutationFn: () => api.post('/users/disconnect-partner').then((r) => r.data.user),
+    mutationFn: async () => {
+      await api.delete('/users/disconnect-partner');
+      return refreshProfile();
+    },
     onSuccess: (u) => { setUser(u); toast.success('Đã ngắt kết nối'); },
   });
 

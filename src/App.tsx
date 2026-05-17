@@ -50,6 +50,13 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function OnboardingRoute({ children }: { children: React.ReactNode }) {
+  const { token, user } = useAuthStore();
+  if (!token) return <Navigate to="/login" replace />;
+  if (user?.onboardingCompleted) return <Navigate to={authDest(user)} replace />;
+  return <>{children}</>;
+}
+
 function HomeRoute() {
   const { token, user } = useAuthStore();
   if (token) return <Navigate to={authDest(user)} replace />;
@@ -69,7 +76,7 @@ export default function App() {
       <Route path="/" element={<HomeRoute />} />
       <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
-      <Route path="/onboarding" element={<OnboardingPage />} />
+      <Route path="/onboarding" element={<OnboardingRoute><OnboardingPage /></OnboardingRoute>} />
       {/* Female dashboard — standalone (no sidebar Layout) */}
       <Route path="/female-dashboard" element={<UserOnlyRoute><ProtectedRoute><FemaleDashboardPage /></ProtectedRoute></UserOnlyRoute>} />
       {/* Standalone pages for female users */}

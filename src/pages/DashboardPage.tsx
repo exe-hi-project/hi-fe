@@ -10,7 +10,7 @@ function MaleDashboard() {
   const { user } = useAuthStore();
   const { data: partnerData, isLoading } = useQuery({
     queryKey: ['partnerCycles'],
-    queryFn: () => api.get('/users/partner/cycles').then((r) => r.data).catch(() => null),
+    queryFn: () => api.get('/users/partner-cycles').then((r) => r.data).catch(() => null),
     enabled: !!user?.partnerId,
   });
 

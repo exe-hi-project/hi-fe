@@ -20,6 +20,42 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
+function loadFacebookSdk() {
+  const appId = import.meta.env.VITE_FACEBOOK_APP_ID;
+  if (!appId) return Promise.reject(new Error('Thiếu VITE_FACEBOOK_APP_ID'));
+  if (window.FB) return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    const existingScript = document.getElementById('facebook-jssdk');
+    const timeout = window.setTimeout(() => reject(new Error('Facebook SDK tải quá lâu')), 10000);
+
+    (window as any).fbAsyncInit = () => {
+      window.clearTimeout(timeout);
+      window.FB.init({
+        appId,
+        cookie: true,
+        xfbml: false,
+        version: 'v19.0',
+      });
+      resolve();
+    };
+
+    if (existingScript) return;
+
+    const script = document.createElement('script');
+    script.id = 'facebook-jssdk';
+    script.async = true;
+    script.defer = true;
+    script.crossOrigin = 'anonymous';
+    script.src = 'https://connect.facebook.net/vi_VN/sdk.js';
+    script.onerror = () => {
+      window.clearTimeout(timeout);
+      reject(new Error('Không thể tải Facebook SDK'));
+    };
+    document.body.appendChild(script);
+  });
+}
+
 function getStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: '' };
   let score = 0;
@@ -65,8 +101,13 @@ export default function RegisterPage() {
     onError: () => toast.error('Đăng nhập Google thất bại'),
   });
 
-  const handleFacebookLogin = () => {
-    if (!window.FB) return toast.error('Facebook SDK chưa tải xong');
+  const handleFacebookLogin = async () => {
+    try {
+      await loadFacebookSdk();
+    } catch (err: any) {
+      return toast.error(err.message);
+    }
+
     window.FB.login((response) => {
       if (response.authResponse) {
         const { accessToken, userID } = response.authResponse;
@@ -84,16 +125,16 @@ export default function RegisterPage() {
 
   const slides = [
     {
-      topCard: { icon: 'calendar_month', label: 'Chu kỳ dự kiến', value: '28 Ngày' },
-      bottomCard: { icon: 'auto_awesome', text: '"Hôm nay hãy uống nhiều nước ấm nhé!"' },
+      topCard: { icon: 'calendar_month', label: 'Theo dõi chu kỳ', value: 'Cá nhân hóa' },
+      bottomCard: { icon: 'auto_awesome', text: 'Gợi ý dựa trên dữ liệu sức khỏe thật của bạn' },
     },
     {
-      topCard: { icon: 'mood', label: 'Tâm trạng hôm nay', value: 'Tốt 😊' },
-      bottomCard: { icon: 'spa', text: '"Thư giãn 10 phút, cơ thể sẽ cảm ơn bạn!"' },
+      topCard: { icon: 'mood', label: 'Triệu chứng', value: 'Ghi nhận' },
+      bottomCard: { icon: 'spa', text: 'Theo dõi cảm giác cơ thể theo từng ngày' },
     },
     {
-      topCard: { icon: 'directions_walk', label: 'Bước đi hôm nay', value: '6,420' },
-      bottomCard: { icon: 'favorite', text: '"Vận động nhẹ giúp cải thiện tâm trạng!"' },
+      topCard: { icon: 'favorite', label: 'Bạn đời', value: 'Kết nối' },
+      bottomCard: { icon: 'favorite', text: 'Chia sẻ thông tin khi bạn chủ động cho phép' },
     },
   ];
 

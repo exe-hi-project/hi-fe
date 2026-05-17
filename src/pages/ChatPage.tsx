@@ -13,13 +13,13 @@ export default function ChatPage() {
 
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({
     queryKey: ['chat'],
-    queryFn: () => api.get('/chat/history').then((r) => r.data.messages),
+    queryFn: () => api.get('/chat').then((r) => r.data.messages),
   });
 
   const { mutate: sendMessage, isPending } = useMutation({
-    mutationFn: (content: string) => api.post('/chat/send', { message: content }).then((r) => r.data),
-    onSuccess: (data) => {
-      qc.setQueryData<ChatMessage[]>(['chat'], (old = []) => [...old, data.userMessage, data.aiMessage]);
+    mutationFn: (content: string) => api.post('/chat', { content }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['chat'] });
     },
   });
 
