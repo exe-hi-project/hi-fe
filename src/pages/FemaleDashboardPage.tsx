@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import api from '../lib/api';
@@ -186,9 +187,38 @@ export default function FemaleDashboardPage() {
   const toggleSymptom = (id: string) => {
     setSelectedSymptoms(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
+
+  const saveSymptomsMutation = useMutation({
+    mutationFn: async () => {
+      const selected = SYMPTOMS_LIST.filter((symptom) => selectedSymptoms.has(symptom.id));
+      if (selected.length === 0) {
+        throw new Error('Hãy chọn ít nhất 1 triệu chứng');
+      }
+
+      const payloads = selected.map((symptom) => ({
+        name: symptom.label,
+        severity: flow,
+        date: new Date().toISOString(),
+        notes: symptomNote.trim(),
+      }));
+
+      await Promise.all(payloads.map((payload) => api.post('/symptoms', payload)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['symptoms'] });
+      setSymptomSaved(true);
+      setSelectedSymptoms(new Set());
+      setFlow(2);
+      setSymptomNote('');
+      setTimeout(() => { setSymptomSaved(false); close(); }, 1000);
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Lưu triệu chứng thất bại');
+    },
+  });
+
   const saveSymptoms = () => {
-    setSymptomSaved(true);
-    setTimeout(() => { setSymptomSaved(false); close(); }, 1000);
+    saveSymptomsMutation.mutate();
   };
 
   /* ── Chat state ── */
