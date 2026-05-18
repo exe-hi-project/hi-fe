@@ -13,6 +13,7 @@ interface FBLoginResponse {
 declare global {
   interface Window {
     FB: {
+      init: (options: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void;
       login: (callback: (response: FBLoginResponse) => void, options?: { scope: string }) => void;
       getLoginStatus: (callback: (response: FBLoginResponse) => void) => void;
     };

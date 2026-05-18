@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, CardTitle } from '../components/ui/Card';
@@ -78,62 +78,6 @@ interface AdminUser {
 
 const PAGE_SIZE = 10;
 
-const MOCK_OVERVIEW: AdminOverview = {
-  usersTotal: 1248,
-  usersFemale: 932,
-  usersMale: 301,
-  adminsTotal: 6,
-  cyclesTotal: 4180,
-  symptomsTotal: 10922,
-  notificationsTotal: 25670,
-  unreadNotifications: 182,
-  chatMessagesTotal: 48392,
-};
-
-const MOCK_FINANCIAL_REPORT: AdminFinancialReport = {
-  estimatedPaidUsers: 187,
-  estimatedMrrUsd: 933.13,
-  estimatedAiCostMonthlyUsd: 141.27,
-  infraCostUsd: 60,
-  estimatedGrossProfitUsd: 731.86,
-  estimatedGrossMarginPct: 78.43,
-  arpuUsd: 4.99,
-  monthlyChurnRatePct: 4.2,
-  estimatedLtvUsd: 118.81,
-  assumptions: {
-    paidUserRate: 15,
-    avgMessagesPerConversation: 10,
-    avgTokensPerConversation: 800,
-    aiCostPer1kTokens: 0.005,
-  },
-};
-
-const MOCK_MONTHLY_FINANCIALS: MonthlyFinancialItem[] = [
-  { month: '10/2025', newUsers: 121, chatMessages: 4210, revenueUsd: 89.82, aiCostUsd: 16.84, netUsd: 72.98 },
-  { month: '11/2025', newUsers: 137, chatMessages: 4825, revenueUsd: 99.80, aiCostUsd: 19.30, netUsd: 80.50 },
-  { month: '12/2025', newUsers: 154, chatMessages: 5390, revenueUsd: 114.77, aiCostUsd: 21.56, netUsd: 93.21 },
-  { month: '01/2026', newUsers: 168, chatMessages: 6120, revenueUsd: 124.75, aiCostUsd: 24.48, netUsd: 100.27 },
-  { month: '02/2026', newUsers: 182, chatMessages: 6830, revenueUsd: 134.73, aiCostUsd: 27.32, netUsd: 107.41 },
-  { month: '03/2026', newUsers: 201, chatMessages: 7450, revenueUsd: 149.70, aiCostUsd: 29.80, netUsd: 119.90 },
-];
-
-const MOCK_RECENT_USERS: AdminUser[] = [
-  { _id: 'm1', name: 'Nguyễn Minh Thy', email: 'thy@gmail.com', gender: 'female', role: 'admin', onboardingCompleted: true, createdAt: '2026-03-11T15:09:42.704Z' },
-  { _id: 'm2', name: 'Trần Hoàng Nam', email: 'nam@gmail.com', gender: 'male', role: 'user', onboardingCompleted: true, createdAt: '2026-03-12T09:22:12.000Z' },
-  { _id: 'm3', name: 'Lê Bảo An', email: 'baoan@gmail.com', gender: 'female', role: 'user', onboardingCompleted: true, createdAt: '2026-03-13T12:31:45.000Z' },
-  { _id: 'm4', name: 'Phạm Gia Hân', email: 'giahann@gmail.com', gender: 'female', role: 'user', onboardingCompleted: false, createdAt: '2026-03-14T08:05:22.000Z' },
-  { _id: 'm5', name: 'Đỗ Quang Huy', email: 'quanghuy@gmail.com', gender: 'male', role: 'user', onboardingCompleted: true, createdAt: '2026-03-15T06:10:09.000Z' },
-];
-
-const MOCK_USERS_PAGE: AdminUser[] = [
-  ...MOCK_RECENT_USERS,
-  { _id: 'm6', name: 'Vũ Đức Mạnh', email: 'ducmanh@gmail.com', gender: 'male', role: 'user', onboardingCompleted: true, createdAt: '2026-03-15T05:02:01.000Z' },
-  { _id: 'm7', name: 'Ngô Khánh Linh', email: 'khanhlinh@gmail.com', gender: 'female', role: 'user', onboardingCompleted: true, createdAt: '2026-03-15T03:43:10.000Z' },
-  { _id: 'm8', name: 'Bùi Minh Khang', email: 'minhkhang@gmail.com', gender: 'male', role: 'admin', onboardingCompleted: true, createdAt: '2026-03-15T02:17:40.000Z' },
-  { _id: 'm9', name: 'Phan Gia Linh', email: 'gialinh@gmail.com', gender: 'female', role: 'user', onboardingCompleted: false, createdAt: '2026-03-14T23:11:30.000Z' },
-  { _id: 'm10', name: 'Đặng Tuấn Kiệt', email: 'tuankiet@gmail.com', gender: 'male', role: 'user', onboardingCompleted: true, createdAt: '2026-03-14T22:01:17.000Z' },
-];
-
 export default function AdminPage() {
   const queryClient = useQueryClient();
   const [q, setQ] = useState('');
@@ -142,14 +86,6 @@ export default function AdminPage() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male' | 'other'>('all');
   const [page, setPage] = useState(1);
   const [chartRange, setChartRange] = useState<3 | 6>(6);
-  const [demoMode, setDemoMode] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('admin-demo-mode') === 'true';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('admin-demo-mode', String(demoMode));
-  }, [demoMode]);
 
   const usersQueryKey = useMemo(
     () => ['admin-users', { q, roleFilter, genderFilter, page }],
@@ -205,23 +141,12 @@ export default function AdminPage() {
     },
   });
 
-  const stats = overviewQuery.data?.overview;
-  const financial = overviewQuery.data?.financialReport;
-  const monthlyFinancials = overviewQuery.data?.monthlyFinancials || [];
-  const recentUsers = overviewQuery.data?.recentUsers || [];
-  const users = usersQuery.data?.items || [];
-  const pagination = usersQuery.data?.pagination;
-
-  const useMockData = demoMode || overviewQuery.isError || usersQuery.isError;
-
-  const displayStats = useMockData ? MOCK_OVERVIEW : stats;
-  const displayFinancial = useMockData ? MOCK_FINANCIAL_REPORT : financial;
-  const displayMonthlyFinancials = useMockData ? MOCK_MONTHLY_FINANCIALS : monthlyFinancials;
-  const displayRecentUsers = useMockData ? MOCK_RECENT_USERS : recentUsers;
-  const displayUsers = useMockData ? MOCK_USERS_PAGE : users;
-  const displayPagination = useMockData
-    ? { page: 1, totalPages: 1, total: MOCK_USERS_PAGE.length }
-    : pagination;
+  const displayStats = overviewQuery.data?.overview;
+  const displayFinancial = overviewQuery.data?.financialReport;
+  const displayMonthlyFinancials = overviewQuery.data?.monthlyFinancials || [];
+  const displayRecentUsers = overviewQuery.data?.recentUsers || [];
+  const displayUsers = usersQuery.data?.items || [];
+  const displayPagination = usersQuery.data?.pagination;
 
   const onSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -260,21 +185,6 @@ export default function AdminPage() {
             <Badge variant="info">Users: {displayStats?.usersTotal ?? 0}</Badge>
             <Badge variant="warning">Admins: {displayStats?.adminsTotal ?? 0}</Badge>
             <Badge variant="success">MRR: ${displayFinancial?.estimatedMrrUsd ?? 0}</Badge>
-            <button
-              type="button"
-              onClick={() => setDemoMode((value) => !value)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
-                demoMode
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${demoMode ? 'bg-emerald-500' : 'bg-gray-300'}`}
-              />
-              Demo mode {demoMode ? 'ON' : 'OFF'}
-            </button>
-            {useMockData && <Badge variant="gray">Dữ liệu demo</Badge>}
           </div>
         </div>
       </div>
@@ -665,7 +575,7 @@ export default function AdminPage() {
                     <Button
                       variant={user.role === 'admin' ? 'ghost' : 'secondary'}
                       size="sm"
-                      disabled={useMockData}
+                      disabled={false}
                       loading={updateRoleMutation.isPending && updateRoleMutation.variables?.userId === user._id}
                       onClick={() => updateRoleMutation.mutate({ userId: user._id, role: user.role === 'admin' ? 'user' : 'admin' })}
                     >
@@ -683,7 +593,7 @@ export default function AdminPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={useMockData || !displayPagination || displayPagination.page <= 1}
+                    disabled={!displayPagination || displayPagination.page <= 1}
                     onClick={() => setPage((current) => Math.max(current - 1, 1))}
                   >
                     Trước
@@ -691,7 +601,7 @@ export default function AdminPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={useMockData || !displayPagination || displayPagination.page >= displayPagination.totalPages}
+                    disabled={!displayPagination || displayPagination.page >= displayPagination.totalPages}
                     onClick={() => setPage((current) => current + 1)}
                   >
                     Sau

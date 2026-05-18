@@ -1,12 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
+import api from '../lib/api';
+import { ChatMessage } from '../types';
 
 /* ─── types & helpers ───────────────────────────────── */
-interface FakeCycle { startDate: string; cycleLength: number; periodLength: number; }
+interface CycleData { _id?: string; startDate: string; cycleLength: number; periodLength: number; }
 
-function getCycleInfo(cycle: FakeCycle) {
+function getCycleInfo(cycle: CycleData) {
   const today = new Date();
   const start = new Date(cycle.startDate);
   const cycleDay = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1);
@@ -28,15 +32,16 @@ function getGreeting() {
 }
 
 /* ─── static data ───────────────────────────────────── */
-const EMOTION_BARS = [
-  { day: 'T2',      h: '40%', cls: 'bg-purple-200', active: false },
-  { day: 'T3',      h: '60%', cls: 'bg-purple-300', active: false },
-  { day: 'T4',      h: '50%', cls: 'bg-purple-200', active: false },
-  { day: 'Hôm\nnay',h: '90%', cls: 'bg-pink-400',   active: true  },
-  { day: 'T6',      h: '0%',  cls: 'bg-gray-200',   active: false },
-  { day: 'T7',      h: '0%',  cls: 'bg-gray-200',   active: false },
-  { day: 'CN',      h: '0%',  cls: 'bg-gray-200',   active: false },
-];
+function getWeekBars() {
+  const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const todayIndex = (new Date().getDay() + 6) % 7;
+  return days.map((day, i) => ({
+    day,
+    h: i === todayIndex ? '70%' : i < todayIndex ? '20%' : '0%',
+    cls: i === todayIndex ? 'bg-pink-400' : i < todayIndex ? 'bg-purple-200' : 'bg-gray-100',
+    active: i === todayIndex,
+  }));
+}
 
 const SYMPTOMS_LIST = [
   { id: 'cramps',   emoji: '😣', label: 'Đau bụng', bg: '#fce7f3', selFrom: '#fb7185', selTo: '#f472b6' },
@@ -48,23 +53,6 @@ const SYMPTOMS_LIST = [
   { id: 'tender',   emoji: '💛', label: 'Ngực đau',  bg: '#fef9c3', selFrom: '#facc15', selTo: '#eab308' },
   { id: 'nausea',   emoji: '🤢', label: 'Buồn nôn',  bg: '#dcfce7', selFrom: '#4ade80', selTo: '#22c55e' },
   { id: 'insomnia', emoji: '🌙', label: 'Mất ngủ',   bg: '#e0e7ff', selFrom: '#818cf8', selTo: '#6366f1' },
-];
-
-const AI_INTRO: { role: 'ai' | 'user'; text: string; product?: { image: string; name: string; price: string; desc: string; shopeeUrl: string } }[] = [
-  { role: 'ai' as const, text: 'Xin chào! Mình là Hi AI 🌸 Hôm nay bạn cảm thấy thế nào?' },
-  { role: 'ai' as const, text: 'Bạn đang ở giai đoạn Rụng trứng — đây là giai đoạn năng lượng cao nhất! Hãy hỏi mình bất cứ điều gì về chu kỳ của bạn nhé 💕' },
-  { role: 'user' as const, text: 'Bụng mình đang đau quá 😢 có cách nào giảm đau không?' },
-  {
-    role: 'ai' as const,
-    text: 'Mình hiểu cảm giác đó rồi 💕 Đau bụng kinh là điều rất bình thường. Một trong những cách hiệu quả nhất là dùng túi chườm ấm — nhiệt giúp giãn cơ tử cung và giảm đau nhanh chóng. Mình tìm được sản phẩm này trên Shopee cho bạn nè! 🛍️',
-    product: {
-      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&h=240&fit=crop',
-      name: 'Túi Chườm Ấm Điện Thông Minh – Giảm Đau Bụng Kinh',
-      price: '₫189.000',
-      desc: 'Nhiệt ổn định 3 mức · Vỏ nhung siêu mềm · Pin sạc USB · Tự ngắt an toàn',
-      shopeeUrl: 'https://shopee.vn/search?keyword=t%C3%BAi+ch%C6%B0%E1%BB%9Dm+%E1%BA%A5m+gi%E1%BA%A3m+%C4%91au+b%E1%BB%A5ng+kinh',
-    },
-  },
 ];
 
 const AI_CHIPS = ['Hôm nay nên ăn gì?', 'Tại sao tôi hay cáu?', '😣 Giảm đau bụng ngay?', 'Khi nào kỳ kinh tới?'];
@@ -114,20 +102,29 @@ function Panel({ open, onClose, title, icon, iconBg, children }: {
 /* ─── Main component ─────────────────────────────────── */
 export default function FemaleDashboardPage() {
   const { user } = useAuthStore();
-  if (user?.gender !== 'female') return <Navigate to="/dashboard" replace />;
 
   const firstName = user?.name?.split(' ').pop() ?? 'bạn';
   const greeting  = getGreeting();
 
-  /* ── Cycle state ── */
-  const [cycle, setCycle] = useState<FakeCycle>({
-    startDate: new Date(Date.now() - 13 * 86_400_000).toISOString(),
-    cycleLength: 28,
-    periodLength: 5,
+  /* ── Cycle query ── */
+  const queryClient = useQueryClient();
+  const cycleQuery = useQuery({
+    queryKey: ['cycles'],
+    queryFn: async () => {
+      const { data } = await api.get('/cycles');
+      return data as { success: boolean; cycles: CycleData[] };
+    },
   });
-  const { cycleDay, phase, daysUntilPeriod, fertilityPct, cycleLen } = getCycleInfo(cycle);
+  const latestCycle = cycleQuery.data?.cycles?.[0] ?? null;
+  const cycleInfo = latestCycle ? getCycleInfo(latestCycle) : null;
+  const cycleDay       = cycleInfo?.cycleDay       ?? 0;
+  const phase          = cycleInfo?.phase          ?? '—';
+  const daysUntilPeriod = cycleInfo?.daysUntilPeriod ?? 0;
+  const fertilityPct   = cycleInfo?.fertilityPct   ?? 0;
+  const cycleLen       = cycleInfo?.cycleLen       ?? 28;
+
   const circumference = 251.2;
-  const dashoffset = circumference - (cycleDay / cycleLen) * circumference;
+  const dashoffset = circumference - (latestCycle ? (cycleDay / cycleLen) * circumference : circumference);
   const today = new Date();
   const monthLabel = today.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 
@@ -137,18 +134,49 @@ export default function FemaleDashboardPage() {
   const close = () => setPanel(null);
 
   /* ── Cycle editor state ── */
-  const [editStart, setEditStart] = useState(cycle.startDate.slice(0, 10));
-  const [editLen, setEditLen] = useState(cycle.cycleLength);
-  const [editPeriodLen, setEditPeriodLen] = useState(cycle.periodLength);
+  const [editStart, setEditStart] = useState('');
+  const [editLen, setEditLen] = useState(28);
+  const [editPeriodLen, setEditPeriodLen] = useState(5);
   const [cycleSaved, setCycleSaved] = useState(false);
-  const [editCalYear, setEditCalYear] = useState(new Date(cycle.startDate).getFullYear());
-  const [editCalMonth, setEditCalMonth] = useState(new Date(cycle.startDate).getMonth());
+  const [editCalYear, setEditCalYear] = useState(today.getFullYear());
+  const [editCalMonth, setEditCalMonth] = useState(today.getMonth());
+
+  useEffect(() => {
+    if (latestCycle) {
+      setEditStart(latestCycle.startDate.slice(0, 10));
+      setEditLen(latestCycle.cycleLength ?? 28);
+      setEditPeriodLen(latestCycle.periodLength ?? 5);
+      const d = new Date(latestCycle.startDate);
+      setEditCalYear(d.getFullYear());
+      setEditCalMonth(d.getMonth());
+    }
+  }, [latestCycle?._id]);
+
   const editPrevMonth = () => { if (editCalMonth === 0) { setEditCalMonth(11); setEditCalYear(y => y - 1); } else setEditCalMonth(m => m - 1); };
   const editNextMonth = () => { if (editCalMonth === 11) { setEditCalMonth(0); setEditCalYear(y => y + 1); } else setEditCalMonth(m => m + 1); };
+
+  const saveCycleMutation = useMutation({
+    mutationFn: async (payload: { startDate: string; cycleLength: number; periodLength: number }) => {
+      if (latestCycle?._id) {
+        const { data } = await api.put(`/cycles/${latestCycle._id}`, payload);
+        return data;
+      }
+      const { data } = await api.post('/cycles', payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cycles'] });
+      setCycleSaved(true);
+      setTimeout(() => { setCycleSaved(false); close(); }, 1000);
+    },
+  });
+
   const saveCycle = () => {
-    setCycle({ startDate: new Date(editStart).toISOString(), cycleLength: editLen, periodLength: editPeriodLen });
-    setCycleSaved(true);
-    setTimeout(() => { setCycleSaved(false); close(); }, 1000);
+    saveCycleMutation.mutate({
+      startDate: new Date(editStart).toISOString(),
+      cycleLength: editLen,
+      periodLength: editPeriodLen,
+    });
   };
 
   /* ── Symptom state ── */
@@ -159,45 +187,66 @@ export default function FemaleDashboardPage() {
   const toggleSymptom = (id: string) => {
     setSelectedSymptoms(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
+
+  const saveSymptomsMutation = useMutation({
+    mutationFn: async () => {
+      const selected = SYMPTOMS_LIST.filter((symptom) => selectedSymptoms.has(symptom.id));
+      if (selected.length === 0) {
+        throw new Error('Hãy chọn ít nhất 1 triệu chứng');
+      }
+
+      const payloads = selected.map((symptom) => ({
+        name: symptom.label,
+        severity: flow,
+        date: new Date().toISOString(),
+        notes: symptomNote.trim(),
+      }));
+
+      await Promise.all(payloads.map((payload) => api.post('/symptoms', payload)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['symptoms'] });
+      setSymptomSaved(true);
+      setSelectedSymptoms(new Set());
+      setFlow(2);
+      setSymptomNote('');
+      setTimeout(() => { setSymptomSaved(false); close(); }, 1000);
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Lưu triệu chứng thất bại');
+    },
+  });
+
   const saveSymptoms = () => {
-    setSymptomSaved(true);
-    setTimeout(() => { setSymptomSaved(false); close(); }, 1000);
+    saveSymptomsMutation.mutate();
   };
 
   /* ── Chat state ── */
-  type MsgRole = 'ai' | 'user';
-  type ProductCard = { image: string; name: string; price: string; desc: string; shopeeUrl: string };
-  type Msg = { id: number; role: MsgRole; text: string; product?: ProductCard };
-  const [messages, setMessages] = useState<Msg[]>(AI_INTRO.map((m, i) => ({ ...m, id: i })));
+  const chatQuery = useQuery<ChatMessage[]>({
+    queryKey: ['chat'],
+    queryFn: () => api.get('/chat').then((r) => r.data.messages),
+  });
+  const messages = chatQuery.data ?? [];
   const [chatInput, setChatInput] = useState('');
-  const [aiTyping, setAiTyping] = useState(false);
   const chatBottom = useRef<HTMLDivElement>(null);
-  useEffect(() => { chatBottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, aiTyping]);
+  useEffect(() => { chatBottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const sendChatMutation = useMutation({
+    mutationFn: (content: string) => api.post('/chat', { content }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat'] });
+    },
+  });
 
   const sendMessage = (text = chatInput.trim()) => {
     if (!text) return;
-    setMessages(p => [...p, { id: Date.now(), role: 'user', text }]);
     setChatInput('');
-    setAiTyping(true);
-    setTimeout(() => {
-      const t = text.toLowerCase();
-      let reply = 'Mình đã ghi nhận! Bạn có muốn tìm hiểu thêm về sức khỏe của mình không? 💕';
-      if (t.includes('ăn') || t.includes('thực phẩm') || t.includes('dinh dưỡng'))
-        reply = `Trong giai đoạn ${phase}, bạn nên ăn: rau lá xanh đậm (spinach, kale), cá hồi giàu omega-3, và uống đủ 2L nước mỗi ngày. 🥗`;
-      else if (t.includes('cáu') || t.includes('cảm xúc') || t.includes('tâm trạng'))
-        reply = 'Sự thay đổi cảm xúc trong giai đoạn này là hoàn toàn bình thường! Progesterone giảm làm tâm trạng nhạy cảm hơn. Thử hít thở sâu và đi dạo 15 phút nhé 🌸';
-      else if (t.includes('kinh') || t.includes('kỳ'))
-        reply = `Kỳ kinh tiếp theo của bạn dự kiến sau ${daysUntilPeriod <= 0 ? 'hôm nay' : `${daysUntilPeriod} ngày`}. Giai đoạn hiện tại: ${phase}. 📅`;
-      else if (t.includes('rụng trứng') || t.includes('thụ thai'))
-        reply = `Khả năng thụ thai của bạn hiện ở mức ${fertilityPct >= 80 ? 'Rất cao' : fertilityPct >= 40 ? 'Trung bình' : 'Thấp'} (${fertilityPct}%). ${fertilityPct >= 80 ? 'Đây là thời điểm thích hợp nếu bạn đang lên kế hoạch có con!' : ''} 💫`;
-      else if (t.includes('đau') || t.includes('mệt') || t.includes('triệu chứng'))
-        reply = 'Đau và mệt mỏi có thể do biến động nội tiết tố. Hãy nghỉ ngơi đủ giấc, dùng túi chườm ấm và tránh caffeine. Nếu đau kéo dài hãy gặp bác sĩ nhé! 🩺';
-      setMessages(p => [...p, { id: Date.now() + 1, role: 'ai', text: reply }]);
-      setAiTyping(false);
-    }, 1200);
+    sendChatMutation.mutate(text);
   };
 
-  const hasPartner = true;
+  const hasPartner = !!user?.partnerId;
+
+  if (user?.gender !== 'female') return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="min-h-screen bg-[#f8f6f7] overflow-x-hidden relative font-sans">
@@ -479,7 +528,7 @@ export default function FemaleDashboardPage() {
                 </select>
               </div>
               <div className="h-36 w-full flex items-end justify-between gap-2 px-2">
-                {EMOTION_BARS.map(({ day, h, cls, active }) => (
+                {getWeekBars().map(({ day, h, cls, active }) => (
                   <div key={day} className="flex flex-col items-center gap-2 w-full group cursor-pointer">
                     <div
                       className={`relative w-full bg-gray-100 rounded-t-xl rounded-b-sm h-32 flex items-end overflow-hidden ${
@@ -1116,9 +1165,18 @@ export default function FemaleDashboardPage() {
             className="flex-1 overflow-y-auto px-4 py-5 space-y-4 min-h-0"
             style={{ background: 'linear-gradient(160deg,#fff9fb 0%,#f8f4ff 100%)' }}
           >
+            {messages.length === 0 && !sendChatMutation.isPending && (
+              <div className="h-full flex flex-col items-center justify-center text-center px-6">
+                <div className="w-12 h-12 rounded-2xl mb-3 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}>
+                  <span className="material-symbols-outlined text-white text-[22px]">auto_awesome</span>
+                </div>
+                <p className="font-extrabold text-slate-800">Bắt đầu trò chuyện với Hi AI</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs">Tin nhắn sẽ được lấy từ hệ thống AI và lưu vào lịch sử thật của bạn.</p>
+              </div>
+            )}
             {messages.map(msg => (
-              <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === 'ai' && (
+              <div key={msg._id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {msg.role === 'assistant' && (
                   <div
                     className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm"
                     style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}
@@ -1140,32 +1198,7 @@ export default function FemaleDashboardPage() {
                     boxShadow: '0 4px 14px rgba(244,114,182,0.15)',
                   }}
                 >
-                  {msg.text}
-                  {msg.product && (
-                    <div className="mt-3 rounded-2xl overflow-hidden border border-pink-100 bg-white shadow-md">
-                      <img
-                        src={msg.product.image}
-                        alt={msg.product.name}
-                        className="w-full h-36 object-cover"
-                      />
-                      <div className="p-3">
-                        <p className="font-bold text-slate-800 text-sm leading-snug mb-1">{msg.product.name}</p>
-                        <p className="text-xs text-slate-500 mb-2">{msg.product.desc}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-lg font-extrabold text-rose-500">{msg.product.price}</span>
-                          <a
-                            href={msg.product.shopeeUrl}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 active:opacity-80"
-                            style={{ background: 'linear-gradient(135deg,#f97316,#ee4d2d)' }}
-                          >
-                            🛒 Mua trên Shopee
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {msg.content}
                 </div>
                 {msg.role === 'user' && (
                   <div className="w-8 h-8 rounded-xl bg-violet-100 flex-shrink-0 flex items-center justify-center border border-violet-200">
@@ -1175,7 +1208,7 @@ export default function FemaleDashboardPage() {
               </div>
             ))}
 
-            {aiTyping && (
+            {sendChatMutation.isPending && (
               <div className="flex items-end gap-2">
                 <div
                   className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm"
