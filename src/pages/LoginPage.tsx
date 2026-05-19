@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,9 +10,16 @@ import HiLogo from '../components/ui/HiLogo';
 
 const schema = z.object({
   email: z.string().email('Email không hợp lệ'),
-  password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+  password: z.string().min(8, 'Mật khẩu tối thiểu 8 ký tự'),
 });
 type FormData = z.infer<typeof schema>;
+
+function getSafeNextPath(search: string, fallback: string) {
+  const next = new URLSearchParams(search).get('next');
+  if (!next || !next.startsWith('/') || next.startsWith('//')) return fallback;
+  if (next === '/login' || next === '/register') return fallback;
+  return next;
+}
 
 function loadFacebookSdk() {
   const appId = import.meta.env.VITE_FACEBOOK_APP_ID;
@@ -53,16 +60,18 @@ function loadFacebookSdk() {
 export default function LoginPage() {
   const { login, socialLogin, isLoading } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
 
   const handleSocialSuccess = async () => {
     const { user } = useAuthStore.getState();
     if (!user) return;
-    if (user.role === 'admin') navigate('/admin');
-    else if (!user.onboardingCompleted) navigate('/onboarding');
-    else if (user.gender === 'female') navigate('/female-dashboard');
-    else navigate('/male-dashboard');
+    let destination = '/male-dashboard';
+    if (user.role === 'admin') destination = '/admin';
+    else if (!user.onboardingCompleted) destination = '/onboarding';
+    else if (user.gender === 'female') destination = '/female-dashboard';
+    navigate(getSafeNextPath(location.search, destination));
   };
 
   const googleLogin = useGoogleLogin({
@@ -100,6 +109,13 @@ export default function LoginPage() {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    const reason = new URLSearchParams(location.search).get('reason');
+    if (reason === 'session-expired') {
+      setLoginError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+  }, [location.search]);
+
   const slides = [
     {
       topCard: { icon: 'calendar_month', label: 'Theo dõi chu kỳ', value: 'Cá nhân hóa' },
@@ -125,13 +141,13 @@ export default function LoginPage() {
       await login(data.email, data.password);
       const { user } = useAuthStore.getState();
       if (user?.role === 'admin') {
-        navigate('/admin');
+        navigate(getSafeNextPath(location.search, '/admin'));
       } else if (!user?.onboardingCompleted) {
-        navigate('/onboarding');
+        navigate(getSafeNextPath(location.search, '/onboarding'));
       } else if (user.gender === 'female') {
-        navigate('/female-dashboard');
+        navigate(getSafeNextPath(location.search, '/female-dashboard'));
       } else {
-        navigate('/dashboard');
+        navigate(getSafeNextPath(location.search, '/male-dashboard'));
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Có lỗi xảy ra';

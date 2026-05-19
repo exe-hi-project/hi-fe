@@ -218,6 +218,7 @@ export default function FemaleDashboardPage() {
   });
 
   const saveSymptoms = () => {
+    if (saveSymptomsMutation.isPending) return;
     saveSymptomsMutation.mutate();
   };
 
@@ -1106,14 +1107,17 @@ export default function FemaleDashboardPage() {
           <div className="px-5 pb-8">
             <button
               onClick={saveSymptoms}
-              className="w-full py-4 rounded-2xl font-bold text-base text-white flex items-center justify-center gap-2 transition-all"
+              disabled={saveSymptomsMutation.isPending}
+              className="w-full py-4 rounded-2xl font-bold text-base text-white flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-80"
               style={{
                 background: symptomSaved ? '#22c55e' : 'linear-gradient(135deg,#fb7185,#f472b6,#a78bfa)',
                 boxShadow: symptomSaved ? 'none' : '0 10px 28px rgba(244,114,182,0.45)',
               }}
             >
-              <span className="material-symbols-outlined">{symptomSaved ? 'check_circle' : 'favorite'}</span>
-              {symptomSaved ? 'Đã lưu! 💕' : 'Lưu triệu chứng'}
+              <span className="material-symbols-outlined">
+                {symptomSaved ? 'check_circle' : saveSymptomsMutation.isPending ? 'progress_activity' : 'favorite'}
+              </span>
+              {symptomSaved ? 'Đã lưu! 💕' : saveSymptomsMutation.isPending ? 'Đang lưu...' : 'Lưu triệu chứng'}
             </button>
           </div>
         </div>
