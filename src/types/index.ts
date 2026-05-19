@@ -1,5 +1,3 @@
-import type { User as SharedUser } from '@hi/shared';
-
 interface FBAuthResponse {
   accessToken: string;
   userID: string;
@@ -22,7 +20,61 @@ declare global {
   }
 }
 
-export type User = SharedUser;
+export type UserRole = 'user' | 'admin';
+export type Gender = 'female' | 'male' | 'other';
+export type AuthProvider = 'local' | 'google' | 'facebook';
+export type AiPersonality = 'friendly' | 'professional' | 'caring' | 'playful';
+export type AiTone = 'warm' | 'casual' | 'formal';
+
+export interface ApiResponse<TData = unknown> {
+  success: boolean;
+  message?: string;
+  data?: TData;
+}
+
+export interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role?: UserRole;
+  gender: Gender;
+  avatar?: string;
+  authProvider?: AuthProvider;
+  googleId?: string;
+  facebookId?: string;
+  partnerId?: string | null;
+  partnerCode?: string;
+  birthDate?: string;
+  height?: number;
+  weight?: number;
+  interests?: string[];
+  goals?: string[];
+  defaultCycleLength?: number;
+  defaultPeriodLength?: number;
+  lastPeriodDate?: string;
+  lastPeriodEndDate?: string;
+  irregularCycle?: boolean;
+  aiPersonality?: AiPersonality;
+  aiTone?: AiTone;
+  periodReminder?: boolean;
+  reminderDaysBefore?: number;
+  partnerNotifications?: boolean;
+  onboardingCompleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RegisterDto {
+  name: string;
+  email: string;
+  password: string;
+  gender: Gender;
+}
+
+export interface AuthPayload {
+  token: string;
+  user: User;
+}
 
 export interface Cycle {
   _id: string;
