@@ -1,3 +1,5 @@
+import type { User as SharedUser } from '@hi/shared';
+
 interface FBAuthResponse {
   accessToken: string;
   userID: string;
@@ -20,29 +22,7 @@ declare global {
   }
 }
 
-export interface User {
-  _id: string;
-  name: string;
-  email: string;
-  role?: 'user' | 'admin';
-  gender: 'female' | 'male' | 'other';
-  avatar?: string;
-  partnerId?: string | null;
-  partnerCode?: string;
-  birthDate?: string;
-  height?: number;
-  weight?: number;
-  goals?: string[];
-  defaultCycleLength?: number;
-  defaultPeriodLength?: number;
-  aiPersonality?: string;
-  aiTone?: string;
-  periodReminder?: boolean;
-  reminderDaysBefore?: number;
-  partnerNotifications?: boolean;
-  onboardingCompleted?: boolean;
-  createdAt?: string;
-}
+export type User = SharedUser;
 
 export interface Cycle {
   _id: string;
