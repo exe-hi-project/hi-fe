@@ -1,9 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User } from '../types';
+import { ApiResponse, AuthPayload, RegisterDto, User } from '../types';
 import api from '../lib/api';
 import { clearAuthSession } from '../lib/session';
-import type { ApiResponse, AuthPayload, RegisterDto } from '@hi/shared';
 
 type AuthApiResponse = ApiResponse<AuthPayload> & Partial<AuthPayload>;
 type UserApiResponse = ApiResponse<{ user: User }> & { user?: User };
