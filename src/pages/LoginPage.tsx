@@ -240,7 +240,7 @@ export default function LoginPage() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-bold text-gray-800">Mật khẩu</label>
-                  <a href="#" className="text-xs font-semibold hover:underline" style={{ color: '#9b6ee8' }}>Quên mật khẩu?</a>
+                  <Link to="/forgot-password" className="text-xs font-semibold hover:underline" style={{ color: '#9b6ee8' }}>Quên mật khẩu?</Link>
                 </div>
                 <div className="relative">
                   <input

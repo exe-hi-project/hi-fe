@@ -73,7 +73,11 @@ export default function OnboardingPage() {
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [cycleLength, setCycleLength] = useState(28);
+  const [periodLength, setPeriodLength] = useState(5);
   const [irregularCycle, setIrregularCycle] = useState(false);
+  const [periodReminder, setPeriodReminder] = useState(true);
+  const [reminderDaysBefore, setReminderDaysBefore] = useState(3);
+  const [partnerNotifications, setPartnerNotifications] = useState(true);
   const [selectedDate, setSelectedDate] = useState('');   // start date
   const [endDate, setEndDate] = useState('');              // end date
   // Calendar nav
@@ -126,18 +130,28 @@ export default function OnboardingPage() {
   const handleFinish = async () => {
     setLoading(true);
     try {
-      const { data } = await api.put('/users/profile', {
+      const payload: Record<string, unknown> = {
         gender,
         interests: selectedInterests,
         goals: selectedGoal ? [selectedGoal] : [],
         height: height ? Number(height) : undefined,
         weight: weight ? Number(weight) : undefined,
-        defaultCycleLength: cycleLength,
-        lastPeriodDate: selectedDate || undefined,
-        lastPeriodEndDate: endDate || undefined,
-        irregularCycle,
         onboardingCompleted: true,
-      });
+      };
+
+      if (gender === 'female') {
+        payload.defaultCycleLength = cycleLength;
+        payload.defaultPeriodLength = periodLength;
+        payload.lastPeriodDate = selectedDate || undefined;
+        payload.lastPeriodEndDate = endDate || undefined;
+        payload.irregularCycle = irregularCycle;
+        payload.periodReminder = periodReminder;
+        payload.reminderDaysBefore = reminderDaysBefore;
+      } else if (gender === 'male') {
+        payload.partnerNotifications = partnerNotifications;
+      }
+
+      const { data } = await api.put('/users/profile', payload);
       setUser(data.user);
       toast.success('Thiết lập hoàn tất! Chào mừng bạn 🎉');
       navigate('/dashboard');
@@ -310,6 +324,31 @@ export default function OnboardingPage() {
               })}
             </div>
 
+            {gender === 'male' && (
+              <button
+                onClick={() => setPartnerNotifications(v => !v)}
+                className="w-full mb-7 flex items-center justify-between px-4 py-3 rounded-2xl transition-all bg-white"
+                style={{ boxShadow: partnerNotifications ? '0 0 0 2px #60a5fa, 0 8px 20px rgba(96,165,250,0.2)' : '0 2px 12px rgba(0,0,0,0.06)' }}
+              >
+                <div className="flex items-center gap-2.5 text-left">
+                  <span className="text-lg">🔔</span>
+                  <div>
+                    <p className="text-xs font-bold text-gray-800">Nhận nhắc chăm sóc người ấy</p>
+                    <p className="text-[10px] text-gray-500">Hi sẽ gửi nhắc nhở phù hợp theo chu kỳ đối tác</p>
+                  </div>
+                </div>
+                <div
+                  className="relative flex-shrink-0 w-10 h-5 rounded-full transition-all duration-300"
+                  style={{ background: partnerNotifications ? '#60a5fa' : '#d1d5db' }}
+                >
+                  <div
+                    className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-300"
+                    style={{ left: partnerNotifications ? 22 : 2 }}
+                  />
+                </div>
+              </button>
+            )}
+
             <div className="flex justify-center">
               <button onClick={handleNext} disabled={!selectedGoal} className="rounded-full text-white text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-40" style={{ ...gradBtn, height: 52, paddingLeft: 48, paddingRight: 48 }}>
                 Tiếp tục <span className="material-symbols-outlined text-xl">arrow_forward</span>
@@ -447,6 +486,22 @@ export default function OnboardingPage() {
                     💡 Chu kỳ bình thường dao động từ 21 đến 35 ngày. Đừng lo nếu bạn không chắc chắn, bạn có thể chỉnh sửa sau.
                   </div>
 
+                  <div className="mt-4 pt-3 border-t border-pink-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-gray-700">Độ dài kỳ kinh</span>
+                      <span className="text-sm font-black" style={{ color: '#9b6ee8' }}>{periodLength} ngày</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={2}
+                      max={10}
+                      value={periodLength}
+                      onChange={e => setPeriodLength(Number(e.target.value))}
+                      className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                      style={{ accentColor: '#a78bfa' }}
+                    />
+                  </div>
+
                   {/* Irregular cycle toggle */}
                   <button
                     onClick={() => setIrregularCycle(v => !v)}
@@ -474,6 +529,54 @@ export default function OnboardingPage() {
                       />
                     </div>
                   </button>
+
+                  <button
+                    onClick={() => setPeriodReminder(v => !v)}
+                    className="mt-3 w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all"
+                    style={{
+                      background: periodReminder ? 'linear-gradient(135deg,#fce7f3,#ede9fe)' : '#f8f8fc',
+                      boxShadow: periodReminder ? '0 0 0 2px #a78bfa' : 'none',
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5 text-left">
+                      <span className="text-lg">⏰</span>
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">Nhắc trước kỳ kinh</p>
+                        <p className="text-[10px] text-gray-500 leading-snug">Bật để nhận nhắc trước khi kỳ kinh tới</p>
+                      </div>
+                    </div>
+                    <div
+                      className="relative flex-shrink-0 w-10 h-5 rounded-full transition-all duration-300"
+                      style={{ background: periodReminder ? '#a78bfa' : '#d1d5db' }}
+                    >
+                      <div
+                        className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-300"
+                        style={{ left: periodReminder ? 22 : 2 }}
+                      />
+                    </div>
+                  </button>
+
+                  {periodReminder && (
+                    <div className="mt-3 p-3 rounded-xl bg-violet-50 border border-violet-100">
+                      <label className="text-xs font-bold text-violet-700">Nhắc trước bao nhiêu ngày</label>
+                      <div className="mt-2 flex items-center gap-2">
+                        {[1, 2, 3, 5].map((days) => (
+                          <button
+                            key={days}
+                            onClick={() => setReminderDaysBefore(days)}
+                            className="px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+                            style={{
+                              background: reminderDaysBefore === days ? '#8b5cf6' : 'white',
+                              color: reminderDaysBefore === days ? 'white' : '#6b7280',
+                              boxShadow: reminderDaysBefore === days ? '0 6px 14px rgba(139,92,246,0.3)' : '0 1px 4px rgba(0,0,0,0.08)',
+                            }}
+                          >
+                            {days} ngày
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* BMI */}
@@ -533,7 +636,9 @@ export default function OnboardingPage() {
                 { bg: '#f9e8f5', emoji: '👤', label: 'Giới tính',  value: gender === 'female' ? '👩 Nữ' : '👨 Nam', color: '' },
                 { bg: '#e8f4fd', emoji: '✨', label: 'Sở thích',   value: `${selectedInterests.length} chủ đề đã chọn`, color: '' },
                 { bg: '#ede9fe', emoji: '🎯', label: 'Mục tiêu',   value: [...GOALS, ...GOALS_MALE].find(g => g.id === selectedGoal)?.label ?? '—', color: '' },
-                ...(gender === 'female' ? [{ bg: '#fce7f3', emoji: '💧', label: 'Chu kỳ', value: `${cycleLength} ngày`, color: '' }] : []),
+                ...(gender === 'female' ? [{ bg: '#fce7f3', emoji: '💧', label: 'Chu kỳ', value: `${cycleLength} ngày · Kinh ${periodLength} ngày`, color: '' }] : []),
+                ...(gender === 'female' ? [{ bg: '#f3e8ff', emoji: '⏰', label: 'Nhắc kỳ kinh', value: periodReminder ? `Bật · trước ${reminderDaysBefore} ngày` : 'Tắt', color: '' }] : []),
+                ...(gender === 'male' ? [{ bg: '#dbeafe', emoji: '🔔', label: 'Nhắc chăm sóc', value: partnerNotifications ? 'Bật' : 'Tắt', color: '' }] : []),
                 ...(bmi && bmiInfo ? [{ bg: '#f5f0fc', emoji: '⚖️', label: 'BMI', value: `${bmi.toFixed(1)} — ${bmiInfo.label}`, color: bmiInfo.color }] : []),
               ].map((row, i) => (
                 <div key={i} className="flex items-center gap-3">

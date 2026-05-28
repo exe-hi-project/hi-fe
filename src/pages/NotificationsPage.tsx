@@ -12,6 +12,8 @@ const typeIcon: Record<string, string> = {
   period_started: '🌸',
   reminder: '⏰',
   partner: '💑',
+  PARTNER_CONNECT: '💑',
+  PARTNER_DISCONNECT: '💔',
 };
 
 const typeLabel: Record<string, string> = {
@@ -19,6 +21,8 @@ const typeLabel: Record<string, string> = {
   period_started: 'Bắt đầu kỳ',
   reminder: 'Nhắc nhở',
   partner: 'Bạn đời',
+  PARTNER_CONNECT: 'Kết nối bạn đời',
+  PARTNER_DISCONNECT: 'Hủy kết nối',
 };
 
 export default function NotificationsPage() {

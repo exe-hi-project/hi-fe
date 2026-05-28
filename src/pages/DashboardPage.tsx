@@ -6,13 +6,42 @@ import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
 
+interface PartnerCycle {
+  _id: string;
+  startDate: string;
+  cycleLength: number;
+  periodLength?: number;
+}
+
+interface PartnerCyclesResponse {
+  success: boolean;
+  partner: { name?: string } | null;
+  cycles: PartnerCycle[];
+}
+
+function getPartnerCycleInfo(cycle?: PartnerCycle | null) {
+  if (!cycle) return null;
+  const today = new Date();
+  const start = new Date(cycle.startDate);
+  const cycleDay = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1);
+  const cycleLen = cycle.cycleLength || 28;
+  const periodLen = cycle.periodLength || 5;
+  const daysUntilPeriod = cycleLen - cycleDay;
+  let phase = 'Hoàng thể';
+  if (cycleDay <= periodLen) phase = 'Kinh nguyệt';
+  else if (cycleDay <= 13) phase = 'Nang trứng';
+  else if (cycleDay <= 16) phase = 'Rụng trứng';
+  return { phase, daysUntilPeriod };
+}
+
 function MaleDashboard() {
   const { user } = useAuthStore();
   const { data: partnerData, isLoading } = useQuery({
     queryKey: ['partnerCycles'],
-    queryFn: () => api.get('/users/partner-cycles').then((r) => r.data).catch(() => null),
+    queryFn: () => api.get<PartnerCyclesResponse>('/users/partner-cycles').then((r) => r.data).catch(() => null),
     enabled: !!user?.partnerId,
   });
+  const partnerCycleInfo = getPartnerCycleInfo(partnerData?.cycles?.[0]);
 
   const today = new Date();
   return (
@@ -27,7 +56,7 @@ function MaleDashboard() {
           <div className="text-5xl mb-4">💑</div>
           <h3 className="text-lg font-bold text-gray-800 mb-2">Kết nối với bạn đời</h3>
           <p className="text-sm text-gray-500 mb-4">Kết nối để theo dõi và hỗ trợ bạn đời tốt hơn</p>
-          <a href="/settings" className="inline-flex items-center gap-1 text-sm font-semibold text-rose-500 hover:underline">
+          <a href="/male-settings/notifications" className="inline-flex items-center gap-1 text-sm font-semibold text-rose-500 hover:underline">
             Kết nối ngay →
           </a>
         </Card>
@@ -43,17 +72,17 @@ function MaleDashboard() {
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-rose-400 to-pink-400 flex items-center justify-center text-2xl">👩</div>
                 <div>
-                  <p className="font-semibold text-gray-800">{partnerData.partner?.name}</p>
-                  <Badge variant="period">{partnerData.currentPhase ?? 'Đang cập nhật'}</Badge>
+                  <p className="font-semibold text-gray-800">{partnerData.partner?.name || 'Bạn đời'}</p>
+                  <Badge variant="period">{partnerCycleInfo?.phase ?? 'Đang cập nhật'}</Badge>
                 </div>
               </div>
-              {partnerData.daysUntilPeriod !== undefined && (
+              {partnerCycleInfo && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span>🗓️</span>
                   <span>
-                    {partnerData.daysUntilPeriod <= 0
+                    {partnerCycleInfo.daysUntilPeriod <= 0
                       ? 'Đang có kinh'
-                      : `Kỳ kinh tiếp theo trong ${partnerData.daysUntilPeriod} ngày`}
+                      : `Kỳ kinh tiếp theo trong ${partnerCycleInfo.daysUntilPeriod} ngày`}
                   </span>
                 </div>
               )}

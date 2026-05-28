@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
+import { usePartnerConnection } from '../hooks/usePartnerConnection';
+import api from '../lib/api';
 
 /* ── Reusable toggle ── */
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -38,13 +42,79 @@ function ChannelBtn({
 
 /* ── Page ── */
 export default function MaleSettingsNotificationsPage() {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
+  const { connectPartner, disconnectPartner } = usePartnerConnection();
 
-  const [notify, setNotify] = useState({ periodAlert: true, ovulation: true, phaseTips: false });
-  const [share,  setShare]  = useState({ workoutSchedule: true, moodStress: false, careRequests: true });
+  const [notify, setNotify] = useState({ periodAlert: user?.periodReminder ?? true, ovulation: true, phaseTips: false });
+  const [share,  setShare]  = useState({ workoutSchedule: user?.partnerNotifications ?? true, moodStress: false, careRequests: true });
   const [ch,     setCh]     = useState({ push: true, email: false, sms: false });
+  const [partnerCode, setPartnerCode] = useState('');
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: () => api.put('/users/profile', {
+      periodReminder: notify.periodAlert,
+      partnerNotifications: share.workoutSchedule,
+    }),
+    onSuccess: () => toast.success('Đã lưu cài đặt thông báo'),
+    onError: () => toast.error('Lưu thất bại, thử lại sau'),
+  });
 
   const firstName = user?.name?.split(' ').pop() ?? 'bạn';
+  const hasPartner = !!user?.partnerId;
+
+  // Fetch partner name when connected
+  const { data: partnerQueryData } = useQuery({
+    queryKey: ['partner-cycles'],
+    queryFn: () => api.get('/users/partner-cycles').then(r => r.data as { partner?: { name?: string } }),
+    enabled: hasPartner,
+    staleTime: 60_000,
+  });
+  const partnerDisplayName = partnerQueryData?.partner?.name ?? 'Đã kết nối';
+
+  // Poll profile every 5 s when not connected — picks up partner connection initiated by the other side
+  useQuery({
+    queryKey: ['profile-connection-poll'],
+    queryFn: async () => {
+      const { data } = await api.get('/users/profile');
+      const profileUser = data.user;
+      if (profileUser?.partnerId && !user?.partnerId) {
+        setUser(profileUser);
+        toast.success('Bạn đã được kết nối bởi người ấy! 💑');
+      }
+      return profileUser;
+    },
+    enabled: !hasPartner,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
+  });
+
+  const inviteCode = user?.partnerCode || '------';
+  const isConnecting = connectPartner.isPending;
+  const isDisconnecting = disconnectPartner.isPending;
+
+  const handleConnect = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!partnerCode.trim()) {
+      toast.error('Vui lòng nhập mã kết nối');
+      return;
+    }
+    connectPartner.mutate(partnerCode, {
+      onSuccess: () => setPartnerCode(''),
+    });
+  };
+
+  const copyInviteCode = async () => {
+    if (!user?.partnerCode) {
+      toast.error('Chưa có mã mời');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(user.partnerCode);
+      toast.success('Đã sao chép mã mời');
+    } catch {
+      toast.error('Không thể sao chép mã mời');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f0f7ff] overflow-x-hidden relative font-sans">
@@ -112,20 +182,34 @@ export default function MaleSettingsNotificationsPage() {
                   </div>
                 </div>
 
-                <div className="relative flex flex-col items-center gap-3 opacity-80 hover:opacity-100 transition-all cursor-pointer group z-10">
-                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full border-[4px] border-dashed border-pink-300 flex items-center justify-center bg-gradient-to-br from-white to-pink-50 group-hover:border-pink-400 group-hover:scale-105 transition-all">
-                    <span className="material-symbols-outlined text-4xl md:text-5xl text-pink-300 group-hover:text-pink-500 transition-colors">person_add</span>
+                <div className="relative flex flex-col items-center gap-3 opacity-90 hover:opacity-100 transition-all cursor-pointer group z-10">
+                  <div className={`w-24 h-24 md:w-28 md:h-28 rounded-full flex items-center justify-center transition-all ${
+                    hasPartner
+                      ? 'border-[6px] border-white shadow-xl bg-gradient-to-br from-blue-200 to-indigo-300'
+                      : 'border-[4px] border-dashed border-blue-300 bg-gradient-to-br from-white to-blue-50 group-hover:border-blue-400 group-hover:scale-105'
+                  }`}>
+                    <span className={`material-symbols-outlined text-4xl md:text-5xl transition-colors ${
+                      hasPartner ? 'text-white' : 'text-blue-300 group-hover:text-blue-500'
+                    }`}>
+                      {hasPartner ? 'person' : 'person_add'}
+                    </span>
                   </div>
-                  <span className="text-xs font-bold text-slate-400 group-hover:text-pink-500 transition-colors">Người ấy</span>
+                  <span className="text-xs font-bold text-slate-400 group-hover:text-blue-500 transition-colors">
+                    {hasPartner ? partnerDisplayName : 'Người ấy'}
+                  </span>
                 </div>
               </div>
 
               {/* Text + CTA */}
               <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left gap-6">
                 <div>
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100/80 text-blue-700 text-xs font-extrabold uppercase tracking-wider mb-3 shadow-sm border border-blue-200">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping inline-block" />
-                    Chưa kết nối
+                  <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-3 shadow-sm border ${
+                    hasPartner
+                      ? 'bg-emerald-100/80 text-emerald-700 border-emerald-200'
+                      : 'bg-blue-100/80 text-blue-700 border-blue-200'
+                  }`}>
+                    <span className={`w-2.5 h-2.5 rounded-full inline-block ${hasPartner ? 'bg-emerald-400' : 'bg-blue-400 animate-ping'}`} />
+                    {hasPartner ? 'Đã kết nối' : 'Chưa kết nối'}
                   </div>
                   <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Đồng hành cùng người ấy</h3>
                   <p className="text-slate-500 mt-3 max-w-lg text-lg leading-relaxed">
@@ -135,16 +219,69 @@ export default function MaleSettingsNotificationsPage() {
                 </div>
                 <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
                   <button
+                    type="button"
+                    onClick={copyInviteCode}
                     className="group flex items-center gap-3 px-8 py-4 rounded-full font-bold text-white shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 transition-all border border-white/20"
                     style={{ background: 'linear-gradient(135deg,#60a5fa,#6366f1)' }}
                   >
                     <span className="material-symbols-outlined text-xl group-hover:rotate-12 transition-transform">send</span>
                     Mời người ấy
                   </button>
-                  <button className="group flex items-center gap-3 bg-white border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-50 text-slate-700 px-8 py-4 rounded-full font-bold transition-all active:scale-95">
+                  <button
+                    type="button"
+                    onClick={() => toast('Nhập mã người ấy ở ô bên dưới để kết nối')}
+                    className="group flex items-center gap-3 bg-white border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-50 text-slate-700 px-8 py-4 rounded-full font-bold transition-all active:scale-95"
+                  >
                     <span className="material-symbols-outlined text-xl text-slate-400 group-hover:text-blue-500 transition-colors">qr_code_scanner</span>
                     Quét mã QR
                   </button>
+                </div>
+                <div className="w-full max-w-xl bg-white/80 rounded-3xl border border-blue-100 p-4 md:p-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-4">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Mã mời của bạn</p>
+                      <p className="text-2xl font-black tracking-[0.2em] text-slate-900">{inviteCode}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={copyInviteCode}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-100 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                      Sao chép
+                    </button>
+                  </div>
+
+                  {!hasPartner ? (
+                    <form onSubmit={handleConnect} className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        value={partnerCode}
+                        onChange={(event) => setPartnerCode(event.target.value)}
+                        className="min-w-0 flex-1 rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.16em] text-slate-800 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                        placeholder="NHẬP MÃ NGƯỜI ẤY"
+                        disabled={isConnecting}
+                      />
+                      <button
+                        type="submit"
+                        disabled={isConnecting}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{ background: 'linear-gradient(135deg,#60a5fa,#6366f1)' }}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">{isConnecting ? 'progress_activity' : 'favorite'}</span>
+                        {isConnecting ? 'Đang kết nối...' : 'Kết nối'}
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => disconnectPartner.mutate()}
+                      disabled={isDisconnecting}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">link_off</span>
+                      {isDisconnecting ? 'Đang ngắt kết nối...' : 'Ngắt kết nối'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -250,11 +387,13 @@ export default function MaleSettingsNotificationsPage() {
           {/* ── Save ── */}
           <div className="flex justify-end">
             <button
-              className="flex items-center gap-2 px-12 py-4 rounded-full font-bold text-base text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all"
+              onClick={() => saveSettingsMutation.mutate()}
+              disabled={saveSettingsMutation.isPending}
+              className="flex items-center gap-2 px-12 py-4 rounded-full font-bold text-base text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg,#1e293b,#334155)' }}
             >
-              <span className="material-symbols-outlined">check_circle</span>
-              Lưu thay đổi
+              <span className="material-symbols-outlined">{saveSettingsMutation.isPending ? 'progress_activity' : 'check_circle'}</span>
+              {saveSettingsMutation.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </div>
 

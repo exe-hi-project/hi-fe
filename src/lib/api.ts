@@ -25,7 +25,12 @@ api.interceptors.response.use(
   (err) => {
     // Only force-logout on 401 for protected routes, never for auth endpoints themselves
     const url = err.config?.url ?? '';
-    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/refresh');
+    const isAuthEndpoint =
+      url.includes('/auth/login') ||
+      url.includes('/auth/register') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/auth/forgot-password') ||
+      url.includes('/auth/reset-password');
     if (err.response?.status === 401 && !isAuthEndpoint) {
       clearAuthSession();
       toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');

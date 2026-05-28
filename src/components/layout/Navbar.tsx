@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useSubscription } from '../../hooks/useSubscription';
 import HiLogo from '../ui/HiLogo';
 
 interface NavbarProps {
@@ -10,6 +11,8 @@ interface NavbarProps {
 
 export default function Navbar({ showAnchors = false }: NavbarProps) {
   const { token, user, logout } = useAuthStore();
+  const { data: subscription } = useSubscription();
+  const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
 
   const isAdmin = user?.role === 'admin';
   const homePath = isAdmin ? '/admin' : user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard';
@@ -144,8 +147,19 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
                   <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fade-in">
                     {/* User info header */}
                     <div className="px-4 py-3 border-b border-gray-50">
-                      <p className="text-sm font-bold text-slate-900">{user?.name}</p>
-                      <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+                      <div className="flex items-center gap-1.5 justify-between">
+                        <p className="text-sm font-bold text-slate-900 truncate max-w-[110px]">{user?.name}</p>
+                        {isPremium ? (
+                          <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-pink-500 text-white text-[9px] font-black uppercase tracking-wider scale-95 shadow-sm">
+                            💎 Premium
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[9px] font-bold uppercase tracking-wider scale-95">
+                            Free
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 truncate mt-1">{user?.email}</p>
                     </div>
 
                     {/* Menu items */}

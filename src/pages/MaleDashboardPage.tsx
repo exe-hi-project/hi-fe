@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
+import { useSubscription } from '../hooks/useSubscription';
 import Navbar from '../components/layout/Navbar';
 import api from '../lib/api';
 import { ChatMessage } from '../types';
+import PricingCard from '../components/PricingCard';
 
 /* ── Helpers ── */
 function getGreeting() {
@@ -45,6 +47,37 @@ function getActivityBars() {
     cls: i === todayIndex ? 'bg-gradient-to-t from-blue-500 to-indigo-400' : i < todayIndex ? 'bg-blue-200' : 'bg-blue-100',
     active: i === todayIndex,
   }));
+}
+
+function buildMonthCalendar(partnerCycle: PartnerCycle | null) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7; // Mon=0
+  const monthName = now.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+
+  const cells: Array<{ day: number | null; isToday: boolean; isPeriod: boolean; isOvulation: boolean; isFertile: boolean }> = [];
+  for (let i = 0; i < firstDayOfWeek; i++) cells.push({ day: null, isToday: false, isPeriod: false, isOvulation: false, isFertile: false });
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = d === now.getDate();
+    let isPeriod = false, isOvulation = false, isFertile = false;
+    if (partnerCycle) {
+      const start = new Date(partnerCycle.startDate);
+      start.setHours(0, 0, 0, 0);
+      const cellDate = new Date(year, month, d);
+      const cycleDay = Math.floor((cellDate.getTime() - start.getTime()) / 86_400_000) + 1;
+      const cLen = partnerCycle.cycleLength || 28;
+      const pLen = partnerCycle.periodLength || 5;
+      const normalised = ((cycleDay - 1) % cLen + cLen) % cLen + 1;
+      if (normalised >= 1 && normalised <= pLen) isPeriod = true;
+      else if (normalised >= 13 && normalised <= 16) isOvulation = true;
+      else if (normalised >= 11 && normalised <= 17) isFertile = true;
+    }
+    cells.push({ day: d, isToday, isPeriod, isOvulation, isFertile });
+  }
+  return { cells, monthName };
 }
 
 /* ── Mood options ── */
@@ -90,6 +123,9 @@ function Panel({ open, onClose, title, icon, iconBg, children }: {
 /* ══════════════════════════════════════════════ */
 export default function MaleDashboardPage() {
   const { user } = useAuthStore();
+  const { data: subscription } = useSubscription();
+  const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
+  const planLabel = subscription?.plan && subscription.plan.includes('yearly') ? 'Premium Năm' : subscription?.plan && subscription.plan.includes('monthly') ? 'Premium Tháng' : 'Free';
   const queryClient = useQueryClient();
 
   const firstName = user?.name?.split(' ').pop() ?? 'bạn';
@@ -181,17 +217,28 @@ export default function MaleDashboardPage() {
                 <span className="material-symbols-outlined text-yellow-500 text-[20px]">{greeting.icon}</span>
                 <span>{greeting.text}</span>
               </div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">
-                {firstName},{' '}
+              <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
+                <span>{firstName}</span>
+                {isPremium ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-blue-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse">
+                    💎 {planLabel}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                    🍀 Free
+                  </span>
+                )}
+                <span className="font-normal text-slate-400">,</span>
                 <span className="font-medium" style={{ background: 'linear-gradient(90deg,#60a5fa,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                   hôm nay bạn mạnh mẽ! 💙
                 </span>
               </h1>
             </div>
             <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm px-4 py-2.5 rounded-2xl shadow-sm border border-white/80">
-              <span className="text-sm font-semibold text-slate-500">Dự báo hôm nay:</span>
-              <span className="px-3 py-1 rounded-lg bg-blue-100  text-blue-700  text-xs font-bold uppercase tracking-wide">Năng lượng cao</span>
-              <span className="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-wide">Tập trung tốt</span>
+              <span className="text-sm font-semibold text-slate-500">Hôm nay:</span>
+              <span className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wide">
+                {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' })}
+              </span>
             </div>
           </div>
 
@@ -368,8 +415,8 @@ export default function MaleDashboardPage() {
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-blue-500 text-[18px]">sports_gymnastics</span>
                       <div>
-                        <p className="text-[10px] text-blue-600 font-extrabold uppercase">Chuỗi tập</p>
-                        <p className="text-base font-bold text-slate-900">5 ngày 🔥</p>
+                        <p className="text-[10px] text-blue-600 font-extrabold uppercase">Hôm nay</p>
+                        <p className="text-base font-bold text-slate-900">{health.workoutDone ? 'Đã tập 💪' : 'Chưa tập'}</p>
                       </div>
                     </div>
                   </div>
@@ -454,154 +501,78 @@ export default function MaleDashboardPage() {
             </div>
 
             {/* ── 6. Mini calendar (partner's cycle) ── */}
-            <div className="md:col-span-2 bg-blue-50/50 rounded-3xl p-6 shadow-sm border border-blue-100">
-              <div className="flex justify-between items-center mb-5">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-blue-500 text-[22px]">calendar_month</span>
-                  Chu kỳ của {partnerName} — Tháng 3
-                </h3>
-                <Link to="/male-settings/notifications" className="text-xs font-bold text-slate-500 hover:text-blue-500 transition-colors">Cài đặt</Link>
-              </div>
-              <div className="flex-1 grid grid-cols-7 gap-1 text-center mb-2">
-                {['H','T','W','T','F','S','S'].map((d, i) => (
-                  <div key={i} className="text-[10px] uppercase font-bold text-slate-400 mb-2">{d}</div>
-                ))}
-                {[10, 11, 12, 13, 14, 15, 16].map(d => {
-                  const isToday = d === partnerDay;
-                  const isOvul = d >= 13 && d <= 16;
-                  return (
-                    <div key={d}
-                      className={`h-8 flex items-center justify-center rounded-lg text-sm ${isToday ? 'font-bold text-white shadow-lg' : isOvul ? 'text-slate-800 border border-pink-200 bg-pink-50' : 'text-slate-400'}`}
-                      style={isToday ? { background: 'linear-gradient(135deg,#f9a8c9,#d4a8e8)' } : undefined}
-                    >
-                      {d}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex items-center gap-4 text-xs font-medium text-slate-500 justify-center mt-2">
-                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-pink-400 inline-block" /> Rụng trứng</div>
-                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block" /> Kinh nguyệt</div>
-                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-300 inline-block" /> Nang/Hoàng thể</div>
-              </div>
-            </div>
+            {(() => {
+              const { cells, monthName } = buildMonthCalendar(partnerCycle);
+              return (
+                <div className="md:col-span-2 bg-blue-50/50 rounded-3xl p-6 shadow-sm border border-blue-100">
+                  <div className="flex justify-between items-center mb-5">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-blue-500 text-[22px]">calendar_month</span>
+                      Chu kỳ của {hasPartner ? partnerName : 'Bạn đời'} — {monthName}
+                    </h3>
+                    <Link to="/male-settings/notifications" className="text-xs font-bold text-slate-500 hover:text-blue-500 transition-colors">Cài đặt</Link>
+                  </div>
+                  {!hasPartner ? (
+                    <p className="text-sm text-slate-400 text-center py-6">Kết nối với bạn đời để xem lịch chu kỳ</p>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                        {['T2','T3','T4','T5','T6','T7','CN'].map((d, i) => (
+                          <div key={i} className="text-[10px] uppercase font-bold text-slate-400 mb-1">{d}</div>
+                        ))}
+                        {cells.map((cell, i) => (
+                          <div key={i}
+                            className={`h-8 flex items-center justify-center rounded-lg text-xs font-medium
+                              ${!cell.day ? '' :
+                                cell.isToday ? 'font-bold text-white shadow-md' :
+                                cell.isPeriod ? 'text-rose-700 bg-rose-100 border border-rose-200' :
+                                cell.isOvulation ? 'text-pink-800 bg-pink-100 border border-pink-200' :
+                                cell.isFertile ? 'text-purple-700 bg-purple-50 border border-purple-100' :
+                                'text-slate-400'}`}
+                            style={cell.isToday ? { background: 'linear-gradient(135deg,#60a5fa,#818cf8)' } : undefined}
+                          >
+                            {cell.day ?? ''}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4 text-xs font-medium text-slate-500 justify-center mt-2 flex-wrap">
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-pink-400 inline-block" /> Rụng trứng</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block" /> Kinh nguyệt</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-300 inline-block" /> Thụ thai</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
-            {/* ── 7. Community FAQ ── */}
+            {/* ── 7. Ask Hi AI ── */}
             <div className="md:col-span-4 bg-white/90 backdrop-blur-sm rounded-3xl p-7 shadow-sm border border-white/80">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-7">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-1">Câu hỏi thường gặp</h3>
-                  <p className="text-slate-500 text-sm">Cộng đồng đang thảo luận gì?</p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-bold text-slate-400">Chủ đề hot:</span>
-                  {['#SucKhoe', '#CuocSong', '#CuuTinhYeu'].map(tag => (
-                    <span key={tag} className="px-3 py-1 bg-gray-100 rounded-full text-xs font-bold text-slate-600 cursor-pointer hover:bg-blue-50 hover:text-blue-600 transition-colors">{tag}</span>
-                  ))}
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">Hỏi Hi AI</h3>
+                  <p className="text-slate-500 text-sm">Câu hỏi gợi ý dựa trên chu kỳ của bạn đời</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { cat: 'Cặp đôi', q: 'Làm gì khi bạn gái đang trong kỳ kinh?', desc: 'Đây là những điều bạn nên và không nên làm để cô ấy cảm thấy được yêu thương...' },
-                  { cat: 'Sức khoẻ', q: 'Cách tăng năng lượng hiệu quả trong tuần?', desc: 'Ngủ đủ 7–8 tiếng, ăn sáng đầy đủ, và tập thể dục 30 phút mỗi ngày là chìa khóa...' },
-                ].map(({ cat, q, desc }) => (
+                {MALE_AI_CHIPS.map((q) => (
                   <button key={q} onClick={() => { setChatInput(q); setPanel('chat'); }}
                     className="group p-4 rounded-2xl bg-gray-50 hover:bg-blue-50/50 border border-transparent hover:border-blue-100 transition-all cursor-pointer text-left w-full">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="px-2 py-1 bg-white rounded-md text-[10px] font-bold text-blue-500 shadow-sm border border-blue-100">{cat}</span>
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors text-sm">{q}</h4>
                       <span className="material-symbols-outlined text-slate-300 group-hover:text-blue-400 transition-colors text-[18px]">arrow_outward</span>
                     </div>
-                    <h4 className="font-bold text-slate-900 mb-1 group-hover:text-blue-600 transition-colors text-sm">{q}</h4>
-                    <p className="text-xs text-slate-500 line-clamp-2">{desc}</p>
                   </button>
                 ))}
               </div>
               <button onClick={() => setPanel('chat')} className="block w-full mt-5 py-3 border border-gray-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-all text-center">
-                Khám phá thêm cùng Hi AI
+                Mở Hi AI Chat
               </button>
             </div>
 
             {/* ── 8. Upgrade Plans ── */}
-            <div className="md:col-span-4 rounded-3xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg,#eff6ff 0%,#e0e7ff 50%,#ecfdf5 100%)' }}>
-              <div className="absolute top-0 left-0 w-64 h-64 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background: 'radial-gradient(circle,#93c5fd,transparent)' }} />
-              <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background: 'radial-gradient(circle,#a5b4fc,transparent)' }} />
-
-              <div className="relative z-10 px-7 pt-7 pb-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-7">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="material-symbols-outlined text-[22px] text-blue-500">workspace_premium</span>
-                      <h3 className="text-xl font-extrabold text-slate-900">Nâng cấp trải nghiệm của bạn</h3>
-                    </div>
-                    <p className="text-slate-500 text-sm">Chọn gói phù hợp để mở khoá toàn bộ tính năng Hi ✨</p>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm rounded-full px-4 py-2 border border-white">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                    <span className="text-xs font-bold text-slate-600">Ưu đãi tháng 3 — Tiết kiệm 30%</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Free */}
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/90 shadow-sm flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Gói hiện tại</p>
-                        <h4 className="text-xl font-extrabold text-slate-900">Thường</h4>
-                      </div>
-                      <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-slate-400 text-[26px]">favorite_border</span>
-                      </div>
-                    </div>
-                    <div className="flex items-end gap-1 mb-5"><span className="text-3xl font-extrabold text-slate-800">Miễn phí</span></div>
-                    <ul className="space-y-2.5 flex-1 mb-6">
-                      {['Theo dõi sức khoẻ cơ bản','Nhật ký hoạt động','Xem chu kỳ đối tác','Hi AI (5 câu hỏi / ngày)','Đồng bộ & chia sẻ với đối tác'].map(f => (
-                        <li key={f} className="flex items-center gap-2.5 text-sm text-slate-600">
-                          <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0"><span className="material-symbols-outlined text-slate-400 text-[14px]">check</span></span>{f}
-                        </li>
-                      ))}
-                      {['Phân tích sâu AI','Báo cáo PDF hàng tháng'].map(f => (
-                        <li key={f} className="flex items-center gap-2.5 text-sm text-slate-400 line-through">
-                          <span className="w-5 h-5 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0"><span className="material-symbols-outlined text-slate-300 text-[14px]">close</span></span>{f}
-                        </li>
-                      ))}
-                    </ul>
-                    <button className="w-full py-3 rounded-xl text-sm font-bold text-slate-500 bg-slate-100 cursor-default border border-slate-200">Đang sử dụng</button>
-                  </div>
-
-                  {/* Premium */}
-                  <div className="rounded-2xl p-6 flex flex-col relative overflow-hidden border border-blue-200/60 shadow-lg" style={{ background: 'linear-gradient(150deg,#eff6ff,#e0e7ff,#f5f3ff)' }}>
-                    <div className="absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-extrabold text-white uppercase tracking-widest" style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>Phổ biến nhất ⭐</div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest mb-0.5 text-blue-500">Gói đề xuất</p>
-                        <h4 className="text-xl font-extrabold text-slate-900">Premium</h4>
-                      </div>
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>
-                        <span className="material-symbols-outlined text-white text-[26px]">workspace_premium</span>
-                      </div>
-                    </div>
-                    <div className="flex items-end gap-1.5 mb-1">
-                      <span className="text-3xl font-extrabold text-slate-900">29.000₫</span>
-                      <span className="text-sm font-bold text-slate-400 mb-1">/ tháng</span>
-                    </div>
-                    <p className="text-xs text-slate-400 mb-5">Hoặc 290.000₫ / năm — <span className="font-bold text-emerald-500">tiết kiệm 17%</span></p>
-                    <ul className="space-y-2.5 flex-1 mb-6">
-                      {['Tất cả tính năng gói Thường','Phân tích sức khoẻ chuyên sâu AI','Hỏi Hi AI không giới hạn','Báo cáo PDF hàng tháng','Nhắc nhở theo chu kỳ bạn gái','Hỗ trợ ưu tiên 24/7'].map(f => (
-                        <li key={f} className="flex items-center gap-2.5 text-sm text-slate-700">
-                          <span className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}><span className="material-symbols-outlined text-white text-[14px]">check</span></span>{f}
-                        </li>
-                      ))}
-                    </ul>
-                    <button className="w-full py-3.5 rounded-xl text-sm font-extrabold text-white transition-all hover:opacity-90 active:scale-95 flex items-center justify-center gap-2"
-                      style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)', boxShadow: '0 8px 24px rgba(59,130,246,0.40)' }}>
-                      <span className="material-symbols-outlined text-[18px]">bolt</span>
-                      Nâng cấp ngay — Dùng thử 7 ngày miễn phí
-                    </button>
-                    <p className="text-center text-[10px] text-slate-400 mt-2">Huỷ bất cứ lúc nào · Không cần thẻ tín dụng</p>
-                  </div>
-                </div>
-              </div>
+            <div className="md:col-span-4 rounded-3xl overflow-hidden relative bg-white/80 backdrop-blur-sm border border-blue-100/50 p-6 shadow-sm">
+              <PricingCard />
             </div>
 
           </div>

@@ -3,12 +3,31 @@ import { Navigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
+import { useSubscription } from '../hooks/useSubscription';
 import Navbar from '../components/layout/Navbar';
 import api from '../lib/api';
 import { ChatMessage } from '../types';
+import PricingCard from '../components/PricingCard';
 
 /* ─── types & helpers ───────────────────────────────── */
-interface CycleData { _id?: string; startDate: string; cycleLength: number; periodLength: number; }
+interface CycleData { _id?: string | number; startDate: string; cycleLength: number; periodLength: number; }
+interface CycleInsights {
+  cycleCount: number;
+  averageCycleLength?: number | null;
+  averagePeriodLength?: number | null;
+  lastStartDate?: string | null;
+  predictedNextStartDate?: string | null;
+  predictedNextEndDate?: string | null;
+}
+interface PartnerCyclesResponse {
+  success: boolean;
+  partner?: {
+    id?: string;
+    name?: string;
+    avatar?: string;
+    gender?: string;
+  };
+}
 
 function getCycleInfo(cycle: CycleData) {
   const today = new Date();
@@ -102,6 +121,10 @@ function Panel({ open, onClose, title, icon, iconBg, children }: {
 /* ─── Main component ─────────────────────────────────── */
 export default function FemaleDashboardPage() {
   const { user } = useAuthStore();
+  const { data: subscription } = useSubscription();
+  const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
+  const planLabel = subscription?.plan && subscription.plan.includes('yearly') ? 'Premium Năm' : subscription?.plan && subscription.plan.includes('monthly') ? 'Premium Tháng' : 'Free';
+  const hasPartner = !!user?.partnerId;
 
   const firstName = user?.name?.split(' ').pop() ?? 'bạn';
   const greeting  = getGreeting();
@@ -111,15 +134,42 @@ export default function FemaleDashboardPage() {
   const cycleQuery = useQuery({
     queryKey: ['cycles'],
     queryFn: async () => {
-      const { data } = await api.get('/cycles');
-      return data as { success: boolean; cycles: CycleData[] };
+      try {
+        const { data } = await api.get('/cycle-records');
+        return { success: true, cycles: (data.cycleRecords ?? []) as CycleData[] };
+      } catch {
+        const { data } = await api.get('/cycles');
+        return data as { success: boolean; cycles: CycleData[] };
+      }
+    },
+  });
+
+  const insightsQuery = useQuery({
+    queryKey: ['cycle-insights'],
+    queryFn: async () => {
+      const { data } = await api.get('/cycle-records/insights');
+      return data as { success: boolean; insights: CycleInsights };
     },
   });
   const latestCycle = cycleQuery.data?.cycles?.[0] ?? null;
   const cycleInfo = latestCycle ? getCycleInfo(latestCycle) : null;
+
+  const partnerQuery = useQuery({
+    queryKey: ['partner-cycles'],
+    queryFn: async () => {
+      const { data } = await api.get('/users/partner-cycles');
+      return data as PartnerCyclesResponse;
+    },
+    enabled: hasPartner,
+  });
+  const partnerName = partnerQuery.data?.partner?.name ?? 'Bạn đời';
   const cycleDay       = cycleInfo?.cycleDay       ?? 0;
   const phase          = cycleInfo?.phase          ?? '—';
-  const daysUntilPeriod = cycleInfo?.daysUntilPeriod ?? 0;
+  const predictedNextStartDate = insightsQuery.data?.insights?.predictedNextStartDate;
+  const daysUntilFromInsights = predictedNextStartDate
+    ? Math.ceil((new Date(predictedNextStartDate).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000)
+    : null;
+  const daysUntilPeriod = daysUntilFromInsights ?? cycleInfo?.daysUntilPeriod ?? 0;
   const fertilityPct   = cycleInfo?.fertilityPct   ?? 0;
   const cycleLen       = cycleInfo?.cycleLen       ?? 28;
 
@@ -158,14 +208,15 @@ export default function FemaleDashboardPage() {
   const saveCycleMutation = useMutation({
     mutationFn: async (payload: { startDate: string; cycleLength: number; periodLength: number }) => {
       if (latestCycle?._id) {
-        const { data } = await api.put(`/cycles/${latestCycle._id}`, payload);
+        const { data } = await api.put(`/cycle-records/${latestCycle._id}`, payload);
         return data;
       }
-      const { data } = await api.post('/cycles', payload);
+      const { data } = await api.post('/cycle-records', payload);
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['cycle-insights'] });
       setCycleSaved(true);
       setTimeout(() => { setCycleSaved(false); close(); }, 1000);
     },
@@ -173,7 +224,7 @@ export default function FemaleDashboardPage() {
 
   const saveCycle = () => {
     saveCycleMutation.mutate({
-      startDate: new Date(editStart).toISOString(),
+      startDate: editStart,
       cycleLength: editLen,
       periodLength: editPeriodLen,
     });
@@ -195,6 +246,13 @@ export default function FemaleDashboardPage() {
         throw new Error('Hãy chọn ít nhất 1 triệu chứng');
       }
 
+      const toFlowIntensity = (value: number): 'NONE' | 'LIGHT' | 'MEDIUM' | 'HEAVY' => {
+        if (value <= 1) return 'NONE';
+        if (value <= 2) return 'LIGHT';
+        if (value <= 3) return 'MEDIUM';
+        return 'HEAVY';
+      };
+
       const payloads = selected.map((symptom) => ({
         name: symptom.label,
         severity: flow,
@@ -202,7 +260,16 @@ export default function FemaleDashboardPage() {
         notes: symptomNote.trim(),
       }));
 
-      await Promise.all(payloads.map((payload) => api.post('/symptoms', payload)));
+      const today = new Date().toISOString().slice(0, 10);
+      await Promise.all([
+        ...payloads.map((payload) => api.post('/symptoms', payload)),
+        api.put(`/daily-logs/${today}`, {
+          flowIntensity: toFlowIntensity(flow),
+          moodScore: 3,
+          notes: symptomNote.trim(),
+          symptoms: [],
+        }),
+      ]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['symptoms'] });
@@ -245,8 +312,6 @@ export default function FemaleDashboardPage() {
     sendChatMutation.mutate(text);
   };
 
-  const hasPartner = !!user?.partnerId;
-
   if (user?.gender !== 'female') return <Navigate to="/dashboard" replace />;
 
   return (
@@ -272,8 +337,18 @@ export default function FemaleDashboardPage() {
                 <span className="material-symbols-outlined text-yellow-500 text-[20px]">{greeting.icon}</span>
                 <span>{greeting.text}</span>
               </div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">
-                {firstName},{' '}
+              <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
+                <span>{firstName}</span>
+                {isPremium ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse">
+                    💎 {planLabel}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                    🍀 Free
+                  </span>
+                )}
+                <span className="font-normal text-slate-400">,</span>
                 <span
                   className="font-medium"
                   style={{
@@ -415,7 +490,7 @@ export default function FemaleDashboardPage() {
                         <span className="material-symbols-outlined text-pink-500 text-sm">notifications_active</span>
                       </div>
                     </div>
-                    <h4 className="font-bold text-lg text-slate-900">Minh Hùng</h4>
+                    <h4 className="font-bold text-lg text-slate-900">{partnerName}</h4>
                     <p className="text-xs text-slate-400">Đã kết nối</p>
                     <div className="bg-white/80 backdrop-blur-sm p-3.5 rounded-2xl border border-white mt-4 shadow-sm w-full">
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-2">Trạng thái đã gửi</p>
@@ -433,7 +508,7 @@ export default function FemaleDashboardPage() {
                       <span className="material-symbols-outlined text-4xl text-blue-300">person_add</span>
                     </div>
                     <p className="text-sm text-slate-500">Chưa kết nối với ai</p>
-                    <Link to="/settings" className="text-xs font-bold text-blue-500 hover:underline">
+                    <Link to="/settings/notifications" className="text-xs font-bold text-blue-500 hover:underline">
                       Kết nối ngay →
                     </Link>
                   </div>
@@ -661,135 +736,8 @@ export default function FemaleDashboardPage() {
             </div>
 
             {/* ── 8. Upgrade Plans (full width) ── */}
-            <div className="md:col-span-4 rounded-3xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg,#fdf2f8 0%,#ede9fe 50%,#e0f2fe 100%)' }}>
-              {/* Decorative blobs */}
-              <div className="absolute top-0 left-0 w-64 h-64 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background: 'radial-gradient(circle,#f9a8d4,transparent)' }} />
-              <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background: 'radial-gradient(circle,#c4b5fd,transparent)' }} />
-
-              <div className="relative z-10 px-7 pt-7 pb-6">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-7">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="material-symbols-outlined text-[22px]" style={{ color: '#f472b6' }}>workspace_premium</span>
-                      <h3 className="text-xl font-extrabold text-slate-900">Nâng cấp trải nghiệm của bạn</h3>
-                    </div>
-                    <p className="text-slate-500 text-sm">Chọn gói phù hợp để mở khoá toàn bộ tính năng Hi ✨</p>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm rounded-full px-4 py-2 border border-white">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                    <span className="text-xs font-bold text-slate-600">Ưu đãi tháng 3 — Tiết kiệm 30%</span>
-                  </div>
-                </div>
-
-                {/* Plans */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                  {/* Free plan */}
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/90 shadow-sm flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Gói hiện tại</p>
-                        <h4 className="text-xl font-extrabold text-slate-900">Thường</h4>
-                      </div>
-                      <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-slate-400 text-[26px]">favorite_border</span>
-                      </div>
-                    </div>
-                    <div className="flex items-end gap-1 mb-5">
-                      <span className="text-3xl font-extrabold text-slate-800">Miễn phí</span>
-                    </div>
-                    <ul className="space-y-2.5 flex-1 mb-6">
-                      {[
-                        'Theo dõi chu kỳ cơ bản',
-                        'Nhật ký triệu chứng',
-                        'Lịch chu kỳ 3 tháng',
-                        'Hi AI (5 câu hỏi / ngày)',
-                        'Đồng bộ & chia sẻ với đối tác',
-                      ].map(f => (
-                        <li key={f} className="flex items-center gap-2.5 text-sm text-slate-600">
-                          <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                            <span className="material-symbols-outlined text-slate-400 text-[14px]">check</span>
-                          </span>
-                          {f}
-                        </li>
-                      ))}
-                      {[
-                        'Phân tích sức khoẻ chuyên sâu',
-                        'Báo cáo PDF hàng tháng',
-                      ].map(f => (
-                        <li key={f} className="flex items-center gap-2.5 text-sm text-slate-400 line-through">
-                          <span className="w-5 h-5 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
-                            <span className="material-symbols-outlined text-slate-300 text-[14px]">close</span>
-                          </span>
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <button className="w-full py-3 rounded-xl text-sm font-bold text-slate-500 bg-slate-100 cursor-default border border-slate-200">
-                      Đang sử dụng
-                    </button>
-                  </div>
-
-                  {/* Premium plan */}
-                  <div className="rounded-2xl p-6 flex flex-col relative overflow-hidden border border-pink-200/60 shadow-lg" style={{ background: 'linear-gradient(150deg,#fff0f8,#f5f0ff,#ede9fe)' }}>
-                    {/* Popular badge */}
-                    <div
-                      className="absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-extrabold text-white uppercase tracking-widest"
-                      style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}
-                    >
-                      Phổ biến nhất ⭐
-                    </div>
-
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest mb-0.5" style={{ color: '#f472b6' }}>Gói đề xuất</p>
-                        <h4 className="text-xl font-extrabold text-slate-900">Premium</h4>
-                      </div>
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}>
-                        <span className="material-symbols-outlined text-white text-[26px]">workspace_premium</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-end gap-1.5 mb-1">
-                      <span className="text-3xl font-extrabold text-slate-900">29.000₫</span>
-                      <span className="text-sm font-bold text-slate-400 mb-1">/ tháng</span>
-                    </div>
-                    <p className="text-xs text-slate-400 mb-5">Hoặc 290.000₫ / năm — <span className="font-bold text-emerald-500">tiết kiệm 17%</span></p>
-
-                    <ul className="space-y-2.5 flex-1 mb-6">
-                      {[
-                        'Tất cả tính năng gói Thường',
-                        'Phân tích sức khoẻ chuyên sâu AI',
-                        'Hỏi Hi AI không giới hạn',
-                        'Báo cáo sức khoẻ PDF hàng tháng',
-                        'Nhắc nhở thông minh theo chu kỳ',
-                        'Hỗ trợ ưu tiên 24/7',
-                      ].map(f => (
-                        <li key={f} className="flex items-center gap-2.5 text-sm text-slate-700">
-                          <span className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}>
-                            <span className="material-symbols-outlined text-white text-[14px]">check</span>
-                          </span>
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <button
-                      className="w-full py-3.5 rounded-xl text-sm font-extrabold text-white transition-all hover:opacity-90 active:scale-95 flex items-center justify-center gap-2"
-                      style={{
-                        background: 'linear-gradient(135deg,#f472b6,#a78bfa)',
-                        boxShadow: '0 8px 24px rgba(244,114,182,0.40)',
-                      }}
-                    >
-                      <span className="material-symbols-outlined text-[18px]">bolt</span>
-                      Nâng cấp ngay — Dùng thử 7 ngày miễn phí
-                    </button>
-                    <p className="text-center text-[10px] text-slate-400 mt-2">Huỷ bất cứ lúc nào · Không cần thẻ tín dụng</p>
-                  </div>
-
-                </div>
-              </div>
+            <div className="md:col-span-4 rounded-3xl overflow-hidden relative bg-white/80 backdrop-blur-sm border border-pink-100/50 p-6 shadow-sm">
+              <PricingCard />
             </div>
 
           </div>

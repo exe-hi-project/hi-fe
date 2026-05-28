@@ -7,6 +7,32 @@ import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
 import { Cycle, Symptom } from '../types';
 
+interface PhaseSymptomImpact {
+  phase: string;
+  impactScore: number;
+  occurrenceCount: number;
+}
+
+interface SymptomImpactItem {
+  symptomId: number;
+  symptomName: string;
+  impactScore: number;
+  averageSeverity: number;
+  occurrenceCount: number;
+}
+
+interface CycleInsights {
+  cycleCount: number;
+  averageCycleLength?: number | null;
+  averagePeriodLength?: number | null;
+  lastStartDate?: string | null;
+  predictedNextStartDate?: string | null;
+  predictedNextEndDate?: string | null;
+  symptomImpactScore?: number;
+  phaseSymptomImpacts?: PhaseSymptomImpact[];
+  topSymptoms?: SymptomImpactItem[];
+}
+
 const PHASES = [
   { label: 'Kinh nguyệt', bg: '#fb7185', light: '#fff1f2' },
   { label: 'Nang trứng', bg: '#fbbf24', light: '#fffbeb' },
@@ -48,12 +74,32 @@ export default function CyclesPage() {
 
   const { data: cycles = [], isLoading: cyclesLoading } = useQuery<Cycle[]>({
     queryKey: ['cycles'],
-    queryFn: () => api.get('/cycles').then((r) => r.data.cycles),
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/cycle-records');
+        return (data.cycleRecords ?? []) as Cycle[];
+      } catch {
+        const { data } = await api.get('/cycles');
+        return data.cycles as Cycle[];
+      }
+    },
   });
 
   const { data: symptoms = [] } = useQuery<Symptom[]>({
     queryKey: ['symptoms'],
     queryFn: () => api.get('/symptoms').then((r) => r.data.symptoms),
+  });
+
+  const { data: insights } = useQuery<CycleInsights | null>({
+    queryKey: ['cycle-insights'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/cycle-records/insights');
+        return (data.insights ?? null) as CycleInsights | null;
+      } catch {
+        return null;
+      }
+    },
   });
 
   useEffect(() => {
@@ -76,6 +122,9 @@ export default function CyclesPage() {
     });
     return Object.entries(frequency).sort((a, b) => b[1] - a[1]);
   })();
+  const phaseImpacts = insights?.phaseSymptomImpacts ?? [];
+  const topSymptomsByImpact = insights?.topSymptoms ?? [];
+  const overallSymptomImpact = insights?.symptomImpactScore ?? 0;
 
   if (!user) return null;
 
@@ -317,24 +366,60 @@ export default function CyclesPage() {
                   <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-white/80">
                     <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
                       <span className="material-symbols-outlined text-rose-400 text-[22px]">monitor_heart</span>
-                      Triệu chứng đã ghi nhận
+                      Anh huong trieu chung theo chu ky
                     </h3>
-                    {symptomFrequency.length === 0 ? (
-                      <p className="text-sm text-slate-400 py-8 text-center">Chưa có dữ liệu triệu chứng.</p>
+                    {phaseImpacts.length === 0 && symptomFrequency.length === 0 ? (
+                      <p className="text-sm text-slate-400 py-8 text-center">Chua co du lieu trieu chung.</p>
                     ) : (
-                      <div className="space-y-3">
-                        {symptomFrequency.map(([symptom, count]) => {
-                          const pct = Math.round((count / symptoms.length) * 100);
-                          return (
-                            <div key={symptom} className="flex items-center gap-3">
-                              <span className="text-sm font-bold text-slate-700 w-32 flex-shrink-0">{symptom}</span>
-                              <div className="flex-1 h-2.5 rounded-full bg-rose-50 overflow-hidden">
-                                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#fb7185,#f472b6)' }} />
+                      <div className="space-y-5">
+                        <div className="p-3 rounded-2xl bg-rose-50/60 border border-rose-100">
+                          <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wide mb-1">Diem tac dong tong</p>
+                          <p className="text-2xl font-extrabold text-slate-900">{Math.round(overallSymptomImpact)}<span className="text-sm text-slate-400">/100</span></p>
+                        </div>
+
+                        {phaseImpacts.length > 0 && (
+                          <div className="space-y-2.5">
+                            {phaseImpacts.map((item) => (
+                              <div key={item.phase} className="flex items-center gap-3">
+                                <span className="text-sm font-bold text-slate-700 w-28 flex-shrink-0">{item.phase}</span>
+                                <div className="flex-1 h-2.5 rounded-full bg-rose-50 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-700"
+                                    style={{ width: `${Math.min(100, Math.max(0, item.impactScore))}%`, background: 'linear-gradient(90deg,#fb7185,#f472b6)' }}
+                                  />
+                                </div>
+                                <span className="text-xs font-extrabold text-slate-500 w-20 text-right">{Math.round(item.impactScore)}%</span>
                               </div>
-                              <span className="text-xs font-extrabold text-slate-400 w-14 text-right">{count}</span>
-                            </div>
-                          );
-                        })}
+                            ))}
+                          </div>
+                        )}
+
+                        {topSymptomsByImpact.length > 0 ? (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Top trieu chung gay bien dong</p>
+                            {topSymptomsByImpact.map((symptom) => (
+                              <div key={symptom.symptomId} className="flex items-center justify-between rounded-xl border border-rose-100 bg-white px-3 py-2">
+                                <span className="text-sm font-bold text-slate-700">{symptom.symptomName}</span>
+                                <span className="text-xs font-extrabold text-rose-500">{Math.round(symptom.impactScore)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {symptomFrequency.map(([symptom, count]) => {
+                              const pct = Math.round((count / symptoms.length) * 100);
+                              return (
+                                <div key={symptom} className="flex items-center gap-3">
+                                  <span className="text-sm font-bold text-slate-700 w-32 flex-shrink-0">{symptom}</span>
+                                  <div className="flex-1 h-2.5 rounded-full bg-rose-50 overflow-hidden">
+                                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#fb7185,#f472b6)' }} />
+                                  </div>
+                                  <span className="text-xs font-extrabold text-slate-400 w-14 text-right">{count}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

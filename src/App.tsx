@@ -3,6 +3,8 @@ import { useAuthStore } from './store/authStore';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import OnboardingPage from './pages/OnboardingPage';
 import FemaleDashboardPage from './pages/FemaleDashboardPage';
 import CalendarPage from './pages/CalendarPage';
@@ -16,6 +18,8 @@ import MaleDashboardPage from './pages/MaleDashboardPage';
 import MaleSettingsNotificationsPage from './pages/MaleSettingsNotificationsPage';
 import AdminPage from './pages/AdminPage';
 import Layout from './components/layout/Layout';
+import PaymentSuccessPage from './pages/payment/PaymentSuccessPage';
+import PaymentCancelPage from './pages/payment/PaymentCancelPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, token } = useAuthStore();
@@ -76,6 +80,8 @@ export default function App() {
       <Route path="/" element={<HomeRoute />} />
       <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
+      <Route path="/forgot-password" element={<AuthRoute><ForgotPasswordPage /></AuthRoute>} />
+      <Route path="/reset-password/:token" element={<AuthRoute><ResetPasswordPage /></AuthRoute>} />
       <Route path="/onboarding" element={<OnboardingRoute><OnboardingPage /></OnboardingRoute>} />
       {/* Female dashboard — standalone (no sidebar Layout) */}
       <Route path="/female-dashboard" element={<UserOnlyRoute><ProtectedRoute><FemaleDashboardPage /></ProtectedRoute></UserOnlyRoute>} />
@@ -85,6 +91,10 @@ export default function App() {
       {/* Male dashboard — standalone (no sidebar Layout) */}
       <Route path="/male-dashboard" element={<UserOnlyRoute><ProtectedRoute><MaleDashboardPage /></ProtectedRoute></UserOnlyRoute>} />
       <Route path="/male-settings/notifications" element={<UserOnlyRoute><ProtectedRoute><MaleSettingsNotificationsPage /></ProtectedRoute></UserOnlyRoute>} />
+      {/* Standalone payment routes */}
+      <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
+      <Route path="/payment/cancel" element={<ProtectedRoute><PaymentCancelPage /></ProtectedRoute>} />
+
       <Route element={<Layout />}>
         <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />

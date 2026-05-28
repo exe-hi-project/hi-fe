@@ -60,8 +60,17 @@ export interface User {
   reminderDaysBefore?: number;
   partnerNotifications?: boolean;
   onboardingCompleted?: boolean;
+  subscription?: UserSubscription;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface UserSubscription {
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  plan: 'free' | 'premium' | 'monthly' | 'yearly' | 'premium_monthly' | 'premium_yearly';
+  status: 'active' | 'canceled' | 'past_due' | 'trialing' | null;
+  currentPeriodEnd: string | null;
 }
 
 export interface RegisterDto {
@@ -100,7 +109,7 @@ export interface Symptom {
 export interface Notification {
   _id: string;
   userId: string;
-  type: 'period_coming' | 'period_started' | 'reminder' | 'partner';
+  type: 'period_coming' | 'period_started' | 'reminder' | 'partner' | 'PARTNER_CONNECT' | 'PARTNER_DISCONNECT';
   title: string;
   message: string;
   read: boolean;
