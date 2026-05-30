@@ -48,12 +48,14 @@ export default function MaleSettingsNotificationsPage() {
   const [notify, setNotify] = useState({ periodAlert: user?.periodReminder ?? true, ovulation: true, phaseTips: false });
   const [share,  setShare]  = useState({ workoutSchedule: user?.partnerNotifications ?? true, moodStress: false, careRequests: true });
   const [ch,     setCh]     = useState({ push: true, email: false, sms: false });
+  const [reminderDaysBefore, setReminderDaysBefore] = useState(user?.reminderDaysBefore ?? 3);
   const [partnerCode, setPartnerCode] = useState('');
 
   const saveSettingsMutation = useMutation({
     mutationFn: () => api.put('/users/profile', {
       periodReminder: notify.periodAlert,
       partnerNotifications: share.workoutSchedule,
+      reminderDaysBefore,
     }),
     onSuccess: () => toast.success('Đã lưu cài đặt thông báo'),
     onError: () => toast.error('Lưu thất bại, thử lại sau'),
@@ -300,7 +302,7 @@ export default function MaleSettingsNotificationsPage() {
               </h3>
               <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-sm border border-white/80 overflow-hidden">
                 {([
-                  { key: 'periodAlert', label: 'Kỳ kinh sắp tới của cô ấy',    desc: 'Nhận thông báo 2 ngày trước — chuẩn bị chăm sóc cô ấy.' },
+                  { key: 'periodAlert', label: 'Kỳ kinh sắp tới của cô ấy',    desc: `Nhận thông báo ${reminderDaysBefore} ngày trước — chuẩn bị chăm sóc cô ấy.` },
                   { key: 'ovulation',   label: 'Cửa sổ rụng trứng',            desc: 'Biết những ngày cô ấy ở giai đoạn rụng trứng.' },
                   { key: 'phaseTips',   label: 'Tips chăm sóc theo giai đoạn', desc: 'Gợi ý hành động phù hợp với chu kỳ của cô ấy.' },
                 ] as const).map(({ key, label, desc }, i, arr) => (
@@ -315,6 +317,23 @@ export default function MaleSettingsNotificationsPage() {
                     <Toggle checked={notify[key]} onChange={(v) => setNotify((p) => ({ ...p, [key]: v }))} />
                   </div>
                 ))}
+                {notify.periodAlert && (
+                  <div className="p-6 flex items-center justify-between border-t border-pink-50 hover:bg-pink-50/40 transition-colors">
+                    <div className="flex-1 pr-4">
+                      <p className="text-base font-bold text-slate-800">Nhắc trước bao nhiêu ngày</p>
+                      <p className="text-sm text-slate-400 mt-1 font-medium">Số ngày trước kỳ kinh bạn muốn nhận thông báo.</p>
+                    </div>
+                    <select
+                      value={reminderDaysBefore}
+                      onChange={(e) => setReminderDaysBefore(Number(e.target.value))}
+                      className="w-24 rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    >
+                      {[1, 2, 3, 5, 7].map((d) => (
+                        <option key={d} value={d}>{d} ngày</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 

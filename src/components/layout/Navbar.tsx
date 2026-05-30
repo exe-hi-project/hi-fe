@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { useSubscription } from '../../hooks/useSubscription';
 import HiLogo from '../ui/HiLogo';
+import api from '../../lib/api';
 
 interface NavbarProps {
   /** Show landing-page anchor links (Tính năng / Blog…). Only visible when not logged in. */
@@ -13,6 +15,15 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
   const { token, user, logout } = useAuthStore();
   const { data: subscription } = useSubscription();
   const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn: () => api.get('/notifications/unread-count').then((r) => r.data as { success: boolean; unreadCount: number }),
+    enabled: !!token,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const unreadCount = unreadData?.unreadCount ?? 0;
 
   const isAdmin = user?.role === 'admin';
   const homePath = isAdmin ? '/admin' : user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard';
@@ -122,7 +133,9 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
                 className="relative w-9 h-9 rounded-full bg-white border border-gray-100 flex items-center justify-center text-slate-500 hover:text-pink-500 hover:border-pink-200 transition-all shadow-sm"
               >
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
+                )}
               </Link>
 
               {/* Avatar + name + dropdown */}

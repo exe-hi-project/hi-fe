@@ -33,8 +33,8 @@ export default function PaymentSuccessPage() {
         <div className="mt-8 border-t border-gray-100 pt-6">
           <p className="text-xs text-gray-400">
             Nếu bạn gặp bất kỳ vấn đề gì, vui lòng liên hệ bộ phận hỗ trợ qua email{' '}
-            <a href="mailto:support@hiapp.vn" className="font-medium text-pink-500 hover:underline">
-              support@hiapp.vn
+            <a href="mailto:support@hilover.space" className="font-medium text-pink-500 hover:underline">
+              support@hilover.space
             </a>
           </p>
         </div>

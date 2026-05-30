@@ -9,7 +9,7 @@ import Input from '../components/ui/Input';
 import api from '../lib/api';
 import { User } from '../types';
 import PricingCard from '../components/PricingCard';
-import { useSubscription } from '../hooks/useSubscription';
+import { useSubscription, usePaymentHistory } from '../hooks/useSubscription';
 
 interface ProfileForm {
   name: string;
@@ -36,6 +36,7 @@ function normalizeNumber(value: number | '') {
 export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
   const { data: subscription } = useSubscription();
+  const { data: transactions } = usePaymentHistory();
   const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
   const planLabel = subscription?.plan && subscription.plan.includes('yearly') ? 'Hi Premium Năm' : subscription?.plan && subscription.plan.includes('monthly') ? 'Hi Premium Tháng' : 'Free Plan';
   const isMale = user?.gender === 'male';
@@ -189,58 +190,178 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="border-white/80 bg-white/90 shadow-sm backdrop-blur">
-          <div className="mb-6">
-            <h3 className="text-lg font-extrabold text-slate-900">Thông tin cá nhân</h3>
-            <p className="mt-1 text-sm leading-relaxed text-slate-500">
-              Trang này chỉ dùng để chỉnh hồ sơ. Cài đặt thông báo và cặp đôi nằm ở trang riêng.
-            </p>
-          </div>
-          <form onSubmit={handleSubmit((data) => mutate(data))} className="space-y-4">
-            <Input
-              label="Họ và tên"
-              className={accent.focus}
-              {...register('name', { required: true })}
-            />
-            <Input
-              label="Ngày sinh"
-              type="date"
-              className={accent.focus}
-              {...register('birthDate')}
-            />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input
-                label="Chiều cao (cm)"
-                type="number"
-                className={accent.focus}
-                {...register('height', { valueAsNumber: true })}
-              />
-              <Input
-                label="Cân nặng (kg)"
-                type="number"
-                className={accent.focus}
-                {...register('weight', { valueAsNumber: true })}
-              />
+        <div className="space-y-6">
+          <Card className="border-white/80 bg-white/90 shadow-sm backdrop-blur">
+            <div className="mb-6">
+              <h3 className="text-lg font-extrabold text-slate-900">Thông tin cá nhân</h3>
+              <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                Trang này chỉ dùng để chỉnh hồ sơ. Cài đặt thông báo và cặp đôi nằm ở trang riêng.
+              </p>
             </div>
+            <form onSubmit={handleSubmit((data) => mutate(data))} className="space-y-4">
+              <Input
+                label="Họ và tên"
+                className={accent.focus}
+                {...register('name', { required: true })}
+              />
+              <Input
+                label="Ngày sinh"
+                type="date"
+                className={accent.focus}
+                {...register('birthDate')}
+              />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label="Chiều cao (cm)"
+                  type="number"
+                  className={accent.focus}
+                  {...register('height', { valueAsNumber: true })}
+                />
+                <Input
+                  label="Cân nặng (kg)"
+                  type="number"
+                  className={accent.focus}
+                  {...register('weight', { valueAsNumber: true })}
+                />
+              </div>
 
-            <div className={`rounded-2xl border ${accent.border} bg-gradient-to-br ${accent.softGradient} p-4`}>
-              <div className="flex items-start gap-3">
-                <span className={`material-symbols-outlined mt-0.5 ${accent.text}`}>privacy_tip</span>
-                <div>
-                  <p className="text-sm font-extrabold text-slate-800">Dữ liệu hồ sơ được dùng để cá nhân hóa</p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                    Chiều cao, cân nặng và ngày sinh giúp Hi đưa ra dự đoán phù hợp hơn với cơ thể của bạn.
-                  </p>
+              <div className={`rounded-2xl border ${accent.border} bg-gradient-to-br ${accent.softGradient} p-4`}>
+                <div className="flex items-start gap-3">
+                  <span className={`material-symbols-outlined mt-0.5 ${accent.text}`}>privacy_tip</span>
+                  <div>
+                    <p className="text-sm font-extrabold text-slate-800">Dữ liệu hồ sơ được dùng để cá nhân hóa</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                      Chiều cao, cân nặng và ngày sinh giúp Hi đưa ra dự đoán phù hợp hơn với cơ thể của bạn.
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              <Button type="submit" loading={isPending}>
+                <span className="material-symbols-outlined mr-2 text-[18px]">save</span>
+                Lưu thay đổi
+              </Button>
+            </form>
+          </Card>
+
+          {/* Lịch sử giao dịch */}
+          <Card className="border-white/80 bg-white/90 shadow-sm backdrop-blur p-6">
+            <div className="mb-6">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <span className="material-symbols-outlined text-slate-650 text-[22px]">history</span>
+                Lịch sử giao dịch
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Xem lịch sử thanh toán và trạng thái các giao dịch nâng cấp tài khoản của bạn.
+              </p>
             </div>
 
-            <Button type="submit" loading={isPending}>
-              <span className="material-symbols-outlined mr-2 text-[18px]">save</span>
-              Lưu thay đổi
-            </Button>
-          </form>
-        </Card>
+            {!transactions || transactions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/50 rounded-2xl border border-slate-100">
+                <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">payments</span>
+                <p className="text-xs font-semibold text-slate-400">Chưa có lịch sử giao dịch nào.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/60">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/70 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                      <th className="py-2.5 px-4">Mã đơn</th>
+                      <th className="py-2.5 px-4">Gói đăng ký</th>
+                      <th className="py-2.5 px-4">Số tiền</th>
+                      <th className="py-2.5 px-4">Ngày giao dịch</th>
+                      <th className="py-2.5 px-4 text-center">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {transactions.map((tx) => {
+                      const planText = tx.plan?.includes('yearly') ? 'Premium Năm' : tx.plan?.includes('monthly') ? 'Premium Tháng' : 'Nâng cấp';
+                      const amountText = (tx.amount || 0).toLocaleString('vi-VN') + 'đ';
+                      const dateText = tx.createdAt ? new Date(tx.createdAt).toLocaleString('vi-VN') : '—';
+                      
+                      let statusBadge = (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                          Chưa rõ
+                        </span>
+                      );
+                      if (tx.status === 'completed') {
+                        statusBadge = (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 border border-emerald-100">
+                            Thành công
+                          </span>
+                        );
+                      } else if (tx.status === 'pending') {
+                        statusBadge = (
+                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600 border border-amber-100">
+                            Đang chờ
+                          </span>
+                        );
+                      } else if (tx.status === 'canceled') {
+                        statusBadge = (
+                          <span className="inline-flex items-center rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-400 border border-slate-200">
+                            Đã hủy
+                          </span>
+                        );
+                      } else if (tx.status === 'failed') {
+                        statusBadge = (
+                          <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600 border border-rose-100">
+                            Thất bại
+                          </span>
+                        );
+                      } else if (tx.status === 'refunded') {
+                        statusBadge = (
+                          <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-600 border border-violet-100">
+                            Đã hoàn tiền
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <tr key={tx._id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-2.5 px-4 font-mono text-[10px] text-slate-500">{tx.orderCode || '—'}</td>
+                          <td className="py-2.5 px-4 font-bold text-slate-700">{planText}</td>
+                          <td className="py-2.5 px-4 font-extrabold text-slate-800">{amountText}</td>
+                          <td className="py-2.5 px-4 text-slate-500">{dateText}</td>
+                          <td className="py-2.5 px-4 text-center">{statusBadge}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
+          {/* Chính sách hủy gói & Hoàn tiền */}
+          <Card className="border-white/80 bg-white/90 shadow-sm backdrop-blur p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <span className="material-symbols-outlined text-slate-650 text-[22px]">gavel</span>
+                Chính sách hủy & Hoàn tiền
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 text-xs leading-relaxed text-slate-600">
+              <div className="bg-slate-50/60 rounded-2xl border border-slate-100/70 p-4">
+                <h4 className="font-bold text-slate-850 mb-1.5 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-rose-500 text-[16px]">cancel</span>
+                  Chính sách Hủy gói
+                </h4>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  Bạn có thể hủy gia hạn tự động của gói bất kỳ lúc nào qua nút <strong>"Hủy gia hạn gói Premium"</strong>. Sau khi hủy, quyền lợi Premium vẫn được giữ nguyên cho đến hết chu kỳ thanh toán hiện tại. Chúng tôi cam kết không tự động trừ tiền kỳ tiếp theo.
+                </p>
+              </div>
+              <div className="bg-slate-50/60 rounded-2xl border border-slate-100/70 p-4">
+                <h4 className="font-bold text-slate-850 mb-1.5 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-rose-500 text-[16px]">currency_exchange</span>
+                  Chính sách Hoàn tiền
+                </h4>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  Vì gói Premium mở khóa nội dung số ngay lập tức (AI tư vấn y khoa và các tính năng chu kỳ nâng cao), chúng tôi không hỗ trợ hoàn tiền sau khi giao dịch thành công. Ngoại lệ duy nhất là lỗi hệ thống khiến bạn đã bị trừ tiền mà tài khoản không được nâng cấp Premium sau 24h. Vui lòng liên hệ <a href="mailto:support@hilover.space" className="text-pink-500 font-semibold hover:underline">support@hilover.space</a> kèm mã giao dịch để hỗ trợ nhanh nhất.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
 
       <div className="mt-8 border-t border-slate-100 pt-8">

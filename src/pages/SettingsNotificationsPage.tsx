@@ -48,12 +48,14 @@ export default function SettingsNotificationsPage() {
   const [notify, setNotify] = useState({ period: user?.periodReminder ?? true, fertility: false, dailyTips: true });
   const [share,  setShare]  = useState({ periodAlert: user?.partnerNotifications ?? true, mood: true, careTips: false });
   const [ch,     setCh]     = useState({ push: true, email: true, sms: false });
+  const [reminderDaysBefore, setReminderDaysBefore] = useState(user?.reminderDaysBefore ?? 3);
   const [partnerCode, setPartnerCode] = useState('');
 
   const saveSettingsMutation = useMutation({
     mutationFn: () => api.put('/users/profile', {
       periodReminder: notify.period,
       partnerNotifications: share.periodAlert,
+      reminderDaysBefore,
     }),
     onSuccess: () => toast.success('Đã lưu cài đặt thông báo'),
     onError: () => toast.error('Lưu thất bại, thử lại sau'),
@@ -304,7 +306,7 @@ export default function SettingsNotificationsPage() {
               </h3>
               <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-sm border border-white/80 overflow-hidden">
                 {([
-                  { key: 'period',    label: 'Dự đoán kỳ kinh sắp tới',         desc: 'Nhận thông báo 2 ngày trước khi bắt đầu.' },
+                  { key: 'period',    label: 'Dự đoán kỳ kinh sắp tới',         desc: `Nhận thông báo ${reminderDaysBefore} ngày trước khi bắt đầu.` },
                   { key: 'fertility', label: 'Cửa sổ thụ thai & Rụng trứng',     desc: 'Thông báo những ngày khả năng thụ thai cao.' },
                   { key: 'dailyTips', label: 'Lời khuyên sức khỏe hàng ngày',    desc: 'Tips về dinh dưỡng và vận động theo chu kỳ.' },
                 ] as const).map(({ key, label, desc }, i, arr) => (
@@ -319,6 +321,23 @@ export default function SettingsNotificationsPage() {
                     <Toggle checked={notify[key]} onChange={(v) => setNotify((p) => ({ ...p, [key]: v }))} />
                   </div>
                 ))}
+                {notify.period && (
+                  <div className="p-6 flex items-center justify-between border-t border-pink-50 hover:bg-pink-50/40 transition-colors">
+                    <div className="flex-1 pr-4">
+                      <p className="text-base font-bold text-slate-800">Nhắc trước bao nhiêu ngày</p>
+                      <p className="text-sm text-slate-400 mt-1 font-medium">Số ngày trước kỳ kinh bạn muốn nhận thông báo.</p>
+                    </div>
+                    <select
+                      value={reminderDaysBefore}
+                      onChange={(e) => setReminderDaysBefore(Number(e.target.value))}
+                      className="w-24 rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-100"
+                    >
+                      {[1, 2, 3, 5, 7].map((d) => (
+                        <option key={d} value={d}>{d} ngày</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 

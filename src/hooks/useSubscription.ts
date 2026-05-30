@@ -25,7 +25,7 @@ export interface TransactionInfo {
 }
 
 export function useSubscription() {
-  const userId = useAuthStore((state) => state.user?.id ?? (state.user as any)?._id ?? null);
+  const userId = useAuthStore((state) => state.user?._id ?? null);
   return useQuery<SubscriptionInfo>({
     queryKey: ['subscription', userId],
     queryFn: () => api.get('/payments/subscription').then((r) => r.data.data),
@@ -34,7 +34,7 @@ export function useSubscription() {
 }
 
 export function usePaymentHistory() {
-  const userId = useAuthStore((state) => state.user?.id ?? (state.user as any)?._id ?? null);
+  const userId = useAuthStore((state) => state.user?._id ?? null);
   return useQuery<TransactionInfo[]>({
     queryKey: ['paymentHistory', userId],
     queryFn: () => api.get('/payments/history').then((r) => r.data.data),

@@ -141,6 +141,26 @@ export default function AdminPage() {
     },
   });
 
+  const exportCsvMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.get('/admin/users/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'users_report.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
+    onSuccess: () => toast.success('Đã tải xuống danh sách người dùng'),
+    onError: () => toast.error('Xuất CSV thất bại'),
+  });
+
+  const triggerRemindersMutation = useMutation({
+    mutationFn: () => api.post('/admin/trigger-reminders'),
+    onSuccess: () => toast.success('Đã kích hoạt gửi nhắc nhở cho người dùng'),
+    onError: () => toast.error('Kích hoạt nhắc nhở thất bại'),
+  });
+
   const displayStats = overviewQuery.data?.overview;
   const displayFinancial = overviewQuery.data?.financialReport;
   const displayMonthlyFinancials = overviewQuery.data?.monthlyFinancials || [];
@@ -512,7 +532,27 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="xl:col-span-2">
           <CardHeader className="mb-3">
-            <CardTitle className="text-base">Quản lý người dùng</CardTitle>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <CardTitle className="text-base">Quản lý người dùng</CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={exportCsvMutation.isPending}
+                  onClick={() => exportCsvMutation.mutate()}
+                >
+                  📤 Xuất CSV
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  loading={triggerRemindersMutation.isPending}
+                  onClick={() => triggerRemindersMutation.mutate()}
+                >
+                  🔔 Gửi nhắc nhở
+                </Button>
+              </div>
+            </div>
           </CardHeader>
 
           <form onSubmit={onSearch} className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
