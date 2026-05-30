@@ -64,9 +64,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const handleSocialSuccess = async () => {
-    const { user } = useAuthStore.getState();
-    if (!user) return;
+  const navigateAfterLogin = (user: ReturnType<typeof useAuthStore.getState>['user']) => {
+    if (!user) {
+      toast.error('Đăng nhập thất bại - không nhận được thông tin người dùng');
+      return;
+    }
     let destination = '/male-dashboard';
     if (user.role === 'admin') destination = '/admin';
     else if (!user.onboardingCompleted) destination = '/onboarding';
@@ -77,13 +79,22 @@ export default function LoginPage() {
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        await socialLogin('google', { accessToken: tokenResponse.access_token });
-        await handleSocialSuccess();
+        const user = await socialLogin('google', { accessToken: tokenResponse.access_token });
+        navigateAfterLogin(user);
       } catch (err: any) {
-        toast.error(err.message);
+        toast.error(err.message || 'Đăng nhập Google thất bại');
       }
     },
-    onError: () => toast.error('Đăng nhập Google thất bại'),
+    onError: (err) => {
+      console.error('Google OAuth error:', err);
+      toast.error('Đăng nhập Google thất bại');
+    },
+    onNonOAuthError: (err) => {
+      console.error('Google non-OAuth error:', err);
+      if (err.type !== 'popup_closed') {
+        toast.error('Không thể mở cửa sổ đăng nhập Google');
+      }
+    },
   });
 
   const handleFacebookLogin = async () => {
@@ -97,7 +108,7 @@ export default function LoginPage() {
       if (response.authResponse) {
         const { accessToken, userID } = response.authResponse;
         socialLogin('facebook', { accessToken, userID })
-          .then(handleSocialSuccess)
+          .then((user) => navigateAfterLogin(user))
           .catch((err: any) => toast.error(err.message));
       }
     }, { scope: 'email,public_profile' });

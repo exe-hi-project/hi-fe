@@ -79,8 +79,7 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const handleSocialSuccess = async () => {
-    const { user } = useAuthStore.getState();
+  const navigateAfterLogin = (user: ReturnType<typeof useAuthStore.getState>['user']) => {
     if (!user) return;
     if (user.role === 'admin') navigate('/admin');
     else if (!user.onboardingCompleted) navigate('/onboarding');
@@ -91,14 +90,22 @@ export default function RegisterPage() {
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        await socialLogin('google', { accessToken: tokenResponse.access_token });
-        toast.success('Đăng nhập Google thành công!');
-        await handleSocialSuccess();
+        const user = await socialLogin('google', { accessToken: tokenResponse.access_token });
+        navigateAfterLogin(user);
       } catch (err: any) {
-        toast.error(err.message);
+        toast.error(err.message || 'Đăng nhập Google thất bại');
       }
     },
-    onError: () => toast.error('Đăng nhập Google thất bại'),
+    onError: (err) => {
+      console.error('Google OAuth error:', err);
+      toast.error('Đăng nhập Google thất bại');
+    },
+    onNonOAuthError: (err) => {
+      console.error('Google non-OAuth error:', err);
+      if (err.type !== 'popup_closed') {
+        toast.error('Không thể mở cửa sổ đăng nhập Google');
+      }
+    },
   });
 
   const handleFacebookLogin = async () => {
@@ -112,7 +119,7 @@ export default function RegisterPage() {
       if (response.authResponse) {
         const { accessToken, userID } = response.authResponse;
         socialLogin('facebook', { accessToken, userID })
-          .then(() => { toast.success('Đăng nhập Facebook thành công!'); return handleSocialSuccess(); })
+          .then((user) => navigateAfterLogin(user))
           .catch((err: any) => toast.error(err.message));
       }
     }, { scope: 'email,public_profile' });
