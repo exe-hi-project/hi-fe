@@ -29,7 +29,7 @@ interface AuthState {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterDto) => Promise<void>;
-  socialLogin: (provider: 'google' | 'facebook', payload: Record<string, string>) => Promise<void>;
+  socialLogin: (provider: 'google' | 'facebook', payload: Record<string, string>) => Promise<User>;
   refreshSession: () => Promise<void>;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
@@ -76,6 +76,7 @@ export const useAuthStore = create<AuthState>()(
           const authPayload = unwrapAuthPayload(data);
           localStorage.setItem('token', authPayload.token);
           set({ user: authPayload.user, token: authPayload.token, isLoading: false });
+          return authPayload.user;
         } catch (err: any) {
           set({ isLoading: false });
           throw new Error(err.response?.data?.message || `Đăng nhập ${provider} thất bại`);

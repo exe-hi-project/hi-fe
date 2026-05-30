@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
+import { useAuthStore } from '../store/authStore';
 
 export interface SubscriptionInfo {
   stripeCustomerId: string | null;
@@ -10,17 +11,44 @@ export interface SubscriptionInfo {
   currentPeriodEnd: string | null;
 }
 
+export interface TransactionInfo {
+  _id: string;
+  userId: string;
+  userEmail: string;
+  orderCode: number;
+  amount: number;
+  plan: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded' | 'canceled';
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export function useSubscription() {
+  const userId = useAuthStore((state) => state.user?.id ?? (state.user as any)?._id ?? null);
   return useQuery<SubscriptionInfo>({
-    queryKey: ['subscription'],
+    queryKey: ['subscription', userId],
     queryFn: () => api.get('/payments/subscription').then((r) => r.data.data),
+    enabled: !!userId,
+  });
+}
+
+export function usePaymentHistory() {
+  const userId = useAuthStore((state) => state.user?.id ?? (state.user as any)?._id ?? null);
+  return useQuery<TransactionInfo[]>({
+    queryKey: ['paymentHistory', userId],
+    queryFn: () => api.get('/payments/history').then((r) => r.data.data),
+    enabled: !!userId,
   });
 }
 
 export function useCheckout() {
   return useMutation({
     mutationFn: (planType: 'monthly' | 'yearly') =>
-      api.post('/payments/create-checkout-session', { priceId: planType }).then((r) => r.data.data),
+      api.post('/payments/create-checkout-session', { 
+        priceId: planType,
+        origin: window.location.origin
+      }).then((r) => r.data.data),
     onSuccess: (data) => {
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
@@ -41,8 +69,9 @@ export function useCancelSubscription() {
   return useMutation({
     mutationFn: () => api.post('/payments/cancel').then((r) => r.data),
     onSuccess: (data) => {
-      toast.success(data.message || 'Đã lên lịch hủy subscription');
+      toast.success(data.message || 'Đã hủy gia hạn gói Premium');
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['paymentHistory'] });
     },
     onError: (error: any) => {
       const msg = error.response?.data?.message || 'Có lỗi xảy ra khi hủy subscription';

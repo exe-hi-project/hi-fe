@@ -109,7 +109,7 @@ export interface Symptom {
 export interface Notification {
   _id: string;
   userId: string;
-  type: 'period_coming' | 'period_started' | 'reminder' | 'partner' | 'PARTNER_CONNECT' | 'PARTNER_DISCONNECT';
+  type: 'period_coming' | 'period_started' | 'reminder' | 'partner' | 'PARTNER_CONNECT' | 'PARTNER_DISCONNECT' | 'PERIOD_REMINDER' | 'PARTNER_PERIOD_REMINDER';
   title: string;
   message: string;
   read: boolean;
