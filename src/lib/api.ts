@@ -28,6 +28,8 @@ api.interceptors.response.use(
     const isAuthEndpoint =
       url.includes('/auth/login') ||
       url.includes('/auth/register') ||
+      url.includes('/auth/google') ||
+      url.includes('/auth/facebook') ||
       url.includes('/auth/refresh') ||
       url.includes('/auth/forgot-password') ||
       url.includes('/auth/reset-password');

@@ -92,16 +92,14 @@ export default function RegisterPage() {
       try {
         const user = await socialLogin('google', { accessToken: tokenResponse.access_token });
         navigateAfterLogin(user);
-      } catch (err: any) {
-        toast.error(err.message || 'Đăng nhập Google thất bại');
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Đăng nhập Google thất bại');
       }
     },
-    onError: (err) => {
-      console.error('Google OAuth error:', err);
+    onError: () => {
       toast.error('Đăng nhập Google thất bại');
     },
     onNonOAuthError: (err) => {
-      console.error('Google non-OAuth error:', err);
       if (err.type !== 'popup_closed') {
         toast.error('Không thể mở cửa sổ đăng nhập Google');
       }
