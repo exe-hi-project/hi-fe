@@ -68,7 +68,7 @@ export default function OnboardingPage() {
   // Step 1
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   // Step 2
-  const [selectedGoal, setSelectedGoal] = useState('');
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   // Step 3
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
@@ -133,7 +133,7 @@ export default function OnboardingPage() {
       const payload: Record<string, unknown> = {
         gender,
         interests: selectedInterests,
-        goals: selectedGoal ? [selectedGoal] : [],
+        goals: selectedGoals,
         height: height ? Number(height) : undefined,
         weight: weight ? Number(weight) : undefined,
         onboardingCompleted: true,
@@ -295,11 +295,11 @@ export default function OnboardingPage() {
 
             <div className="grid grid-cols-2 gap-3 mb-8">
               {(gender === 'male' ? GOALS_MALE : GOALS).map(goal => {
-                const sel = selectedGoal === goal.id;
+                const sel = selectedGoals.includes(goal.id);
                 return (
                   <button
                     key={goal.id}
-                    onClick={() => setSelectedGoal(goal.id)}
+                    onClick={() => setSelectedGoals(prev => prev.includes(goal.id) ? prev.filter(x => x !== goal.id) : [...prev, goal.id])}
                     className="flex items-center gap-3 p-4 rounded-2xl transition-all duration-200 text-left"
                     style={{
                       background: sel ? goal.bg : 'white',
@@ -350,7 +350,7 @@ export default function OnboardingPage() {
             )}
 
             <div className="flex justify-center">
-              <button onClick={handleNext} disabled={!selectedGoal} className="rounded-full text-white text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-40" style={{ ...gradBtn, height: 52, paddingLeft: 48, paddingRight: 48 }}>
+              <button onClick={handleNext} disabled={selectedGoals.length === 0} className="rounded-full text-white text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-40" style={{ ...gradBtn, height: 52, paddingLeft: 48, paddingRight: 48 }}>
                 Tiếp tục <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </button>
             </div>
@@ -635,7 +635,7 @@ export default function OnboardingPage() {
               {[
                 { bg: '#f9e8f5', emoji: '👤', label: 'Giới tính',  value: gender === 'female' ? '👩 Nữ' : '👨 Nam', color: '' },
                 { bg: '#e8f4fd', emoji: '✨', label: 'Sở thích',   value: `${selectedInterests.length} chủ đề đã chọn`, color: '' },
-                { bg: '#ede9fe', emoji: '🎯', label: 'Mục tiêu',   value: [...GOALS, ...GOALS_MALE].find(g => g.id === selectedGoal)?.label ?? '—', color: '' },
+                { bg: '#ede9fe', emoji: '🎯', label: 'Mục tiêu',   value: selectedGoals.length > 0 ? selectedGoals.map(id => [...GOALS, ...GOALS_MALE].find(g => g.id === id)?.label).filter(Boolean).join(', ') : '—', color: '' },
                 ...(gender === 'female' ? [{ bg: '#fce7f3', emoji: '💧', label: 'Chu kỳ', value: `${cycleLength} ngày · Kinh ${periodLength} ngày`, color: '' }] : []),
                 ...(gender === 'female' ? [{ bg: '#f3e8ff', emoji: '⏰', label: 'Nhắc kỳ kinh', value: periodReminder ? `Bật · trước ${reminderDaysBefore} ngày` : 'Tắt', color: '' }] : []),
                 ...(gender === 'male' ? [{ bg: '#dbeafe', emoji: '🔔', label: 'Nhắc chăm sóc', value: partnerNotifications ? 'Bật' : 'Tắt', color: '' }] : []),
