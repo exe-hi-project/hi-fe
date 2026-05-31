@@ -78,17 +78,21 @@ export default function LoginPage() {
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
+      console.log('Google Sign-In onSuccess triggered! Token response:', tokenResponse);
       try {
         const user = await socialLogin('google', { accessToken: tokenResponse.access_token });
         navigateAfterLogin(user);
       } catch (err: unknown) {
+        console.error('Google Sign-In socialLogin error:', err);
         toast.error(err instanceof Error ? err.message : 'Đăng nhập Google thất bại');
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Google Sign-In onError triggered:', error);
       toast.error('Đăng nhập Google thất bại');
     },
     onNonOAuthError: (err) => {
+      console.error('Google Sign-In onNonOAuthError triggered:', err);
       if (err.type !== 'popup_closed') {
         toast.error('Không thể mở cửa sổ đăng nhập Google');
       }
