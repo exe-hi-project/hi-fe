@@ -87,28 +87,13 @@ export default function RegisterPage() {
     else navigate('/male-dashboard');
   };
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      console.log('Google Sign-In onSuccess triggered! Token response:', tokenResponse);
-      try {
-        const user = await socialLogin('google', { accessToken: tokenResponse.access_token });
-        navigateAfterLogin(user);
-      } catch (err: unknown) {
-        console.error('Google Sign-In socialLogin error:', err);
-        toast.error(err instanceof Error ? err.message : 'Đăng nhập Google thất bại');
-      }
-    },
-    onError: (error) => {
-      console.error('Google Sign-In onError triggered:', error);
-      toast.error('Đăng nhập Google thất bại');
-    },
-    onNonOAuthError: (err) => {
-      console.error('Google Sign-In onNonOAuthError triggered:', err);
-      if (err.type !== 'popup_closed') {
-        toast.error('Không thể mở cửa sổ đăng nhập Google');
-      }
-    },
-  });
+  const handleGoogleLogin = () => {
+    const clientId = '315410090730-6bhvppf1p0jlja3s0o4es8pbc1ob2srm.apps.googleusercontent.com';
+    const redirectUri = window.location.origin;
+    const scope = 'email profile openid';
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
+    window.location.assign(url);
+  };
 
   const handleFacebookLogin = async () => {
     try {
@@ -325,7 +310,7 @@ export default function RegisterPage() {
               <div className="flex-grow border-t border-gray-100" />
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <button type="button" onClick={() => googleLogin()} className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all text-sm font-semibold text-gray-700">
+              <button type="button" onClick={handleGoogleLogin} className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all text-sm font-semibold text-gray-700">
                 <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>

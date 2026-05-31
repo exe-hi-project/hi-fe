@@ -1,4 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -75,6 +77,43 @@ function DashboardRedirect() {
 }
 
 export default function App() {
+  const { socialLogin } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token=')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      if (accessToken) {
+        // Clear hash from URL immediately to keep the URL clean
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+        const performRedirectLogin = async () => {
+          toast.loading('Đang xử lý đăng nhập Google...', { id: 'google-redirect-login' });
+          try {
+            const user = await socialLogin('google', { accessToken });
+            toast.dismiss('google-redirect-login');
+            toast.success('Đăng nhập Google thành công!');
+            
+            // Navigate to appropriate page
+            let destination = '/male-dashboard';
+            if (user.role === 'admin') destination = '/admin';
+            else if (!user.onboardingCompleted) destination = '/onboarding';
+            else if (user.gender === 'female') destination = '/female-dashboard';
+            
+            navigate(destination);
+          } catch (err: any) {
+            toast.dismiss('google-redirect-login');
+            toast.error(err.message || 'Đăng nhập Google thất bại');
+          }
+        };
+        performRedirectLogin();
+      }
+    }
+  }, [location.hash, socialLogin, navigate]);
+
   return (
     <Routes>
       <Route path="/" element={<HomeRoute />} />
