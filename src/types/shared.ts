@@ -1,0 +1,183 @@
+// Inlined from packages/shared — kept in sync manually.
+// @hi/shared is a local monorepo package not published to npm;
+// inlining here avoids the E404 in standalone CI environments.
+
+// ── user.types ──────────────────────────────────────────────
+export type UserRole = 'user' | 'admin';
+export type Gender = 'female' | 'male' | 'other';
+export type AuthProvider = 'local' | 'google' | 'facebook';
+export type AiPersonality = 'friendly' | 'professional' | 'caring' | 'playful';
+export type AiTone = 'warm' | 'casual' | 'formal';
+
+export interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role?: UserRole;
+  gender: Gender;
+  avatar?: string;
+  authProvider?: AuthProvider;
+  googleId?: string;
+  facebookId?: string;
+  partnerId?: string | null;
+  partnerCode?: string;
+  birthDate?: string;
+  height?: number;
+  weight?: number;
+  interests?: string[];
+  goals?: string[];
+  defaultCycleLength?: number;
+  defaultPeriodLength?: number;
+  lastPeriodDate?: string;
+  lastPeriodEndDate?: string;
+  irregularCycle?: boolean;
+  aiPersonality?: AiPersonality;
+  aiTone?: AiTone;
+  periodReminder?: boolean;
+  reminderDaysBefore?: number;
+  partnerNotifications?: boolean;
+  onboardingCompleted?: boolean;
+  subscription?: UserSubscription;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UserSubscription {
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  plan: 'free' | 'premium';
+  status: 'active' | 'canceled' | 'past_due' | 'trialing' | null;
+  currentPeriodEnd: string | null;
+}
+
+// ── cycle.types ──────────────────────────────────────────────
+export interface CycleRecord {
+  _id: number;
+  userId: string;
+  startDate: string;
+  endDate?: string;
+  cycleLength: number;
+  periodLength: number;
+  notes?: string;
+  isIgnored?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateCycleRecordDto {
+  startDate: string;
+  endDate?: string;
+  cycleLength?: number;
+  periodLength?: number;
+  isIgnored?: boolean;
+}
+
+export interface UpdateCycleRecordDto extends Partial<CreateCycleRecordDto> {}
+
+export interface PhaseSymptomImpact {
+  phase: string;
+  impactScore: number;
+  occurrenceCount: number;
+}
+
+export interface SymptomImpactItem {
+  symptomId: number;
+  symptomName: string;
+  impactScore: number;
+  averageSeverity: number;
+  occurrenceCount: number;
+}
+
+export interface CycleInsights {
+  cycleCount: number;
+  averageCycleLength?: number | null;
+  averagePeriodLength?: number | null;
+  lastStartDate?: string | null;
+  lastRecordedStartDate?: string | null;
+  lastRecordedEndDate?: string | null;
+  estimatedCurrentCycleStartDate?: string | null;
+  estimatedPeriodStartDate?: string | null;
+  estimatedPeriodEndDate?: string | null;
+  estimatedNextStartDate?: string | null;
+  estimatedNextEndDate?: string | null;
+  estimatedOvulationDate?: string | null;
+  fertileWindowStartDate?: string | null;
+  fertileWindowEndDate?: string | null;
+  currentCycleDay?: number | null;
+  currentPhase?: string | null;
+  periodStatus?: 'CONFIRMED' | 'UPCOMING' | 'PREDICTED' | 'DELAYED';
+  confirmedPeriodDay?: number | null;
+  estimatedCycleDay?: number | null;
+  estimatedPhase?: string | null;
+  periodDelayDays?: number | null;
+  daysUntilEstimatedPeriod?: number | null;
+  estimatedPeriodDay?: number | null;
+  predictionConfidence: 'LOW' | 'MEDIUM' | 'HIGH';
+  hasOutliers: boolean;
+  warnings: string[];
+  symptomImpactScore?: number;
+  phaseSymptomImpacts?: PhaseSymptomImpact[];
+  topSymptoms?: SymptomImpactItem[];
+}
+
+export type Cycle = CycleRecord;
+
+// ── health.types ─────────────────────────────────────────────
+export type SymptomCategory = 'PHYSICAL' | 'EMOTIONAL' | 'FLUID' | 'OTHER';
+export type SymptomSeverity = 'MILD' | 'MODERATE' | 'SEVERE';
+export type FlowIntensity = 'NONE' | 'LIGHT' | 'MEDIUM' | 'HEAVY';
+
+export interface UpsertDailyLogDto {
+  flowIntensity?: FlowIntensity;
+  confirmPeriodStart?: boolean;
+  hasClots?: boolean;
+  moodScore?: number;
+  notes?: string;
+  symptoms?: Array<{
+    symptomId: number;
+    severity?: SymptomSeverity;
+  }>;
+}
+
+export interface SymptomDictionary {
+  id: number;
+  name: string;
+  category: SymptomCategory;
+  iconUrl?: string;
+  active: boolean;
+}
+
+export interface DailyLogSymptom {
+  _id: number;
+  dailyLogId: number;
+  symptomId: number;
+  severity: SymptomSeverity;
+  symptomName?: string;
+  category?: SymptomCategory;
+  iconUrl?: string;
+}
+
+export interface DailyLog {
+  _id: number;
+  userId: string;
+  logDate: string;
+  flowIntensity: FlowIntensity;
+  hasClots?: boolean;
+  moodScore?: number;
+  notes?: string;
+  symptoms: DailyLogSymptom[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ── api.types ────────────────────────────────────────────────
+export interface ApiResponse<TData = unknown> {
+  success: boolean;
+  message?: string;
+  data?: TData;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  message: string;
+}

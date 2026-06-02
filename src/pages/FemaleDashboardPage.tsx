@@ -9,7 +9,7 @@ import DailyLogModal, { type DailyLogMode } from '../components/health/DailyLogM
 import api from '../lib/api';
 import { ChatMessage } from '../types';
 import PricingCard from '../components/PricingCard';
-import type { CycleInsights, CycleRecord } from '@hi/shared';
+import type { CycleInsights, CycleRecord } from '../types/shared';
 
 /* ─── types & helpers ───────────────────────────────── */
 interface PartnerCyclesResponse {

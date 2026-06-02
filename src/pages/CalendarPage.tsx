@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import api from '../lib/api';
-import type { CycleInsights, CycleRecord } from '@hi/shared';
+import type { CycleInsights, CycleRecord } from '../types/shared';
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const MONTHS = [
