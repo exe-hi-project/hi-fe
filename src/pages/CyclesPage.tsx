@@ -5,33 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
-import { Cycle, Symptom } from '../types';
-
-interface PhaseSymptomImpact {
-  phase: string;
-  impactScore: number;
-  occurrenceCount: number;
-}
-
-interface SymptomImpactItem {
-  symptomId: number;
-  symptomName: string;
-  impactScore: number;
-  averageSeverity: number;
-  occurrenceCount: number;
-}
-
-interface CycleInsights {
-  cycleCount: number;
-  averageCycleLength?: number | null;
-  averagePeriodLength?: number | null;
-  lastStartDate?: string | null;
-  predictedNextStartDate?: string | null;
-  predictedNextEndDate?: string | null;
-  symptomImpactScore?: number;
-  phaseSymptomImpacts?: PhaseSymptomImpact[];
-  topSymptoms?: SymptomImpactItem[];
-}
+import type { CycleInsights, CycleRecord } from '@hi/shared';
 
 const PHASES = [
   { label: 'Kinh nguyệt', bg: '#fb7185', light: '#fff1f2' },
@@ -40,10 +14,11 @@ const PHASES = [
   { label: 'Hoàng thể', bg: '#a78bfa', light: '#f5f3ff' },
 ];
 
-function getPhaseColor(day: number, periodLen: number) {
+function getPhaseColor(day: number, periodLen: number, cycleLen: number) {
+  const ovulationDay = Math.max(periodLen + 1, cycleLen - 14);
   if (day <= periodLen) return { bg: 'rgba(251,113,133,0.25)', text: '#be123c', label: 'Kinh nguyệt' };
-  if (day <= 12) return { bg: 'rgba(251,191,36,0.25)', text: '#92400e', label: 'Nang trứng' };
-  if (day <= 16) return { bg: 'rgba(52,211,153,0.25)', text: '#065f46', label: 'Rụng trứng' };
+  if (day < ovulationDay - 1) return { bg: 'rgba(251,191,36,0.25)', text: '#92400e', label: 'Nang trứng' };
+  if (day <= ovulationDay + 1) return { bg: 'rgba(52,211,153,0.25)', text: '#065f46', label: 'Rụng trứng' };
   return { bg: 'rgba(167,139,250,0.25)', text: '#5b21b6', label: 'Hoàng thể' };
 }
 
@@ -61,33 +36,14 @@ function nextPeriod(startDate: string, cycleLen: number) {
   return d.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long' });
 }
 
-function getCycleDay(cycle: Cycle) {
-  const today = new Date();
-  const start = new Date(cycle.startDate);
-  return Math.min(Math.max(Math.floor((today.getTime() - start.getTime()) / 86400000) + 1, 1), cycle.cycleLength || 28);
-}
-
 export default function CyclesPage() {
   const { user } = useAuthStore();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
   const [tab, setTab] = useState<'history' | 'stats'>('history');
 
-  const { data: cycles = [], isLoading: cyclesLoading } = useQuery<Cycle[]>({
+  const { data: cycles = [], isLoading: cyclesLoading } = useQuery<CycleRecord[]>({
     queryKey: ['cycles'],
-    queryFn: async () => {
-      try {
-        const { data } = await api.get('/cycle-records');
-        return (data.cycleRecords ?? []) as Cycle[];
-      } catch {
-        const { data } = await api.get('/cycles');
-        return data.cycles as Cycle[];
-      }
-    },
-  });
-
-  const { data: symptoms = [] } = useQuery<Symptom[]>({
-    queryKey: ['symptoms'],
-    queryFn: () => api.get('/symptoms').then((r) => r.data.symptoms),
+    queryFn: () => api.get('/cycle-records').then(({ data }) => data.cycleRecords ?? []),
   });
 
   const { data: insights } = useQuery<CycleInsights | null>({
@@ -108,20 +64,14 @@ export default function CyclesPage() {
   }, [cycles, selected]);
 
   const activeCycle = cycles.find((cycle) => cycle._id === selected) ?? cycles[0] ?? null;
-  const avgLen = cycles.length ? Math.round(cycles.reduce((sum, cycle) => sum + (cycle.cycleLength || 28), 0) / cycles.length) : 0;
-  const avgPeriod = cycles.length ? Math.round(cycles.reduce((sum, cycle) => sum + (cycle.periodLength || 5), 0) / cycles.length) : 0;
+  const avgLen = Math.round(insights?.averageCycleLength ?? 0);
+  const avgPeriod = Math.round(insights?.averagePeriodLength ?? 0);
   const minLen = cycles.length ? Math.min(...cycles.map((cycle) => cycle.cycleLength || 28)) : 0;
   const maxLen = cycles.length ? Math.max(...cycles.map((cycle) => cycle.cycleLength || 28)) : 0;
   const regularity = avgLen ? Math.max(0, Math.round(100 - ((maxLen - minLen) / avgLen) * 100)) : 0;
-  const activeDay = activeCycle ? getCycleDay(activeCycle) : 0;
-
-  const symptomFrequency = (() => {
-    const frequency: Record<string, number> = {};
-    symptoms.forEach((symptom) => {
-      frequency[symptom.name] = (frequency[symptom.name] || 0) + 1;
-    });
-    return Object.entries(frequency).sort((a, b) => b[1] - a[1]);
-  })();
+  const activeDay = activeCycle?._id === cycles[0]?._id && ['CONFIRMED', 'UPCOMING'].includes(insights?.periodStatus ?? '')
+    ? insights?.estimatedCycleDay ?? 0
+    : 0;
   const phaseImpacts = insights?.phaseSymptomImpacts ?? [];
   const topSymptomsByImpact = insights?.topSymptoms ?? [];
   const overallSymptomImpact = insights?.symptomImpactScore ?? 0;
@@ -219,6 +169,7 @@ export default function CyclesPage() {
                     {cycles.map((cycle, index) => {
                       const isActive = cycle._id === activeCycle?._id;
                       const isLatest = index === 0;
+                      const ovulationDay = Math.max((cycle.periodLength || 5) + 1, (cycle.cycleLength || 28) - 14);
                       return (
                         <button
                           key={cycle._id}
@@ -249,8 +200,8 @@ export default function CyclesPage() {
 
                           <div className="flex gap-0.5 rounded-lg overflow-hidden h-2">
                             <div className="rounded-sm" style={{ width: `${((cycle.periodLength || 5) / (cycle.cycleLength || 28)) * 100}%`, background: '#fb7185' }} />
-                            <div className="rounded-sm" style={{ width: `${Math.max(((12 - (cycle.periodLength || 5)) / (cycle.cycleLength || 28)) * 100, 0)}%`, background: '#fbbf24' }} />
-                            <div className="rounded-sm" style={{ width: `${(4 / (cycle.cycleLength || 28)) * 100}%`, background: '#34d399' }} />
+                            <div className="rounded-sm" style={{ width: `${Math.max(((ovulationDay - 2 - (cycle.periodLength || 5)) / (cycle.cycleLength || 28)) * 100, 0)}%`, background: '#fbbf24' }} />
+                            <div className="rounded-sm" style={{ width: `${(3 / (cycle.cycleLength || 28)) * 100}%`, background: '#34d399' }} />
                             <div className="flex-1 rounded-sm" style={{ background: '#a78bfa' }} />
                           </div>
                         </button>
@@ -265,19 +216,33 @@ export default function CyclesPage() {
                           <div>
                             <p className="text-[10px] font-extrabold text-pink-400 uppercase tracking-widest mb-0.5">
                               Chu kỳ #{cycles.length - cycles.findIndex((cycle) => cycle._id === activeCycle._id)}
-                              {activeCycle._id === cycles[0]?._id ? ' · Đang diễn ra' : ''}
+                              {activeCycle._id === cycles[0]?._id ? ' · Gần nhất đã ghi nhận' : ''}
                             </p>
                             <h2 className="text-xl font-extrabold text-slate-900">{fmt(activeCycle.startDate)}</h2>
                           </div>
                           <span className="material-symbols-outlined text-pink-400 text-[36px]">water_drop</span>
                         </div>
 
-                        {activeCycle._id === cycles[0]?._id && (
+                        {activeCycle._id === cycles[0]?._id && insights?.estimatedPeriodStartDate && (
+                          <div className="border-b border-violet-50 bg-violet-50/50 px-6 py-3">
+                            <p className="text-[10px] font-extrabold uppercase tracking-widest text-violet-500">Kỳ tiếp theo dự kiến</p>
+                            <p className="mt-1 text-sm font-bold text-slate-700">
+                              {fmtShort(insights.estimatedPeriodStartDate)}
+                              {insights.periodStatus === 'DELAYED'
+                                ? ` · Trễ ${insights.periodDelayDays ?? 0} ngày`
+                                : insights.periodStatus === 'PREDICTED'
+                                  ? ' · Đang trong cửa sổ dự đoán'
+                                  : ''}
+                            </p>
+                          </div>
+                        )}
+
+                        {activeCycle._id === cycles[0]?._id && activeDay > 0 && (
                           <div className="px-6 py-4 border-b border-pink-50">
                             <div className="flex justify-between items-center mb-2">
                               <p className="text-xs font-bold text-slate-500">Ngày {activeDay} / {activeCycle.cycleLength || 28}</p>
-                              <p className="text-xs font-bold" style={{ color: getPhaseColor(activeDay, activeCycle.periodLength || 5).text }}>
-                                {getPhaseColor(activeDay, activeCycle.periodLength || 5).label}
+                              <p className="text-xs font-bold" style={{ color: getPhaseColor(activeDay, activeCycle.periodLength || 5, activeCycle.cycleLength || 28).text }}>
+                                {insights?.estimatedPhase ?? getPhaseColor(activeDay, activeCycle.periodLength || 5, activeCycle.cycleLength || 28).label}
                               </p>
                             </div>
                             <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden">
@@ -292,11 +257,12 @@ export default function CyclesPage() {
                             {PHASES.map((phase, index) => {
                               const cycleLen = activeCycle.cycleLength || 28;
                               const periodLen = activeCycle.periodLength || 5;
+                              const ovulationDay = Math.max(periodLen + 1, cycleLen - 14);
                               const ranges = [
                                 { days: `Ngày 1 - ${periodLen}`, pct: (periodLen / cycleLen) * 100 },
-                                { days: `Ngày ${periodLen + 1} - 12`, pct: Math.max(((12 - periodLen) / cycleLen) * 100, 0) },
-                                { days: 'Ngày 13 - 16', pct: (4 / cycleLen) * 100 },
-                                { days: `Ngày 17 - ${cycleLen}`, pct: Math.max(((cycleLen - 16) / cycleLen) * 100, 0) },
+                                { days: `Ngày ${periodLen + 1} - ${ovulationDay - 2}`, pct: Math.max(((ovulationDay - 2 - periodLen) / cycleLen) * 100, 0) },
+                                { days: `Ngày ${ovulationDay - 1} - ${ovulationDay + 1}`, pct: (3 / cycleLen) * 100 },
+                                { days: `Ngày ${ovulationDay + 2} - ${cycleLen}`, pct: Math.max(((cycleLen - ovulationDay - 1) / cycleLen) * 100, 0) },
                               ];
                               return (
                                 <div key={phase.label} className="flex items-center gap-3">
@@ -325,7 +291,11 @@ export default function CyclesPage() {
                           </div>
                           <div className="p-3.5 rounded-2xl" style={{ background: '#f0fdf4' }}>
                             <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide mb-0.5">Kỳ kinh tiếp</p>
-                            <p className="text-sm font-extrabold text-slate-800">{nextPeriod(activeCycle.startDate, activeCycle.cycleLength || 28)}</p>
+                            <p className="text-sm font-extrabold text-slate-800">
+                              {activeCycle._id === cycles[0]?._id && insights?.estimatedPeriodStartDate
+                                ? fmtShort(insights.estimatedPeriodStartDate)
+                                : nextPeriod(activeCycle.startDate, activeCycle.cycleLength || 28)}
+                            </p>
                           </div>
                           <div className="p-3.5 rounded-2xl" style={{ background: '#fdf4ff' }}>
                             <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wide mb-0.5">Ghi chú</p>
@@ -368,7 +338,7 @@ export default function CyclesPage() {
                       <span className="material-symbols-outlined text-rose-400 text-[22px]">monitor_heart</span>
                       Anh huong trieu chung theo chu ky
                     </h3>
-                    {phaseImpacts.length === 0 && symptomFrequency.length === 0 ? (
+                    {phaseImpacts.length === 0 ? (
                       <p className="text-sm text-slate-400 py-8 text-center">Chua co du lieu trieu chung.</p>
                     ) : (
                       <div className="space-y-5">
@@ -404,27 +374,17 @@ export default function CyclesPage() {
                               </div>
                             ))}
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {symptomFrequency.map(([symptom, count]) => {
-                              const pct = Math.round((count / symptoms.length) * 100);
-                              return (
-                                <div key={symptom} className="flex items-center gap-3">
-                                  <span className="text-sm font-bold text-slate-700 w-32 flex-shrink-0">{symptom}</span>
-                                  <div className="flex-1 h-2.5 rounded-full bg-rose-50 overflow-hidden">
-                                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#fb7185,#f472b6)' }} />
-                                  </div>
-                                  <span className="text-xs font-extrabold text-slate-400 w-14 text-right">{count}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                        ) : null}
                       </div>
                     )}
                   </div>
                 </div>
               )}
+              {insights?.warnings?.length ? (
+                <p className="mt-5 text-xs leading-relaxed text-slate-400">
+                  {insights.warnings.join(' ')}
+                </p>
+              ) : null}
             </>
           )}
         </main>

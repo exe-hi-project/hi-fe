@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
+import type { CycleInsights } from '@hi/shared';
 
 interface PartnerCycle {
   _id: string;
@@ -17,20 +18,20 @@ interface PartnerCyclesResponse {
   success: boolean;
   partner: { name?: string } | null;
   cycles: PartnerCycle[];
+  insights?: CycleInsights | null;
 }
 
-function getPartnerCycleInfo(cycle?: PartnerCycle | null) {
-  if (!cycle) return null;
-  const today = new Date();
-  const start = new Date(cycle.startDate);
-  const cycleDay = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1);
-  const cycleLen = cycle.cycleLength || 28;
-  const periodLen = cycle.periodLength || 5;
-  const daysUntilPeriod = cycleLen - cycleDay;
-  let phase = 'Hoàng thể';
-  if (cycleDay <= periodLen) phase = 'Kinh nguyệt';
-  else if (cycleDay <= 13) phase = 'Nang trứng';
-  else if (cycleDay <= 16) phase = 'Rụng trứng';
+function getPartnerCycleInfo(insights?: CycleInsights | null) {
+  if (!insights) return null;
+  const estimatedStart = insights.estimatedPeriodStartDate ?? insights.estimatedNextStartDate;
+  const daysUntilPeriod = estimatedStart
+    ? Math.ceil((new Date(`${estimatedStart.slice(0, 10)}T00:00:00`).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000)
+    : null;
+  const phase = insights.periodStatus === 'DELAYED'
+    ? `Trễ ${insights.periodDelayDays ?? 0} ngày`
+    : insights.periodStatus === 'PREDICTED'
+      ? 'Dự đoán kỳ kinh'
+      : insights.estimatedPhase ?? 'Đang cập nhật';
   return { phase, daysUntilPeriod };
 }
 
@@ -41,7 +42,7 @@ function MaleDashboard() {
     queryFn: () => api.get<PartnerCyclesResponse>('/users/partner-cycles').then((r) => r.data).catch(() => null),
     enabled: !!user?.partnerId,
   });
-  const partnerCycleInfo = getPartnerCycleInfo(partnerData?.cycles?.[0]);
+  const partnerCycleInfo = getPartnerCycleInfo(partnerData?.insights);
 
   const today = new Date();
   return (
@@ -80,9 +81,11 @@ function MaleDashboard() {
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span>🗓️</span>
                   <span>
-                    {partnerCycleInfo.daysUntilPeriod <= 0
-                      ? 'Đang có kinh'
-                      : `Kỳ kinh tiếp theo trong ${partnerCycleInfo.daysUntilPeriod} ngày`}
+                    {partnerCycleInfo.daysUntilPeriod === null
+                      ? 'Đang cập nhật dự đoán'
+                      : partnerCycleInfo.daysUntilPeriod <= 0
+                        ? partnerCycleInfo.phase
+                        : `Kỳ kinh tiếp theo trong ${partnerCycleInfo.daysUntilPeriod} ngày`}
                   </span>
                 </div>
               )}

@@ -1,45 +1,27 @@
 import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import { useSubscription } from '../hooks/useSubscription';
 import Navbar from '../components/layout/Navbar';
+import CycleHistoryDrawer from '../components/cycles/CycleHistoryDrawer';
+import DailyLogModal, { type DailyLogMode } from '../components/health/DailyLogModal';
 import api from '../lib/api';
 import { ChatMessage } from '../types';
 import PricingCard from '../components/PricingCard';
+import type { CycleInsights, CycleRecord } from '@hi/shared';
 
 /* ─── types & helpers ───────────────────────────────── */
-interface CycleData { _id?: string | number; startDate: string; cycleLength: number; periodLength: number; }
-interface CycleInsights {
-  cycleCount: number;
-  averageCycleLength?: number | null;
-  averagePeriodLength?: number | null;
-  lastStartDate?: string | null;
-  predictedNextStartDate?: string | null;
-  predictedNextEndDate?: string | null;
-}
 interface PartnerCyclesResponse {
   success: boolean;
+  insights?: CycleInsights | null;
+  cycles?: CycleRecord[];
   partner?: {
     id?: string;
     name?: string;
     avatar?: string;
     gender?: string;
   };
-}
-
-function getCycleInfo(cycle: CycleData) {
-  const today = new Date();
-  const start = new Date(cycle.startDate);
-  const cycleDay = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1);
-  const cycleLen = cycle.cycleLength || 28;
-  const daysUntilPeriod = cycleLen - cycleDay;
-  let phase = 'Hoàng thể'; let fertilityPct = 15;
-  if (cycleDay <= cycle.periodLength) { phase = 'Kinh nguyệt'; fertilityPct = 5; }
-  else if (cycleDay <= 13)            { phase = 'Nang trứng';  fertilityPct = 30; }
-  else if (cycleDay <= 16)            { phase = 'Rụng trứng';  fertilityPct = 90; }
-  return { cycleDay, phase, daysUntilPeriod, fertilityPct, cycleLen };
 }
 
 /* ─── greeting helpers ──────────────────────────────── */
@@ -62,29 +44,44 @@ function getWeekBars() {
   }));
 }
 
-const SYMPTOMS_LIST = [
-  { id: 'cramps',   emoji: '😣', label: 'Đau bụng', bg: '#fce7f3', selFrom: '#fb7185', selTo: '#f472b6' },
-  { id: 'headache', emoji: '🤕', label: 'Đau đầu',  bg: '#ede9fe', selFrom: '#a78bfa', selTo: '#8b5cf6' },
-  { id: 'bloating', emoji: '🫃', label: 'Đầy hơi',  bg: '#fef3c7', selFrom: '#fbbf24', selTo: '#f59e0b' },
-  { id: 'fatigue',  emoji: '😴', label: 'Mệt mỏi',  bg: '#dbeafe', selFrom: '#60a5fa', selTo: '#3b82f6' },
-  { id: 'acne',     emoji: '😮', label: 'Nổi mụn',  bg: '#fce7f3', selFrom: '#f472b6', selTo: '#db2777' },
-  { id: 'backpain', emoji: '🧍', label: 'Đau lưng',  bg: '#d1fae5', selFrom: '#34d399', selTo: '#10b981' },
-  { id: 'tender',   emoji: '💛', label: 'Ngực đau',  bg: '#fef9c3', selFrom: '#facc15', selTo: '#eab308' },
-  { id: 'nausea',   emoji: '🤢', label: 'Buồn nôn',  bg: '#dcfce7', selFrom: '#4ade80', selTo: '#22c55e' },
-  { id: 'insomnia', emoji: '🌙', label: 'Mất ngủ',   bg: '#e0e7ff', selFrom: '#818cf8', selTo: '#6366f1' },
-];
-
 const AI_CHIPS = ['Hôm nay nên ăn gì?', 'Tại sao tôi hay cáu?', '😣 Giảm đau bụng ngay?', 'Khi nào kỳ kinh tới?'];
 
-/* ─── Calendar helpers ──────────────────────────────── */
-const MONTHS_VN = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
-const CAL_DAYS  = ['T2','T3','T4','T5','T6','T7','CN'];
-function getFirstDayMon(year: number, month: number) {
-  const d = new Date(year, month, 1).getDay();
-  return d === 0 ? 6 : d - 1;
+function toLocalDate(value?: string | null) {
+  return value ? new Date(`${value.slice(0, 10)}T00:00:00`) : null;
 }
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
+
+function formatShortDate(value?: string | null) {
+  const date = toLocalDate(value);
+  return date ? date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '--';
+}
+
+function formatDateRange(start?: string | null, end?: string | null) {
+  if (!start) return '--';
+  return `${formatShortDate(start)}${end ? ` - ${formatShortDate(end)}` : ''}`;
+}
+
+function toIsoDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getCurrentWeekDates() {
+  const today = new Date();
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayOffset);
+  return Array.from({ length: 7 }, (_, index) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index));
+}
+
+function dateIsWithin(date: string, start?: string | null, end?: string | null) {
+  return !!start && date >= start.slice(0, 10) && date <= (end?.slice(0, 10) ?? start.slice(0, 10));
+}
+
+function getLocalCalendarDayDifference(target?: string | null, origin = new Date()) {
+  if (!target) return null;
+  const targetDate = toLocalDate(target);
+  if (!targetDate) return null;
+  const targetUtc = Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  const originUtc = Date.UTC(origin.getFullYear(), origin.getMonth(), origin.getDate());
+  return Math.round((targetUtc - originUtc) / 86_400_000);
 }
 
 /* ─── Panel drawer ──────────────────────────────────── */
@@ -133,15 +130,10 @@ export default function FemaleDashboardPage() {
   const queryClient = useQueryClient();
   const cycleQuery = useQuery({
     queryKey: ['cycles'],
-    queryFn: async () => {
-      try {
-        const { data } = await api.get('/cycle-records');
-        return { success: true, cycles: (data.cycleRecords ?? []) as CycleData[] };
-      } catch {
-        const { data } = await api.get('/cycles');
-        return data as { success: boolean; cycles: CycleData[] };
-      }
-    },
+    queryFn: () => api.get('/cycle-records').then(({ data }) => ({
+      success: true,
+      cycles: (data.cycleRecords ?? []) as CycleRecord[],
+    })),
   });
 
   const insightsQuery = useQuery({
@@ -152,7 +144,7 @@ export default function FemaleDashboardPage() {
     },
   });
   const latestCycle = cycleQuery.data?.cycles?.[0] ?? null;
-  const cycleInfo = latestCycle ? getCycleInfo(latestCycle) : null;
+  const insights = insightsQuery.data?.insights;
 
   const partnerQuery = useQuery({
     queryKey: ['partner-cycles'],
@@ -163,130 +155,97 @@ export default function FemaleDashboardPage() {
     enabled: hasPartner,
   });
   const partnerName = partnerQuery.data?.partner?.name ?? 'Bạn đời';
-  const cycleDay       = cycleInfo?.cycleDay       ?? 0;
-  const phase          = cycleInfo?.phase          ?? '—';
-  const predictedNextStartDate = insightsQuery.data?.insights?.predictedNextStartDate;
-  const daysUntilFromInsights = predictedNextStartDate
-    ? Math.ceil((new Date(predictedNextStartDate).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000)
-    : null;
-  const daysUntilPeriod = daysUntilFromInsights ?? cycleInfo?.daysUntilPeriod ?? 0;
-  const fertilityPct   = cycleInfo?.fertilityPct   ?? 0;
-  const cycleLen       = cycleInfo?.cycleLen       ?? 28;
-
+  const periodStatus = insights?.periodStatus ?? 'UPCOMING';
+  const confirmedPeriodDay = insights?.confirmedPeriodDay ?? null;
+  const phase = insights?.estimatedPhase ?? '—';
+  const estimatedPeriodStartDate = insights?.estimatedPeriodStartDate ?? insights?.estimatedNextStartDate;
+  const estimatedPeriodEndDate = insights?.estimatedPeriodEndDate ?? insights?.estimatedNextEndDate;
+  const fallbackDaysUntilEstimatedPeriod = getLocalCalendarDayDifference(estimatedPeriodStartDate);
+  const daysUntilEstimatedPeriod = insights?.daysUntilEstimatedPeriod
+    ?? (fallbackDaysUntilEstimatedPeriod !== null ? Math.max(fallbackDaysUntilEstimatedPeriod, 0) : null);
+  const fallbackEstimatedPeriodDay = getLocalCalendarDayDifference(estimatedPeriodStartDate) ?? 0;
+  const estimatedPeriodDay = insights?.estimatedPeriodDay
+    ?? (periodStatus === 'PREDICTED' ? Math.max(-fallbackEstimatedPeriodDay + 1, 1) : null);
+  const cycleLen       = Math.round(insights?.averageCycleLength ?? latestCycle?.cycleLength ?? 28);
+  const periodLen      = Math.round(insights?.averagePeriodLength ?? latestCycle?.periodLength ?? 5);
+  const confidenceLabel = insights?.predictionConfidence === 'HIGH'
+    ? 'Cao'
+    : insights?.predictionConfidence === 'MEDIUM'
+      ? 'Trung bình'
+      : 'Đang học dữ liệu';
   const circumference = 251.2;
-  const dashoffset = circumference - (latestCycle ? (cycleDay / cycleLen) * circumference : circumference);
+  const ringProgress = !latestCycle
+    ? 0
+    : periodStatus === 'CONFIRMED'
+      ? Math.min((confirmedPeriodDay ?? 0) / Math.max(periodLen, 1), 1)
+      : periodStatus === 'UPCOMING'
+        ? Math.min(Math.max((cycleLen - (daysUntilEstimatedPeriod ?? cycleLen)) / Math.max(cycleLen, 1), 0), 1)
+        : 1;
+  const dashoffset = circumference - ringProgress * circumference;
+  const ringValue = !latestCycle
+    ? '--'
+    : periodStatus === 'CONFIRMED'
+      ? confirmedPeriodDay ?? '--'
+      : periodStatus === 'UPCOMING'
+        ? daysUntilEstimatedPeriod ?? '--'
+        : periodStatus === 'PREDICTED'
+          ? estimatedPeriodDay ?? '--'
+          : insights?.periodDelayDays ?? '--';
+  const ringEyebrow = !latestCycle
+    ? 'Chưa có dữ liệu'
+    : periodStatus === 'CONFIRMED'
+      ? 'Ngày kinh nguyệt'
+      : periodStatus === 'UPCOMING'
+        ? 'Còn'
+        : periodStatus === 'PREDICTED'
+          ? 'Ngày dự kiến'
+          : 'Đã trễ';
+  const ringCaption = !latestCycle
+    ? 'Thêm kỳ gần nhất'
+    : periodStatus === 'CONFIRMED'
+      ? 'Đã ghi nhận'
+      : periodStatus === 'UPCOMING'
+        ? 'ngày nữa tới kỳ'
+        : periodStatus === 'PREDICTED'
+          ? 'Kỳ kinh ước tính'
+          : 'ngày chưa ghi nhận';
+  const ringStroke = periodStatus === 'DELAYED' ? '#94a3b8' : periodStatus === 'UPCOMING' ? '#c4b5fd' : '#f472b6';
+  const cycleContextLabel = !latestCycle
+    ? 'Chưa có dữ liệu'
+    : periodStatus === 'CONFIRMED'
+      ? `Ngày ${confirmedPeriodDay} kỳ kinh`
+      : periodStatus === 'DELAYED'
+        ? `Trễ ${insights?.periodDelayDays ?? 0} ngày`
+        : `Ước tính ${phase.toLowerCase()}`;
   const today = new Date();
+  const currentWeekDates = getCurrentWeekDates();
   const monthLabel = today.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 
   /* ── Panel state ── */
-  type PanelId = 'cycle' | 'chat' | 'symptoms' | null;
+  type PanelId = 'chat' | null;
   const [panel, setPanel] = useState<PanelId>(null);
+  const [dailyLogOpen, setDailyLogOpen] = useState(false);
+  const [dailyLogMode, setDailyLogMode] = useState<DailyLogMode>('default');
   const close = () => setPanel(null);
-
-  /* ── Cycle editor state ── */
-  const [editStart, setEditStart] = useState('');
-  const [editLen, setEditLen] = useState(28);
-  const [editPeriodLen, setEditPeriodLen] = useState(5);
-  const [cycleSaved, setCycleSaved] = useState(false);
-  const [editCalYear, setEditCalYear] = useState(today.getFullYear());
-  const [editCalMonth, setEditCalMonth] = useState(today.getMonth());
-
-  useEffect(() => {
-    if (latestCycle) {
-      setEditStart(latestCycle.startDate.slice(0, 10));
-      setEditLen(latestCycle.cycleLength ?? 28);
-      setEditPeriodLen(latestCycle.periodLength ?? 5);
-      const d = new Date(latestCycle.startDate);
-      setEditCalYear(d.getFullYear());
-      setEditCalMonth(d.getMonth());
-    }
-  }, [latestCycle?._id]);
-
-  const editPrevMonth = () => { if (editCalMonth === 0) { setEditCalMonth(11); setEditCalYear(y => y - 1); } else setEditCalMonth(m => m - 1); };
-  const editNextMonth = () => { if (editCalMonth === 11) { setEditCalMonth(0); setEditCalYear(y => y + 1); } else setEditCalMonth(m => m + 1); };
-
-  const saveCycleMutation = useMutation({
-    mutationFn: async (payload: { startDate: string; cycleLength: number; periodLength: number }) => {
-      if (latestCycle?._id) {
-        const { data } = await api.put(`/cycle-records/${latestCycle._id}`, payload);
-        return data;
-      }
-      const { data } = await api.post('/cycle-records', payload);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cycles'] });
-      queryClient.invalidateQueries({ queryKey: ['cycle-insights'] });
-      setCycleSaved(true);
-      setTimeout(() => { setCycleSaved(false); close(); }, 1000);
-    },
-  });
-
-  const saveCycle = () => {
-    saveCycleMutation.mutate({
-      startDate: editStart,
-      cycleLength: editLen,
-      periodLength: editPeriodLen,
-    });
+  const closeDailyLog = () => {
+    setDailyLogOpen(false);
+    setDailyLogMode('default');
+  };
+  const openSymptoms = (mode: DailyLogMode = 'default') => {
+    setDailyLogMode(mode);
+    setDailyLogOpen(true);
   };
 
-  /* ── Symptom state ── */
-  const [selectedSymptoms, setSelectedSymptoms] = useState<Set<string>>(new Set());
-  const [flow, setFlow] = useState(2);
-  const [symptomNote, setSymptomNote] = useState('');
-  const [symptomSaved, setSymptomSaved] = useState(false);
-  const toggleSymptom = (id: string) => {
-    setSelectedSymptoms(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  /* ── Cycle history drawer ── */
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [editingHistoryRecord, setEditingHistoryRecord] = useState<CycleRecord | null>(null);
+  const openCycleHistory = (record: CycleRecord | null = null) => {
+    setEditingHistoryRecord(record);
+    setHistoryOpen(true);
   };
-
-  const saveSymptomsMutation = useMutation({
-    mutationFn: async () => {
-      const selected = SYMPTOMS_LIST.filter((symptom) => selectedSymptoms.has(symptom.id));
-      if (selected.length === 0) {
-        throw new Error('Hãy chọn ít nhất 1 triệu chứng');
-      }
-
-      const toFlowIntensity = (value: number): 'NONE' | 'LIGHT' | 'MEDIUM' | 'HEAVY' => {
-        if (value <= 1) return 'NONE';
-        if (value <= 2) return 'LIGHT';
-        if (value <= 3) return 'MEDIUM';
-        return 'HEAVY';
-      };
-
-      const payloads = selected.map((symptom) => ({
-        name: symptom.label,
-        severity: flow,
-        date: new Date().toISOString(),
-        notes: symptomNote.trim(),
-      }));
-
-      const today = new Date().toISOString().slice(0, 10);
-      await Promise.all([
-        ...payloads.map((payload) => api.post('/symptoms', payload)),
-        api.put(`/daily-logs/${today}`, {
-          flowIntensity: toFlowIntensity(flow),
-          moodScore: 3,
-          notes: symptomNote.trim(),
-          symptoms: [],
-        }),
-      ]);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['symptoms'] });
-      setSymptomSaved(true);
-      setSelectedSymptoms(new Set());
-      setFlow(2);
-      setSymptomNote('');
-      setTimeout(() => { setSymptomSaved(false); close(); }, 1000);
-    },
-    onError: (error: unknown) => {
-      toast.error(error instanceof Error ? error.message : 'Lưu triệu chứng thất bại');
-    },
-  });
-
-  const saveSymptoms = () => {
-    if (saveSymptomsMutation.isPending) return;
-    saveSymptomsMutation.mutate();
+  const refreshCycleData = () => {
+    queryClient.invalidateQueries({ queryKey: ['cycles'] });
+    queryClient.invalidateQueries({ queryKey: ['cycle-insights'] });
   };
 
   /* ── Chat state ── */
@@ -373,7 +332,7 @@ export default function FemaleDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
             {/* ── 1. Cycle Status ── */}
-            <div className="md:col-span-2 row-span-2 bg-white/90 backdrop-blur-sm rounded-3xl p-7 relative overflow-hidden shadow-sm border border-white/80">
+            <div className="md:col-span-3 bg-white/90 backdrop-blur-sm rounded-3xl p-7 relative overflow-hidden shadow-sm border border-white/80">
               <div className="absolute top-0 right-0 w-60 h-60 bg-gradient-to-br from-pink-100 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
               <div className="flex justify-between items-start mb-6 relative z-10">
                 <div>
@@ -384,87 +343,94 @@ export default function FemaleDashboardPage() {
                   <p className="text-slate-400 text-sm">Cập nhật lúc 8:00 sáng nay</p>
                 </div>
                 <button
-                  onClick={() => setPanel('cycle')}
+                  onClick={() => openCycleHistory(latestCycle)}
+                  disabled={!latestCycle}
                   className="w-8 h-8 rounded-full bg-slate-50 hover:bg-pink-50 flex items-center justify-center text-slate-400 hover:text-pink-500 transition-colors"
+                  aria-label="Sửa kỳ kinh gần nhất"
                 >
                   <span className="material-symbols-outlined text-lg">edit</span>
                 </button>
               </div>
 
-              <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                {/* Donut */}
-                <div className="relative size-48 flex-shrink-0">
-                  <svg className="size-full -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="8" />
-                    <circle
-                      cx="50" cy="50" r="40" fill="none"
-                      stroke="url(#femGrad)" strokeWidth="8"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={cycleDay ? dashoffset : circumference}
-                      strokeLinecap="round"
-                    />
-                    <defs>
-                      <linearGradient id="femGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#f9a8c9" />
-                        <stop offset="100%" stopColor="#d4a8e8" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Ngày</span>
-                    <span className="text-4xl font-extrabold text-slate-900">{cycleDay || '--'}</span>
-                    <span className="text-pink-500 text-sm font-bold mt-1">{phase}</span>
-                  </div>
-                </div>
+              <div className="relative z-10 space-y-5">
+                  <div className="flex flex-col items-center gap-6 md:flex-row">
+                    <div className="relative size-44 flex-shrink-0">
+                      <svg className="size-full -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                        <circle cx="50" cy="50" r="40" fill="none" stroke={ringStroke} strokeWidth="8"
+                          strokeDasharray={periodStatus === 'PREDICTED' ? '10 7' : circumference}
+                          strokeDashoffset={dashoffset} strokeLinecap="round" />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{ringEyebrow}</span>
+                        <span className="text-4xl font-extrabold text-slate-900">{ringValue}</span>
+                        <span className={`mt-1 text-xs font-bold ${periodStatus === 'DELAYED' ? 'text-slate-500' : 'text-pink-500'}`}>{ringCaption}</span>
+                      </div>
+                    </div>
 
-                {/* Info */}
-                <div className="flex-1 w-full space-y-5">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="font-semibold text-slate-600">Khả năng thụ thai</span>
-                      <span className="font-bold text-pink-500">
-                        {fertilityPct >= 80 ? 'Rất cao' : fertilityPct >= 40 ? 'Trung bình' : 'Thấp'}
-                      </span>
+                    <div className="flex-1 rounded-3xl border border-slate-100 bg-slate-50/70 p-4">
+                      <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                        <div className="rounded-2xl border border-rose-100 bg-white p-3.5 shadow-sm">
+                          <div className="flex items-center gap-2 text-rose-500">
+                            <span className="material-symbols-outlined text-[18px]">event_available</span>
+                            <p className="text-[10px] font-black uppercase tracking-wide">Kỳ gần nhất</p>
+                          </div>
+                          <p className="mt-2 text-base font-extrabold text-slate-800">{formatDateRange(insights?.lastRecordedStartDate, insights?.lastRecordedEndDate)}</p>
+                          <p className="mt-1 text-[11px] font-bold text-rose-500">{latestCycle ? 'Đã ghi nhận' : 'Chưa có dữ liệu'}</p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 sm:flex-col">
+                          <span className="h-px w-6 bg-rose-200 sm:h-6 sm:w-px" />
+                          <span className="whitespace-nowrap rounded-full border border-rose-100 bg-white px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">{cycleLen} ngày</span>
+                          <span className="h-px w-6 bg-rose-200 sm:h-6 sm:w-px" />
+                        </div>
+                        <div className="rounded-2xl border border-dashed border-rose-200 bg-rose-50/50 p-3.5">
+                          <div className="flex items-center gap-2 text-rose-500">
+                            <span className="material-symbols-outlined text-[18px]">event_upcoming</span>
+                            <p className="text-[10px] font-black uppercase tracking-wide">Kỳ tiếp theo</p>
+                          </div>
+                          <p className="mt-2 text-base font-extrabold text-slate-800">{formatDateRange(estimatedPeriodStartDate, estimatedPeriodEndDate)}</p>
+                          <p className="mt-1 text-[11px] font-bold text-rose-400">Ước tính</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-500 shadow-sm">{periodLen} ngày kinh trung bình</span>
+                        <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-500 shadow-sm">Tin cậy: {confidenceLabel}</span>
+                        {(insights?.cycleCount ?? 0) < 3 && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-700">Cần thêm lịch sử</span>}
+                      </div>
                     </div>
-                    <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${fertilityPct}%`, background: 'linear-gradient(90deg,#f9a8c9,#d4a8e8)' }}
-                      />
-                    </div>
-                    <p className="text-xs text-slate-400 mt-2">
-                      {phase === 'Rụng trứng'
-                        ? 'Đỉnh điểm rụng trứng — hãy theo dõi sát hôm nay.'
-                        : phase === 'Nang trứng'
-                        ? 'Giai đoạn chuẩn bị, năng lượng đang tăng dần.'
-                        : 'Cơ hội thụ thai ở mức thấp trong giai đoạn này.'}
+                  </div>
+
+                  <div className="flex flex-col gap-2 rounded-2xl border border-rose-100 bg-rose-50/50 px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+                    <p className="font-semibold text-slate-600">
+                      {!latestCycle
+                        ? 'Thêm kỳ gần nhất để bắt đầu nhận dự đoán chu kỳ.'
+                        : periodStatus === 'UPCOMING'
+                        ? `Kỳ tiếp theo dự kiến sau ${daysUntilEstimatedPeriod ?? '--'} ngày. Giai đoạn hiện tại: ước tính ${phase.toLowerCase()}.`
+                        : periodStatus === 'CONFIRMED'
+                          ? `Đã ghi nhận ngày ${confirmedPeriodDay} của kỳ kinh hiện tại.`
+                          : periodStatus === 'PREDICTED'
+                            ? 'Bạn đang ở trong cửa sổ kỳ kinh dự kiến. Chỉ xác nhận khi kỳ kinh thực sự bắt đầu.'
+                            : 'Kỳ kinh chưa được ghi nhận sau ngày dự kiến. Hãy cập nhật khi kỳ kinh bắt đầu.'}
                     </p>
+                    <span className="whitespace-nowrap font-bold text-rose-600">Dự đoán tham khảo</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-4 rounded-2xl bg-yellow-50/70 border border-yellow-100/70">
-                      <p className="text-[10px] text-yellow-700 font-bold uppercase mb-1">Kỳ kinh tới</p>
-                      <p className="text-xl font-bold text-slate-900">
-                        {daysUntilPeriod !== null ? (daysUntilPeriod <= 0 ? 'Hôm nay' : `${daysUntilPeriod} ngày`) : '--'}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100/70">
-                      <p className="text-[10px] text-blue-700 font-bold uppercase mb-1">Giai đoạn</p>
-                      <p className="text-xl font-bold text-slate-900">{phase}</p>
-                    </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <button onClick={() => openSymptoms(periodStatus === 'CONFIRMED' ? 'default' : 'periodStart')} className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800">
+                      {periodStatus === 'CONFIRMED' ? 'Ghi triệu chứng hôm nay' : 'Bắt đầu kỳ hôm nay'}
+                    </button>
+                    <button onClick={() => openCycleHistory()} className="rounded-xl border border-pink-200 bg-white px-4 py-3 text-sm font-bold text-pink-500 hover:bg-pink-50">
+                      Thêm lịch sử
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setPanel('cycle')}
-                    className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-lg">edit_calendar</span>
-                    Chỉnh sửa kỳ kinh
-                  </button>
-                </div>
+                  <p className="text-[10px] leading-relaxed text-slate-400">
+                    Ngày dự kiến chỉ là ước tính, không thay thế biện pháp tránh thai hoặc tư vấn y khoa.
+                  </p>
               </div>
             </div>
 
             {/* ── 2. Partner card ── */}
-            <div className="md:col-span-1 md:row-span-2 bg-gradient-to-b from-blue-50 to-white rounded-3xl p-6 shadow-sm border border-blue-100 flex flex-col justify-between relative overflow-hidden">
+            <div className="md:col-span-1 bg-gradient-to-b from-blue-50 to-white rounded-3xl p-6 shadow-sm border border-blue-100 flex flex-col justify-between relative overflow-hidden">
               <div className="absolute top-0 right-0 w-28 h-28 bg-blue-200/20 rounded-full blur-2xl pointer-events-none" />
               <div>
                 <div className="flex items-center justify-between mb-5 relative z-10">
@@ -523,49 +489,9 @@ export default function FemaleDashboardPage() {
               </button>
             </div>
 
-            {/* ── 3. Quick Journal ── */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-white/80 flex flex-col">
-              <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-                <span className="material-symbols-outlined text-yellow-500 text-[22px]">edit_note</span>
-                Nhật ký nhanh
-              </h3>
-              <p className="text-sm text-slate-500 mb-4">Bạn cảm thấy thế nào lúc này?</p>
-              <div className="grid grid-cols-2 gap-3 flex-1">
-                {([
-                  { id: 'happy',   emoji: '🤩', label: 'Vui vẻ',   bg: '#fef9c3', selBg: '#fde68a', ring: '#fbbf24' },
-                  { id: 'fatigue', emoji: '😫', label: 'Mệt mỏi',  bg: '#eff6ff', selBg: '#dbeafe', ring: '#93c5fd' },
-                  { id: 'cramps',  emoji: '😣', label: 'Đau bụng', bg: '#fff1f2', selBg: '#ffe4e6', ring: '#fda4af' },
-                  { id: 'flow',    emoji: '🩸', label: 'Ra nhiều', bg: '#fff5f5', selBg: '#fee2e2', ring: '#f87171' },
-                ] as const).map(({ id, emoji, label, bg, selBg, ring }) => {
-                  const active = selectedSymptoms.has(id);
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => toggleSymptom(id)}
-                      className="flex flex-col items-center justify-center py-5 rounded-2xl transition-all duration-200 border-2"
-                      style={{
-                        background: active ? selBg : bg,
-                        borderColor: active ? ring : 'transparent',
-                        boxShadow: active ? `0 4px 16px ${ring}99` : '0 2px 8px rgba(0,0,0,0.04)',
-                        transform: active ? 'scale(1.04)' : 'scale(1)',
-                      }}
-                    >
-                      <span className="text-3xl mb-1.5">{emoji}</span>
-                      <span className="text-xs font-bold text-slate-700">{label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                onClick={() => setPanel('symptoms')}
-                className="mt-4 text-xs font-bold text-pink-500 hover:text-pink-600 transition-colors text-center py-1.5"
-              >
-                Ghi chi tiết →
-              </button>
-            </div>
-
-            {/* ── 4. Hi AI advice (dark) ── */}
-            <div className="bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-800 flex flex-col relative overflow-hidden text-white">
+            <div className="md:col-span-4 grid grid-cols-1 gap-6 lg:grid-cols-12">
+            {/* ── 3. Hi AI advice (dark) ── */}
+            <div className="lg:col-span-3 bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-800 flex flex-col relative overflow-hidden text-white">
               <div
                 className="absolute top-0 right-0 w-36 h-36 rounded-full blur-[60px] opacity-30 pointer-events-none"
                 style={{ background: 'linear-gradient(135deg,#f9a8c9,#d4a8e8)' }}
@@ -592,7 +518,7 @@ export default function FemaleDashboardPage() {
             </div>
 
             {/* ── 5. Emotion chart (md col-span-2) ── */}
-            <div className="md:col-span-2 bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-white/80">
+            <div className="lg:col-span-5 bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-white/80">
               <div className="flex justify-between items-center mb-5">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <span className="material-symbols-outlined text-purple-500 text-[22px]">bar_chart</span>
@@ -622,7 +548,7 @@ export default function FemaleDashboardPage() {
             </div>
 
             {/* ── 6. Mini Calendar ── */}
-            <div className="md:col-span-2 bg-yellow-50/50 rounded-3xl p-6 shadow-sm border border-yellow-100">
+            <div className="lg:col-span-4 bg-yellow-50/50 rounded-3xl p-6 shadow-sm border border-yellow-100">
               <div className="flex justify-between items-center mb-5">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <span className="material-symbols-outlined text-orange-500 text-[22px]">calendar_month</span>
@@ -633,48 +559,45 @@ export default function FemaleDashboardPage() {
                 </Link>
               </div>
               <div className="flex justify-between items-center gap-2 mb-4">
-                <button className="p-1 hover:bg-white/50 rounded-full transition-colors">
-                  <span className="material-symbols-outlined text-slate-400">chevron_left</span>
-                </button>
                 <div className="flex-1 grid grid-cols-7 gap-1 text-center">
-                  {['H', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                  {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, i) => (
                     <div key={i} className="text-[10px] uppercase font-bold text-slate-400 mb-2">{d}</div>
                   ))}
-                  {[10, 11, 12, 13, 14, 15, 16].map((d) => {
-                    const isToday = d === cycleDay;
-                    const isFertile = d >= 13 && d <= 16;
-                    const isSafe = d === 12 || d === 13;
+                  {currentWeekDates.map((date) => {
+                    const dateIso = toIsoDate(date);
+                    const isToday = dateIso === toIsoDate(today);
+                    const isRecorded = (cycleQuery.data?.cycles ?? []).some((record) => dateIsWithin(dateIso, record.startDate, record.endDate));
+                    const isPredicted = dateIsWithin(dateIso, estimatedPeriodStartDate, estimatedPeriodEndDate);
+                    const isFertile = dateIsWithin(dateIso, insights?.fertileWindowStartDate, insights?.fertileWindowEndDate);
                     return (
                       <div
-                        key={d}
+                        key={dateIso}
                         className={`h-8 flex items-center justify-center rounded-lg text-sm transition-all
-                          ${d <= 11 ? 'text-slate-400' : ''}
-                          ${isSafe ? 'text-slate-800 bg-white shadow-sm border border-yellow-100' : ''}
-                          ${isToday ? 'font-bold text-white shadow-lg' : ''}
-                          ${!isToday && isFertile && !isSafe ? 'text-slate-800 border border-pink-200 bg-pink-50' : ''}
+                          ${!isRecorded && !isPredicted && !isFertile ? 'text-slate-500 bg-white/50' : ''}
+                          ${isRecorded ? 'bg-rose-400 text-white shadow-sm' : ''}
+                          ${!isRecorded && isPredicted ? 'border border-dashed border-rose-400 bg-rose-50 text-rose-600' : ''}
+                          ${!isRecorded && !isPredicted && isFertile ? 'border border-violet-200 bg-violet-50 text-violet-600' : ''}
+                          ${isToday ? 'font-black ring-2 ring-slate-800 ring-offset-1' : ''}
                         `}
-                        style={isToday ? { background: 'linear-gradient(135deg,#f9a8c9,#d4a8e8)' } : undefined}
                       >
-                        {d}
+                        {date.getDate()}
                       </div>
                     );
                   })}
                 </div>
-                <button className="p-1 hover:bg-white/50 rounded-full transition-colors">
-                  <span className="material-symbols-outlined text-slate-400">chevron_right</span>
-                </button>
               </div>
               <div className="flex items-center gap-4 text-xs font-medium text-slate-500 justify-center">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-pink-400 inline-block" /> Rụng trứng
+                  <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" /> Đã ghi nhận
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-white border border-yellow-200 inline-block" /> An toàn
+                  <span className="w-2 h-2 rounded-full bg-rose-50 border border-dashed border-rose-400 inline-block" /> Dự kiến
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> Kinh nguyệt
+                  <span className="w-2 h-2 rounded-full bg-violet-100 border border-violet-200 inline-block" /> Cửa sổ thụ thai
                 </div>
               </div>
+            </div>
             </div>
 
             {/* ── 7. Community FAQ (full width) ── */}
@@ -758,318 +681,21 @@ export default function FemaleDashboardPage() {
 
       {/* ═══ Panels ═══ */}
 
-      {/* ── Panel 1: Cycle Editor ── */}
-      <Panel open={panel === 'cycle'} onClose={close} title="Chỉnh sửa chu kỳ" icon="edit_calendar" iconBg="bg-pink-100 text-pink-500">
+      <CycleHistoryDrawer
+        open={historyOpen}
+        cycles={cycleQuery.data?.cycles ?? []}
+        insights={insights}
+        editingRecord={editingHistoryRecord}
+        onClose={() => setHistoryOpen(false)}
+        onSaved={refreshCycleData}
+      />
 
-        {/* ─ Summary strip ─ */}
-        <div className="px-6 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg,#fce7f3,#ede9fe)' }}>
-          <div className="text-center">
-            <p className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-0.5">Bắt đầu kỳ kinh</p>
-            <p className="text-xl font-extrabold text-slate-800">
-              {editStart ? `${editStart.slice(8)}/${editStart.slice(5,7)}/${editStart.slice(0,4)}` : '--/--'}
-            </p>
-          </div>
-          <div className="flex-1 flex flex-col items-center px-3">
-            <div className="flex items-center w-full">
-              <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,#f472b6,#a78bfa)' }} />
-              <span className="mx-2 text-xs font-extrabold text-violet-400">{editLen}n</span>
-              <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,#a78bfa,#f472b6)' }} />
-            </div>
-            <p className="text-[9px] text-slate-400 mt-1 font-medium">độ dài chu kỳ</p>
-          </div>
-          <div className="text-center">
-            <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-0.5">Kỳ kinh tiếp</p>
-            <p className="text-xl font-extrabold text-slate-800">
-              {editStart ? (() => {
-                const n = new Date(new Date(editStart + 'T00:00:00').getTime() + editLen * 86400000);
-                return `${String(n.getDate()).padStart(2,'0')}/${String(n.getMonth()+1).padStart(2,'0')}`;
-              })() : '--/--'}
-            </p>
-          </div>
-        </div>
-
-        {/* ─ Instruction ─ */}
-        <div className="px-6 pt-4 pb-1">
-          <p className="text-xs text-slate-500 font-medium">
-            <span className="inline-block w-4 h-4 rounded-full mr-1.5 align-middle" style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }} />
-            Nhấn vào ngày đầu tiên của kỳ kinh gần nhất
-          </p>
-        </div>
-
-        {/* ─ Calendar ─ */}
-        <div className="px-4 pb-3">
-          {/* Month nav */}
-          <div className="flex items-center justify-between py-3">
-            <button
-              onClick={editPrevMonth}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-slate-500"
-            >
-              <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-            </button>
-            <span className="text-sm font-bold text-slate-800">{MONTHS_VN[editCalMonth]} {editCalYear}</span>
-            <button
-              onClick={editNextMonth}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-slate-500"
-            >
-              <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-            </button>
-          </div>
-
-          {/* Day-of-week headers */}
-          <div className="grid grid-cols-7 mb-1">
-            {CAL_DAYS.map(d => (
-              <div key={d} className="text-center text-[10px] font-bold text-slate-400 py-1">{d}</div>
-            ))}
-          </div>
-
-          {/* Day cells */}
-          <div className="grid grid-cols-7 gap-y-1">
-            {(() => {
-              const total = getDaysInMonth(editCalYear, editCalMonth);
-              const first = getFirstDayMon(editCalYear, editCalMonth);
-              const cells: (number | null)[] = Array(first).fill(null);
-              for (let d = 1; d <= total; d++) cells.push(d);
-              while (cells.length % 7 !== 0) cells.push(null);
-
-              const startDate = editStart ? new Date(editStart + 'T00:00:00') : null;
-              const todayStr = new Date().toISOString().slice(0, 10);
-
-              return cells.map((day, idx) => {
-                if (!day) return <div key={idx} />;
-
-                const dStr = `${editCalYear}-${String(editCalMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isSelected = dStr === editStart;
-                const isToday = dStr === todayStr;
-
-                let cycleDayNum = -1;
-                if (startDate) {
-                  const cellDate = new Date(editCalYear, editCalMonth, day);
-                  const diff = Math.floor((cellDate.getTime() - startDate.getTime()) / 86400000);
-                  if (diff >= 0) cycleDayNum = (diff % editLen) + 1;
-                }
-
-                const isPeriod = cycleDayNum >= 1 && cycleDayNum <= editPeriodLen;
-                const isFollic = cycleDayNum > editPeriodLen && cycleDayNum < 13;
-                const isOvul   = cycleDayNum >= 13 && cycleDayNum <= 16;
-                const isLuteal = cycleDayNum > 16 && cycleDayNum <= editLen;
-
-                let bgStyle: React.CSSProperties = {};
-                let extraCls = 'text-slate-700 hover:bg-pink-50';
-
-                if (isSelected) {
-                  bgStyle = { background: 'linear-gradient(135deg,#f472b6,#a78bfa)' };
-                  extraCls = 'text-white shadow-md';
-                } else if (isPeriod) {
-                  bgStyle = { background: 'rgba(251,113,133,0.20)' };
-                  extraCls = 'text-rose-500 font-semibold';
-                } else if (isOvul) {
-                  bgStyle = { background: 'rgba(52,211,153,0.22)' };
-                  extraCls = 'text-emerald-600 font-semibold';
-                } else if (isFollic) {
-                  bgStyle = { background: 'rgba(252,211,77,0.25)' };
-                  extraCls = 'text-amber-600 font-semibold';
-                } else if (isLuteal) {
-                  bgStyle = { background: 'rgba(167,139,250,0.20)' };
-                  extraCls = 'text-violet-500 font-semibold';
-                }
-
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => setEditStart(dStr)}
-                    className={`h-9 w-full flex items-center justify-center text-xs rounded-xl transition-all duration-150 ${
-                      isToday && !isSelected ? 'ring-2 ring-pink-400 ring-offset-1' : ''
-                    } ${extraCls}`}
-                    style={Object.keys(bgStyle).length ? bgStyle : undefined}
-                  >
-                    {day}
-                  </button>
-                );
-              });
-            })()}
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-3 mt-4 pb-1 flex-wrap justify-center">
-            <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: 'rgba(251,113,133,0.55)' }} />Kinh nguyệt
-            </span>
-            <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: 'rgba(252,211,77,0.7)' }} />Nang trứng
-            </span>
-            <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: 'rgba(52,211,153,0.55)' }} />Rụng trứng
-            </span>
-            <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: 'rgba(167,139,250,0.55)' }} />Hoàng thể
-            </span>
-          </div>
-        </div>
-
-        {/* ─ Sliders ─ */}
-        <div className="px-6 py-4 border-t border-gray-100 space-y-5">
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Độ dài chu kỳ lúc trước</label>
-              <span className="text-sm font-extrabold text-pink-500">{editLen} ngày</span>
-            </div>
-            <input
-              type="range" min={21} max={40} value={editLen}
-              onChange={e => setEditLen(+e.target.value)}
-              className="w-full h-2 rounded-full cursor-pointer appearance-none"
-              style={{ accentColor: '#f472b6' }}
-            />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1"><span>21</span><span>40</span></div>
-          </div>
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Số ngày kinh nguyệt kỳ trước</label>
-              <span className="text-sm font-extrabold text-rose-500">{editPeriodLen} ngày</span>
-            </div>
-            <input
-              type="range" min={2} max={8} value={editPeriodLen}
-              onChange={e => setEditPeriodLen(+e.target.value)}
-              className="w-full h-2 rounded-full cursor-pointer appearance-none"
-              style={{ accentColor: '#fb7185' }}
-            />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1"><span>2</span><span>8</span></div>
-          </div>
-        </div>
-
-        {/* ─ Save ─ */}
-        <div className="px-6 pb-8">
-          <button
-            onClick={saveCycle}
-            className="w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 text-white"
-            style={{ background: cycleSaved ? '#22c55e' : 'linear-gradient(135deg,#f472b6,#a78bfa)', boxShadow: cycleSaved ? 'none' : '0 8px 24px rgba(244,114,182,0.35)' }}
-          >
-            <span className="material-symbols-outlined">{cycleSaved ? 'check_circle' : 'save'}</span>
-            {cycleSaved ? 'Đã lưu!' : 'Lưu chu kỳ'}
-          </button>
-        </div>
-
-      </Panel>
-
-      {/* ── Panel 2: Symptoms ── */}
-      <Panel open={panel === 'symptoms'} onClose={close} title="Ghi triệu chứng" icon="monitor_heart" iconBg="bg-rose-100 text-rose-500">
-        <div style={{ background: 'linear-gradient(160deg,#fff5f9 0%,#f8f4ff 100%)' }}>
-
-          {/* Date context bar */}
-          <div className="px-6 pt-4 pb-2 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-extrabold text-rose-400 uppercase tracking-widest">Hôm nay</p>
-              <p className="text-sm font-bold text-slate-700">
-                {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </p>
-            </div>
-            {selectedSymptoms.size > 0 && (
-              <div className="px-3 py-1.5 rounded-full text-xs font-extrabold text-white" style={{ background: 'linear-gradient(135deg,#fb7185,#a78bfa)' }}>
-                {selectedSymptoms.size} triệu chứng
-              </div>
-            )}
-          </div>
-
-          {/* Symptom grid */}
-          <div className="px-5 pt-3 pb-4">
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Chọn triệu chứng</p>
-            <div className="grid grid-cols-3 gap-2.5">
-              {SYMPTOMS_LIST.map(({ id, emoji, label, bg, selFrom, selTo }) => {
-                const active = selectedSymptoms.has(id);
-                return (
-                  <button
-                    key={id}
-                    onClick={() => toggleSymptom(id)}
-                    className="flex flex-col items-center justify-center py-4 rounded-2xl transition-all duration-200 relative overflow-hidden"
-                    style={{
-                      background: active
-                        ? `linear-gradient(135deg,${selFrom},${selTo})`
-                        : bg,
-                      transform: active ? 'scale(1.05)' : 'scale(1)',
-                      boxShadow: active
-                        ? `0 8px 20px ${selFrom}55`
-                        : '0 2px 8px rgba(0,0,0,0.06)',
-                    }}
-                  >
-                    {active && (
-                      <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-white/30 flex items-center justify-center">
-                        <span className="text-white text-[9px] font-black leading-none">✓</span>
-                      </div>
-                    )}
-                    <span className="text-2xl mb-1.5" style={{ filter: active ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' : 'none' }}>{emoji}</span>
-                    <span className={`text-[10px] font-bold text-center leading-tight ${active ? 'text-white' : 'text-slate-600'}`}>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Flow indicator */}
-          <div className="px-5 pb-4">
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🩸</span>
-                  <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">Lượng kinh</span>
-                </div>
-                <span className="text-sm font-extrabold" style={{ color: '#f472b6' }}>
-                  {['', 'Rất ít', 'Ít', 'Vừa', 'Nhiều', 'Rất nhiều'][flow]}
-                </span>
-              </div>
-              <div className="flex gap-1.5 mb-2">
-                {[1, 2, 3, 4, 5].map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setFlow(v)}
-                    className="flex-1 h-3 rounded-full transition-all duration-300"
-                    style={{
-                      background: v <= flow
-                        ? `linear-gradient(90deg,#fb7185,#f472b6,#a78bfa)`
-                        : '#e5e7eb',
-                      transform: v === flow ? 'scaleY(1.4)' : 'scaleY(1)',
-                    }}
-                  />
-                ))}
-              </div>
-              <div className="flex justify-between text-[10px] text-slate-400 mt-1"><span>Rất ít</span><span>Rất nhiều</span></div>
-            </div>
-          </div>
-
-          {/* Note */}
-          <div className="px-5 pb-4">
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-base">📝</span>
-                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">Ghi chú thêm</span>
-              </div>
-              <textarea
-                value={symptomNote}
-                onChange={e => setSymptomNote(e.target.value)}
-                placeholder="Cảm xúc, mức năng lượng, điều gì đó khác..."
-                rows={3}
-                className="w-full text-sm text-slate-700 resize-none outline-none bg-transparent placeholder-pink-200 leading-relaxed"
-              />
-            </div>
-          </div>
-
-          {/* Save */}
-          <div className="px-5 pb-8">
-            <button
-              onClick={saveSymptoms}
-              disabled={saveSymptomsMutation.isPending}
-              className="w-full py-4 rounded-2xl font-bold text-base text-white flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-80"
-              style={{
-                background: symptomSaved ? '#22c55e' : 'linear-gradient(135deg,#fb7185,#f472b6,#a78bfa)',
-                boxShadow: symptomSaved ? 'none' : '0 10px 28px rgba(244,114,182,0.45)',
-              }}
-            >
-              <span className="material-symbols-outlined">
-                {symptomSaved ? 'check_circle' : saveSymptomsMutation.isPending ? 'progress_activity' : 'favorite'}
-              </span>
-              {symptomSaved ? 'Đã lưu! 💕' : saveSymptomsMutation.isPending ? 'Đang lưu...' : 'Lưu triệu chứng'}
-            </button>
-          </div>
-        </div>
-      </Panel>
+      <DailyLogModal
+        open={dailyLogOpen}
+        mode={dailyLogMode}
+        onClose={closeDailyLog}
+        onSaved={refreshCycleData}
+      />
 
       {/* ── Panel 3: Hi AI Chat ── */}
       <Panel open={panel === 'chat'} onClose={close} title="Hi AI Chat" icon="auto_awesome" iconBg="bg-purple-100 text-purple-500">
@@ -1094,7 +720,7 @@ export default function FemaleDashboardPage() {
             </div>
             <div className="text-right">
               <p className="text-[10px] text-slate-400 font-medium">Hôm nay</p>
-              <p className="text-[10px] font-bold text-pink-400">{phase} · Ngày {cycleDay}</p>
+              <p className="text-[10px] font-bold text-pink-400">{cycleContextLabel}</p>
             </div>
           </div>
 

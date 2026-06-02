@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import api from '../lib/api';
-import { Cycle } from '../types';
+import type { CycleInsights, CycleRecord } from '@hi/shared';
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const MONTHS = [
@@ -21,28 +21,21 @@ const MONTHS = [
   'Tháng 12',
 ];
 
-function getDayType(date: Date, cycles: Cycle[]): 'period' | 'predicted' | 'ovulation' | null {
+function isWithin(date: Date, startDate?: string | null, endDate?: string | null) {
+  return !!startDate && !!endDate && date >= new Date(startDate) && date <= new Date(endDate);
+}
+
+function getDayType(date: Date, cycles: CycleRecord[], insights?: CycleInsights): 'period' | 'predicted' | 'ovulation' | null {
   for (const cycle of cycles) {
     const start = new Date(cycle.startDate);
     const periodLen = cycle.periodLength || 5;
-    const cycleLen = cycle.cycleLength || 28;
 
     const end = new Date(start);
     end.setDate(start.getDate() + periodLen - 1);
     if (date >= start && date <= end) return 'period';
-
-    const nextStart = new Date(start);
-    nextStart.setDate(start.getDate() + cycleLen);
-    const nextEnd = new Date(nextStart);
-    nextEnd.setDate(nextStart.getDate() + periodLen - 1);
-    if (date >= nextStart && date <= nextEnd) return 'predicted';
-
-    const ovulationStart = new Date(start);
-    ovulationStart.setDate(start.getDate() + 13);
-    const ovulationEnd = new Date(ovulationStart);
-    ovulationEnd.setDate(ovulationStart.getDate() + 2);
-    if (date >= ovulationStart && date <= ovulationEnd) return 'ovulation';
   }
+  if (isWithin(date, insights?.estimatedPeriodStartDate ?? insights?.estimatedNextStartDate, insights?.estimatedPeriodEndDate ?? insights?.estimatedNextEndDate)) return 'predicted';
+  if (isWithin(date, insights?.fertileWindowStartDate, insights?.fertileWindowEndDate)) return 'ovulation';
   return null;
 }
 
@@ -51,25 +44,19 @@ export default function CalendarPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
 
-  const { data: cycles = [] } = useQuery<Cycle[]>({
+  const { data: cycles = [] } = useQuery<CycleRecord[]>({
     queryKey: ['cycles'],
-    queryFn: async () => {
-      try {
-        const { data } = await api.get('/cycle-records');
-        return (data.cycleRecords ?? []) as Cycle[];
-      } catch {
-        const { data } = await api.get('/cycles');
-        return data.cycles as Cycle[];
-      }
-    },
+    queryFn: () => api.get('/cycle-records').then(({ data }) => data.cycleRecords ?? []),
+  });
+  const { data: insights } = useQuery<CycleInsights>({
+    queryKey: ['cycle-insights'],
+    queryFn: () => api.get('/cycle-records/insights').then(({ data }) => data.insights),
   });
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const avgCycle = cycles.length
-    ? Math.round(cycles.reduce((total, cycle) => total + (cycle.cycleLength || 28), 0) / cycles.length)
-    : 28;
-  const periodDays = cycles.reduce((total, cycle) => total + (cycle.periodLength || 5), 0);
+  const avgCycle = Math.round(insights?.averageCycleLength ?? 28);
+  const periodDays = Math.round(insights?.averagePeriodLength ?? 5);
 
   const prevMonth = () => {
     if (month === 0) {
@@ -169,7 +156,7 @@ export default function CalendarPage() {
                 const day = index + 1;
                 const date = new Date(year, month, day);
                 const isToday = date.toDateString() === today.toDateString();
-                const type = getDayType(date, cycles);
+                const type = getDayType(date, cycles, insights);
 
                 return (
                   <div
@@ -195,10 +182,10 @@ export default function CalendarPage() {
             <div className="space-y-3">
               {[
                 { color: 'bg-rose-400', label: 'Kinh nguyệt', desc: 'Ngày đã ghi nhận' },
-                { color: 'bg-purple-200', label: 'Dự đoán', desc: 'Kỳ tiếp theo' },
-                { color: 'bg-emerald-200', label: 'Rụng trứng', desc: 'Khung dễ thụ thai' },
+                { color: 'bg-purple-200', label: 'Ước tính', desc: 'Kỳ tiếp theo' },
+                { color: 'bg-emerald-200', label: 'Ước tính', desc: 'Khung dễ thụ thai' },
               ].map(({ color, label, desc }) => (
-                <div key={label} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-3">
+                <div key={desc} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-3">
                   <span className={`h-3.5 w-3.5 rounded-full ${color}`} />
                   <div>
                     <p className="text-sm font-bold text-slate-700">{label}</p>
@@ -221,6 +208,9 @@ export default function CalendarPage() {
               Xem lịch sử chu kỳ
             </Button>
           </Card>
+          <p className="px-1 text-xs leading-relaxed text-slate-400">
+            Các ngày dự kiến chỉ là ước tính, không thay thế biện pháp tránh thai hoặc tư vấn y khoa.
+          </p>
         </aside>
       </div>
     </div>
