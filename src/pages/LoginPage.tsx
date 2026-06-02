@@ -4,22 +4,15 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-hot-toast';
-import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../store/authStore';
 import HiLogo from '../components/ui/HiLogo';
+import { buildGoogleOAuthUrl, extractSafeNextPath, getSafeNextPath } from '../lib/googleAuth';
 
 const schema = z.object({
   email: z.string().email('Email không hợp lệ'),
   password: z.string().min(8, 'Mật khẩu tối thiểu 8 ký tự'),
 });
 type FormData = z.infer<typeof schema>;
-
-function getSafeNextPath(search: string, fallback: string) {
-  const next = new URLSearchParams(search).get('next');
-  if (!next || !next.startsWith('/') || next.startsWith('//')) return fallback;
-  if (next === '/login' || next === '/register') return fallback;
-  return next;
-}
 
 function loadFacebookSdk() {
   const appId = import.meta.env.VITE_FACEBOOK_APP_ID;
@@ -77,11 +70,8 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    const clientId = '315410090730-6bhvppf1p0jlja3s0o4es8pbc1ob2srm.apps.googleusercontent.com';
-    const redirectUri = window.location.origin;
-    const scope = 'email profile openid';
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
-    window.location.assign(url);
+    const nextPath = extractSafeNextPath(location.search) ?? undefined;
+    window.location.assign(buildGoogleOAuthUrl(nextPath));
   };
 
   const handleFacebookLogin = async () => {

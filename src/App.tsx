@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
@@ -22,6 +22,7 @@ import AdminPage from './pages/AdminPage';
 import Layout from './components/layout/Layout';
 import PaymentSuccessPage from './pages/payment/PaymentSuccessPage';
 import PaymentCancelPage from './pages/payment/PaymentCancelPage';
+import { getSafeOAuthState } from './lib/googleAuth';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, token } = useAuthStore();
@@ -86,6 +87,7 @@ export default function App() {
     if (hash && hash.includes('access_token=')) {
       const params = new URLSearchParams(hash.substring(1));
       const accessToken = params.get('access_token');
+      const state = params.get('state');
       if (accessToken) {
         // Clear hash from URL immediately to keep the URL clean
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -102,8 +104,8 @@ export default function App() {
             if (user.role === 'admin') destination = '/admin';
             else if (!user.onboardingCompleted) destination = '/onboarding';
             else if (user.gender === 'female') destination = '/female-dashboard';
-            
-            navigate(destination);
+
+            navigate(getSafeOAuthState(state, destination));
           } catch (err: any) {
             toast.dismiss('google-redirect-login');
             toast.error(err.message || 'Đăng nhập Google thất bại');
@@ -134,8 +136,10 @@ export default function App() {
       <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
       <Route path="/payment/cancel" element={<ProtectedRoute><PaymentCancelPage /></ProtectedRoute>} />
 
+      {/* Admin — standalone, no Navbar */}
+      <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+
       <Route element={<Layout />}>
-        <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
         <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />

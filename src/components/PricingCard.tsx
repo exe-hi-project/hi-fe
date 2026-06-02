@@ -2,6 +2,20 @@ import React from 'react';
 import { useCheckout, useSubscription, useCancelSubscription } from '../hooks/useSubscription';
 import Spinner from './ui/Spinner';
 
+type PaidPlanId = 'monthly' | 'yearly';
+
+interface PricingPlan {
+  id: 'free' | PaidPlanId;
+  label: string;
+  price: string;
+  period: string;
+  description: string;
+  priceId?: PaidPlanId;
+  highlight?: boolean;
+  badge?: string;
+  features: string[];
+}
+
 export default function PricingCard() {
   const { data: subscription, isLoading } = useSubscription();
   const checkout = useCheckout();
@@ -18,34 +32,51 @@ export default function PricingCard() {
     return isNaN(num) ? val : num.toLocaleString('vi-VN') + 'đ';
   };
 
-  const PLANS = [
+  const plans: PricingPlan[] = [
+    {
+      id: 'free',
+      label: 'Free',
+      price: '0đ',
+      period: '/mãi mãi',
+      description: 'Đủ để bắt đầu theo dõi sức khỏe mỗi ngày.',
+      features: [
+        'Theo dõi chu kỳ và ghi nhận triệu chứng',
+        'Dự đoán kỳ kinh tiếp theo cơ bản',
+        'Xem lịch sử dữ liệu trong 3 tháng gần nhất',
+        '5 tin nhắn AI hỗ trợ tham khảo mỗi ngày',
+        'Nhắc kỳ kinh cơ bản',
+      ],
+    },
     {
       id: 'monthly',
-      label: 'Hàng tháng',
+      label: 'Premium tháng',
       price: formatPrice(priceMonthlyVal),
-      period: '/tháng',
-      priceId: 'monthly' as const,
+      period: '/30 ngày',
+      description: 'Linh hoạt mở khóa trải nghiệm chăm sóc nâng cao.',
+      priceId: 'monthly',
       highlight: false,
       features: [
-        'Theo dõi chu kỳ kinh nguyệt nâng cao',
-        'Tư vấn sức khỏe AI 24/7 không giới hạn',
-        'Dự báo và phân tích triệu chứng thông minh',
-        'Chia sẻ dữ liệu bảo mật với bạn đời',
+        'Tất cả quyền lợi của gói Free',
+        'Phân tích chu kỳ và triệu chứng nâng cao',
+        'Lịch sử dữ liệu không giới hạn',
+        'AI hỗ trợ tham khảo với hạn mức Premium',
+        'Thông báo và chia sẻ với bạn đời nâng cao',
       ],
     },
     {
       id: 'yearly',
-      label: 'Hàng năm',
+      label: 'Premium năm',
       price: formatPrice(priceYearlyVal),
-      period: '/năm',
-      priceId: 'yearly' as const,
+      period: '/365 ngày',
+      description: 'Đồng hành dài hạn với mức giá tốt nhất.',
+      priceId: 'yearly',
       highlight: true,
       badge: 'Tiết kiệm 32%',
       features: [
-        'Tất cả tính năng của gói tháng',
-        'Báo cáo sức khỏe sinh sản hàng năm',
-        'Ưu tiên kết nối với chuyên gia y tế',
-        'Giá ưu đãi tiết kiệm vượt trội',
+        'Tất cả quyền lợi của Premium tháng',
+        'Báo cáo sức khỏe định kỳ',
+        'Trọn 365 ngày quyền lợi Premium',
+        'Tiết kiệm 32% so với mua theo tháng',
       ],
     },
   ];
@@ -81,14 +112,14 @@ export default function PricingCard() {
 
           <button
             onClick={() => {
-              if (confirm('Bạn có chắc chắn muốn hủy gia hạn gói Premium?')) {
+              if (confirm('Bạn có chắc chắn muốn dừng gói Premium?')) {
                 cancelSub.mutate();
               }
             }}
             disabled={cancelSub.isPending}
             className="mt-8 text-xs font-semibold text-gray-400 hover:text-red-500 underline transition-colors duration-200"
           >
-            {cancelSub.isPending ? 'Đang xử lý...' : 'Hủy gia hạn gói Premium'}
+            {cancelSub.isPending ? 'Đang xử lý...' : 'Dừng gói Premium'}
           </button>
         </div>
       </div>
@@ -99,20 +130,28 @@ export default function PricingCard() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="text-center max-w-2xl mx-auto mb-10">
         <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl font-sans">
-          Nâng cấp lên <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-pink-600">Hi Premium</span>
+          Chọn gói <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-pink-600">Hi</span> phù hợp
         </h2>
         <p className="mt-4 text-base text-gray-500 font-sans">
-          Mở khóa toàn bộ các tính năng theo dõi sức khỏe nâng cao và AI tư vấn y khoa chuyên sâu.
+          Bắt đầu miễn phí hoặc mở khóa thêm phân tích sức khỏe, AI hỗ trợ tham khảo và trải nghiệm bạn đời nâng cao.
         </p>
+        {isCanceled && (
+          <p className="mt-3 text-sm font-medium text-pink-600">
+            Gói Premium trước đó đã dừng. Bạn có thể chọn lại gói phù hợp khi cần.
+          </p>
+        )}
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2 md:gap-6 lg:gap-8 max-w-3xl mx-auto">
-        {PLANS.map((plan) => (
+      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3 lg:items-stretch">
+        {plans.map((plan) => {
+          const isFreePlan = plan.id === 'free';
+
+          return (
           <div
             key={plan.id}
             className={`relative flex flex-col justify-between rounded-3xl border p-8 bg-white transition-all duration-300 ${
               plan.highlight
-                ? 'border-pink-400 shadow-xl shadow-pink-100/50 scale-105 z-10'
+                ? 'border-pink-400 shadow-xl shadow-pink-100/50 lg:scale-[1.03] lg:z-10'
                 : 'border-gray-200 hover:border-pink-200 hover:shadow-lg hover:shadow-gray-100/50'
             }`}
           >
@@ -128,6 +167,7 @@ export default function PricingCard() {
                 <span className="text-4xl font-extrabold tracking-tight font-sans">{plan.price}</span>
                 <span className="ml-1 text-lg font-normal text-gray-400">{plan.period}</span>
               </div>
+              <p className="mt-3 min-h-10 text-sm leading-relaxed text-gray-500">{plan.description}</p>
 
               <ul className="mt-8 space-y-4">
                 {plan.features.map((feature, idx) => (
@@ -143,18 +183,25 @@ export default function PricingCard() {
 
             <button
               id={`btn-checkout-${plan.id}`}
-              onClick={() => checkout.mutate(plan.priceId)}
-              disabled={checkout.isPending}
+              onClick={() => plan.priceId && checkout.mutate(plan.priceId)}
+              disabled={isFreePlan || checkout.isPending}
               className={`mt-8 flex w-full items-center justify-center rounded-2xl py-3.5 px-6 text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] ${
                 plan.highlight
                   ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg shadow-pink-500/20 hover:from-pink-600 hover:to-pink-700 hover:shadow-pink-600/30'
-                  : 'border border-pink-200 bg-pink-50/50 text-pink-600 hover:bg-pink-50 hover:border-pink-300'
-              } disabled:opacity-60`}
+                  : isFreePlan
+                    ? 'border border-slate-200 bg-slate-50 text-slate-500'
+                    : 'border border-pink-200 bg-pink-50/50 text-pink-600 hover:bg-pink-50 hover:border-pink-300'
+              } disabled:cursor-not-allowed disabled:opacity-70`}
             >
-              {checkout.isPending ? 'Đang xử lý...' : 'Nâng cấp Premium'}
+              {isFreePlan
+                ? 'Gói hiện tại'
+                : checkout.isPending
+                  ? 'Đang xử lý...'
+                  : `Chọn gói ${plan.id === 'monthly' ? 'tháng' : 'năm'}`}
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

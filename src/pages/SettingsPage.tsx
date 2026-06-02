@@ -347,7 +347,7 @@ export default function SettingsPage() {
                   Chính sách Hủy gói
                 </h4>
                 <p className="text-[11px] leading-relaxed text-slate-500">
-                  Bạn có thể hủy gia hạn tự động của gói bất kỳ lúc nào qua nút <strong>"Hủy gia hạn gói Premium"</strong>. Sau khi hủy, quyền lợi Premium vẫn được giữ nguyên cho đến hết chu kỳ thanh toán hiện tại. Chúng tôi cam kết không tự động trừ tiền kỳ tiếp theo.
+                  Gói Premium hiện được thanh toán một lần cho thời hạn 30 hoặc 365 ngày và không tự động gia hạn. Bạn có thể dừng gói qua nút <strong>"Dừng gói Premium"</strong>; quyền lợi đã thanh toán vẫn được giữ đến ngày hết hạn.
                 </p>
               </div>
               <div className="bg-slate-50/60 rounded-2xl border border-slate-100/70 p-4">
