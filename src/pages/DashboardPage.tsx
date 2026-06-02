@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
-import type { CycleInsights } from '@hi/shared';
+import type { CycleInsights } from '../types/shared';
 
 interface PartnerCycle {
   _id: string;

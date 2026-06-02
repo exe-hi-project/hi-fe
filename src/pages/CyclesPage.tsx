@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
-import type { CycleInsights, CycleRecord } from '@hi/shared';
+import type { CycleInsights, CycleRecord } from '../types/shared';
 
 const PHASES = [
   { label: 'Kinh nguyệt', bg: '#fb7185', light: '#fff1f2' },

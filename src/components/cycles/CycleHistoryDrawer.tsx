@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import type { CycleInsights, CycleRecord } from '@hi/shared';
+import type { CycleInsights, CycleRecord } from '../../types/shared';
 import api from '../../lib/api';
 import ResponsiveModal from '../ui/ResponsiveModal';
 

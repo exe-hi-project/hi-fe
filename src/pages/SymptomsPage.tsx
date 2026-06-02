@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
 import { clsx } from 'clsx';
-import type { DailyLog, SymptomDictionary, SymptomSeverity } from '@hi/shared';
+import type { DailyLog, SymptomDictionary, SymptomSeverity } from '../types/shared';
 import { useAuthStore } from '../store/authStore';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
