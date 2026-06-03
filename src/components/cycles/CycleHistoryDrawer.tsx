@@ -84,11 +84,9 @@ export default function CycleHistoryDrawer({
 }: CycleHistoryDrawerProps) {
   const today = useMemo(() => new Date(), []);
   const todayIso = toIsoDate(today);
-  const minSelectableDate = toIsoDate(new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()));
   const predictedRange = insights?.estimatedPeriodStartDate && insights?.estimatedPeriodEndDate
     ? { startDate: insights.estimatedPeriodStartDate.slice(0, 10), endDate: insights.estimatedPeriodEndDate.slice(0, 10) }
     : null;
-  const minMonth = startOfMonth(fromIsoDate(minSelectableDate));
   const predictedMonth = predictedRange ? startOfMonth(fromIsoDate(predictedRange.endDate)) : startOfMonth(today);
   const maxMonth = predictedMonth > startOfMonth(today) ? predictedMonth : startOfMonth(today);
   const [visibleMonth, setVisibleMonth] = useState(startOfMonth(today));
@@ -128,10 +126,11 @@ export default function CycleHistoryDrawer({
     () => cycles.filter((record) => record._id !== editingRecord?._id).map(recordToRange),
     [cycles, editingRecord?._id],
   );
-  const progress = Math.min(cycles.length + pendingRanges.length, 3);
+  const historyCount = cycles.length + pendingRanges.length;
+  const hasRecommendedHistory = historyCount >= 3;
 
   const validateRange = (range: DateRange) => {
-    if (range.startDate < minSelectableDate || range.endDate > todayIso) return 'Chỉ chọn ngày trong 12 tháng gần nhất và không chọn ngày tương lai.';
+    if (range.endDate > todayIso) return 'Không thể chọn ngày tương lai.';
     if (rangeLength(range) > 30) return 'Một kỳ kinh không thể dài hơn 30 ngày.';
     if ([...comparableStoredRanges, ...pendingRanges].some((item) => rangesOverlap(item, range))) {
       return 'Khoảng ngày này đang trùng với một kỳ đã ghi nhận.';
@@ -140,7 +139,7 @@ export default function CycleHistoryDrawer({
   };
 
   const chooseDate = (date: string) => {
-    if (date < minSelectableDate || date > todayIso) return;
+    if (date > todayIso) return;
     setError('');
     if (!draftStart || draftEnd) {
       setDraftStart(date);
@@ -231,12 +230,16 @@ export default function CycleHistoryDrawer({
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-extrabold text-slate-800">Tăng độ chính xác dự đoán</p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">Thêm ít nhất 3 kỳ gần nhất. Bạn có thể bổ sung dữ liệu trong 12 tháng qua.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">Thêm ít nhất 3 kỳ gần nhất để tăng độ chính xác. Bạn vẫn có thể bổ sung toàn bộ lịch sử cũ.</p>
                 </div>
-                <span className="whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-sm font-black text-rose-500 shadow-sm">{progress}/3 kỳ</span>
+                <span className="whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-sm font-black text-rose-500 shadow-sm">
+                  {historyCount} kỳ đã nhập
+                </span>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-1.5">
-                {[0, 1, 2].map((index) => <span key={index} className={`h-1.5 rounded-full ${index < progress ? 'bg-rose-400' : 'bg-rose-100'}`} />)}
+              <div className="mt-3 rounded-2xl border border-white/70 bg-white/70 px-3 py-2 text-[11px] font-semibold text-slate-500">
+                {hasRecommendedHistory
+                  ? 'Đã đủ dữ liệu cơ bản. Bạn vẫn có thể bổ sung thêm toàn bộ lịch sử cũ để dự đoán tốt hơn.'
+                  : `Nên có ít nhất 3 kỳ gần nhất. Còn ${3 - historyCount} kỳ nữa để đủ dữ liệu cơ bản.`}
               </div>
             </section>
           )}
@@ -247,8 +250,7 @@ export default function CycleHistoryDrawer({
             <div className="mb-4 flex items-center justify-between">
               <button
                 onClick={() => setVisibleMonth((month) => addMonths(month, -1))}
-                disabled={visibleMonth <= minMonth}
-                className="flex size-9 items-center justify-center rounded-full text-slate-500 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-25"
+                className="flex size-9 items-center justify-center rounded-full text-slate-500 hover:bg-rose-50"
                 aria-label="Tháng trước"
               >
                 <span className="material-symbols-outlined">chevron_left</span>
@@ -270,7 +272,7 @@ export default function CycleHistoryDrawer({
               {DAYS.map((day) => <span key={day} className="pb-1 text-[10px] font-black uppercase text-slate-400">{day}</span>)}
               {calendarGrid.map((date, index) => {
                 if (!date) return <span key={`blank-${index}`} />;
-                const isDisabled = date < minSelectableDate || date > todayIso;
+                const isDisabled = date > todayIso;
                 const isSelected = !!selectedRange && includesDate(selectedRange, date);
                 const isPending = pendingRanges.some((range) => includesDate(range, date));
                 const isStored = storedRanges.some((range) => includesDate(range, date));

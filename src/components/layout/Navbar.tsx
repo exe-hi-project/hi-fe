@@ -1,20 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { useSubscription } from '../../hooks/useSubscription';
-import HiLogo from '../ui/HiLogo';
 import api from '../../lib/api';
+import HiLogo from '../ui/HiLogo';
+import PlanStatusPill from '../ui/PlanStatusPill';
 
 interface NavbarProps {
-  /** Show landing-page anchor links (Tính năng / Blog…). Only visible when not logged in. */
+  /** Show landing-page anchor links. Only visible when not logged in. */
   showAnchors?: boolean;
 }
 
 export default function Navbar({ showAnchors = false }: NavbarProps) {
   const { token, user, logout } = useAuthStore();
   const { data: subscription } = useSubscription();
-  const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
+  const location = useLocation();
+  const loggedIn = !!token;
+  const isAdmin = user?.role === 'admin';
+  const homePath = isAdmin ? '/admin' : user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard';
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread-count'],
@@ -25,26 +29,34 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
   });
   const unreadCount = unreadData?.unreadCount ?? 0;
 
-  const isAdmin = user?.role === 'admin';
-  const homePath = isAdmin ? '/admin' : user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard';
+  const dashboardLinks = isAdmin
+    ? [{ to: '/admin', label: 'Quản trị', icon: 'admin_panel_settings' }]
+    : user?.gender === 'female'
+      ? [
+          { to: '/female-dashboard', label: 'Tổng quan', icon: 'dashboard' },
+          { to: '/cycles', label: 'Chu kỳ', icon: 'water_drop' },
+          { to: '/settings/notifications', label: 'Người ấy', icon: 'favorite' },
+        ]
+      : [
+          { to: '/male-dashboard', label: 'Tổng quan', icon: 'dashboard' },
+          { to: '/male-settings/notifications', label: 'Người ấy', icon: 'favorite' },
+        ];
 
-  const dashboardLinks = isAdmin ? [
-    { to: '/admin', label: 'Quản trị', icon: 'admin_panel_settings' },
-    { to: '/notifications', label: 'Thông báo', icon: 'notifications' },
-  ] : user?.gender === 'female' ? [
-    { to: '/female-dashboard', label: 'Tổng quan', icon: 'dashboard' },
-    { to: '/cycles', label: 'Chu kỳ', icon: 'water_drop' },
-  ] : [
-    { to: '/male-dashboard', label: 'Tổng quan', icon: 'dashboard' },
-    { to: '/male-settings/notifications', label: 'Cặp đôi', icon: 'favorite' },
-  ];
-  const location = useLocation();
-  const loggedIn = !!token;
+  const menuItems = isAdmin
+    ? [
+        { to: '/admin', icon: 'admin_panel_settings', label: 'Quản trị hệ thống' },
+        { to: '/settings', icon: 'manage_accounts', label: 'Hồ sơ cá nhân' },
+      ]
+    : [
+        { to: user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard', icon: 'dashboard', label: 'Tổng quan' },
+        { to: user?.gender === 'female' ? '/settings/notifications' : '/male-settings/notifications', icon: 'favorite', label: 'Người ấy' },
+        { to: '/settings', icon: 'manage_accounts', label: 'Hồ sơ cá nhân' },
+        { to: user?.gender === 'female' ? '/cycles' : '/calendar', icon: 'water_drop', label: user?.gender === 'female' ? 'Chu kỳ của tôi' : 'Lịch của bạn' },
+      ];
 
   const [dropOpen, setDropOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
@@ -55,29 +67,14 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
-  // Close on route change
-  useEffect(() => { setDropOpen(false); }, [location.pathname]);
-
-  const menuItems = isAdmin ? [
-    { to: '/admin', icon: 'admin_panel_settings', label: 'Quản trị hệ thống' },
-    { to: '/notifications', icon: 'notifications', label: 'Thông báo' },
-    { to: '/settings', icon: 'manage_accounts', label: 'Hồ sơ cá nhân' },
-  ] : [
-    { to: user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard', icon: 'dashboard', label: 'Tổng quan' },
-    { to: user?.gender === 'female' ? '/settings/notifications' : '/male-settings/notifications', icon: 'notifications', label: 'Thông báo & Cặp đôi' },
-    { to: '/settings', icon: 'manage_accounts', label: 'Hồ sơ cá nhân' },
-    { to: user?.gender === 'female' ? '/cycles' : '/calendar', icon: 'water_drop', label: user?.gender === 'female' ? 'Chu kỳ của tôi' : 'Lịch của bạn' },
-  ];
+  useEffect(() => {
+    setDropOpen(false);
+  }, [location.pathname]);
 
   return (
-    <div className="sticky top-4 z-50 flex justify-center w-full px-4">
-      <header className="lp-floating-nav flex items-center justify-between whitespace-nowrap rounded-full px-6 py-3 w-full max-w-[1100px]">
-
-        {/* ── Logo ── */}
-        <Link
-          to={loggedIn ? homePath : '/'}
-          className="flex items-center gap-3 flex-shrink-0"
-        >
+    <div className="sticky top-4 z-50 flex w-full justify-center px-4">
+      <header className="lp-floating-nav flex w-full max-w-[1100px] items-center justify-between whitespace-nowrap rounded-full px-6 py-3">
+        <Link to={loggedIn ? homePath : '/'} className="flex flex-shrink-0 items-center gap-3">
           <HiLogo size={34} />
           <span
             className="text-lg font-black tracking-tight"
@@ -92,20 +89,16 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
           </span>
         </Link>
 
-        {/* ── Center links ── */}
         {loggedIn ? (
-          /* App nav — always shown when logged in */
-          <nav className="hidden md:flex flex-1 justify-center items-center gap-1 bg-gray-100/60 p-1 rounded-xl mx-4">
+          <nav className="mx-4 hidden flex-1 items-center justify-center gap-1 rounded-xl bg-gray-100/60 p-1 md:flex">
             {dashboardLinks.map(({ to, label, icon }) => {
               const active = location.pathname === to;
               return (
                 <Link
                   key={to}
                   to={to}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all ${
-                    active
-                      ? 'bg-white shadow-sm text-pink-500'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
+                  className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                    active ? 'bg-white text-pink-500 shadow-sm' : 'text-slate-500 hover:bg-white/50 hover:text-slate-900'
                   }`}
                 >
                   <span className="material-symbols-outlined text-[18px]">{icon}</span>
@@ -115,83 +108,73 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
             })}
           </nav>
         ) : showAnchors ? (
-          /* Landing page anchor links — only when not logged in */
-          <div className="hidden md:flex flex-1 justify-center gap-8">
-            <a href="#features" className="text-slate-500 hover:text-purple-400 transition-colors text-sm font-medium">Tính năng</a>
-            <a href="#about"    className="text-slate-500 hover:text-purple-400 transition-colors text-sm font-medium">Về chúng tôi</a>
-            <a href="#reviews"  className="text-slate-500 hover:text-purple-400 transition-colors text-sm font-medium">Blog</a>
+          <div className="hidden flex-1 justify-center gap-8 md:flex">
+            <a href="#features" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Tính năng</a>
+            <a href="#pricing" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Gói Hi</a>
+            <a href="#about" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Về chúng tôi</a>
+            <a href="#reviews" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Blog</a>
           </div>
         ) : null}
 
-        {/* ── Right actions ── */}
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           {loggedIn ? (
             <>
-              {/* Bell */}
+              <PlanStatusPill subscription={subscription} compact className="hidden sm:inline-flex" />
               <Link
                 to="/notifications"
-                className="relative w-9 h-9 rounded-full bg-white border border-gray-100 flex items-center justify-center text-slate-500 hover:text-pink-500 hover:border-pink-200 transition-all shadow-sm"
+                aria-label="Thông báo"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gray-100 bg-white text-slate-500 shadow-sm transition-all hover:border-pink-200 hover:text-pink-500"
               >
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
+                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border border-white bg-red-500" />
                 )}
               </Link>
 
-              {/* Avatar + name + dropdown */}
               <div className="relative" ref={dropRef}>
                 <button
+                  type="button"
                   onClick={() => setDropOpen((v) => !v)}
-                  className="flex items-center gap-2 pl-1 pr-3 py-1 bg-white border border-gray-100 rounded-full hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 rounded-full border border-gray-100 bg-white py-1 pl-1 pr-3 transition-all hover:shadow-sm"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-300 to-purple-300 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white text-[16px]">person</span>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-pink-300 to-purple-300">
+                    <span className="material-symbols-outlined text-[16px] text-white">person</span>
                   </div>
-                  <span className="text-sm font-bold text-slate-900 hidden sm:block">{user?.name?.split(' ').pop()}</span>
-                  <span
-                    className={`material-symbols-outlined text-slate-400 text-lg transition-transform duration-200 ${dropOpen ? 'rotate-180' : ''}`}
-                  >
+                  <span className="hidden text-sm font-bold text-slate-900 sm:block">{user?.name?.split(' ').pop()}</span>
+                  <span className={`material-symbols-outlined text-lg text-slate-400 transition-transform duration-200 ${dropOpen ? 'rotate-180' : ''}`}>
                     expand_more
                   </span>
                 </button>
 
-                {/* Dropdown panel */}
                 {dropOpen && (
-                  <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fade-in">
-                    {/* User info header */}
-                    <div className="px-4 py-3 border-b border-gray-50">
-                      <div className="flex items-center gap-1.5 justify-between">
-                        <p className="text-sm font-bold text-slate-900 truncate max-w-[110px]">{user?.name}</p>
-                        {isPremium ? (
-                          <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-pink-500 text-white text-[9px] font-black uppercase tracking-wider scale-95 shadow-sm">
-                            💎 Premium
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[9px] font-bold uppercase tracking-wider scale-95">
-                            Free
-                          </span>
-                        )}
+                  <div className="animate-fade-in absolute right-0 z-50 mt-3 w-56 rounded-2xl border border-gray-100 bg-white py-2 shadow-xl">
+                    <div className="border-b border-gray-50 px-4 py-3">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <p className="max-w-[110px] truncate text-sm font-bold text-slate-900">{user?.name}</p>
+                        <PlanStatusPill subscription={subscription} compact />
                       </div>
-                      <p className="text-xs text-slate-400 truncate mt-1">{user?.email}</p>
+                      <p className="mt-1 truncate text-xs text-slate-400">{user?.email}</p>
                     </div>
 
-                    {/* Menu items */}
                     {menuItems.map(({ to, icon, label }) => (
                       <Link
                         key={`${to}-${label}`}
                         to={to}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-pink-50 hover:text-pink-600 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-pink-50 hover:text-pink-600"
                       >
-                        <span className="material-symbols-outlined text-[18px] text-slate-400 group-hover:text-pink-400">{icon}</span>
+                        <span className="material-symbols-outlined text-[18px] text-slate-400">{icon}</span>
                         {label}
                       </Link>
                     ))}
 
-                    {/* Divider + logout */}
-                    <div className="border-t border-gray-50 mt-1 pt-1">
+                    <div className="mt-1 border-t border-gray-50 pt-1">
                       <button
-                        onClick={() => { setDropOpen(false); logout(); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+                        type="button"
+                        onClick={() => {
+                          setDropOpen(false);
+                          logout();
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
                       >
                         <span className="material-symbols-outlined text-[18px]">logout</span>
                         Đăng xuất
@@ -203,16 +186,10 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
             </>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-9 px-5 lp-btn-white text-slate-900 text-sm font-bold"
-              >
+              <Link to="/login" className="lp-btn-white hidden h-9 cursor-pointer items-center justify-center rounded-full px-5 text-sm font-bold text-slate-900 sm:flex">
                 Đăng nhập
               </Link>
-              <Link
-                to="/register"
-                className="lp-btn-gradient flex cursor-pointer items-center justify-center rounded-full h-9 px-5 text-white text-sm font-bold shadow-md"
-              >
+              <Link to="/register" className="lp-btn-gradient flex h-9 cursor-pointer items-center justify-center rounded-full px-5 text-sm font-bold text-white shadow-md">
                 Đăng ký
               </Link>
             </>
@@ -222,5 +199,3 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
     </div>
   );
 }
-
-

@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-hot-toast';
-import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../store/authStore';
 import HiLogo from '../components/ui/HiLogo';
 

@@ -10,7 +10,7 @@ export default function Badge({ variant = 'info', size = 'md', children, classNa
   const variants = {
     period: 'bg-rose-100 text-rose-700',
     predicted: 'bg-purple-100 text-purple-700',
-    ovulation: 'bg-green-100 text-green-700',
+    ovulation: 'bg-sky-100 text-sky-700',
     success: 'bg-emerald-100 text-emerald-700',
     warning: 'bg-amber-100 text-amber-700',
     info: 'bg-pink-100 text-pink-700',

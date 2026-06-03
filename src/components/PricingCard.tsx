@@ -42,7 +42,7 @@ export default function PricingCard() {
       features: [
         'Theo dõi chu kỳ và ghi nhận triệu chứng',
         'Dự đoán kỳ kinh tiếp theo cơ bản',
-        'Xem lịch sử dữ liệu trong 3 tháng gần nhất',
+        'Xem toàn bộ lịch sử dữ liệu cá nhân',
         '5 tin nhắn AI hỗ trợ tham khảo mỗi ngày',
         'Nhắc kỳ kinh cơ bản',
       ],
@@ -58,7 +58,7 @@ export default function PricingCard() {
       features: [
         'Tất cả quyền lợi của gói Free',
         'Phân tích chu kỳ và triệu chứng nâng cao',
-        'Lịch sử dữ liệu không giới hạn',
+        'Phân tích xu hướng từ toàn bộ lịch sử',
         'AI hỗ trợ tham khảo với hạn mức Premium',
         'Thông báo và chia sẻ với bạn đời nâng cao',
       ],
@@ -185,12 +185,12 @@ export default function PricingCard() {
               id={`btn-checkout-${plan.id}`}
               onClick={() => plan.priceId && checkout.mutate(plan.priceId)}
               disabled={isFreePlan || checkout.isPending}
-              className={`mt-8 flex w-full items-center justify-center rounded-2xl py-3.5 px-6 text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] ${
+              className={`mt-8 flex w-full items-center justify-center rounded-2xl py-3.5 px-6 text-sm font-extrabold tracking-wide transition-all duration-300 active:scale-[0.98] ${
                 plan.highlight
-                  ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg shadow-pink-500/20 hover:from-pink-600 hover:to-pink-700 hover:shadow-pink-600/30'
+                  ? 'bg-gradient-to-r from-sky-400 via-violet-400 to-pink-500 text-white shadow-lg shadow-pink-500/25 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-pink-500/30'
                   : isFreePlan
                     ? 'border border-slate-200 bg-slate-50 text-slate-500'
-                    : 'border border-pink-200 bg-pink-50/50 text-pink-600 hover:bg-pink-50 hover:border-pink-300'
+                    : 'border border-pink-200 bg-white text-pink-600 hover:-translate-y-0.5 hover:border-transparent hover:bg-gradient-to-r hover:from-sky-50 hover:via-violet-50 hover:to-pink-50 hover:text-pink-700 hover:shadow-lg hover:shadow-pink-100'
               } disabled:cursor-not-allowed disabled:opacity-70`}
             >
               {isFreePlan

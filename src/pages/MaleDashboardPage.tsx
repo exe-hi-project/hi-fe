@@ -1,111 +1,97 @@
-import { useState, useRef, useEffect } from 'react';
+ import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { useSubscription } from '../hooks/useSubscription';
 import Navbar from '../components/layout/Navbar';
+import PageBackdrop from '../components/layout/PageBackdrop';
+import SiteFooter from '../components/layout/SiteFooter';
+import HealthVideoSection from '../components/health/HealthVideoSection';
+import QuickMoodCard from '../components/health/QuickMoodCard';
+import CyclePreviewCalendar from '../components/cycles/CyclePreviewCalendar';
 import api from '../lib/api';
 import { ChatMessage } from '../types';
 import PricingCard from '../components/PricingCard';
+import type { CycleInsights, CycleRecord } from '../types/shared';
+import { CYCLE_DAY_CLASSES, getCycleDayKind } from '../utils/cycleCalendar';
 
-/* ── Helpers ── */
+function toLocalDate(value?: string | null) {
+  return value ? new Date(`${value.slice(0, 10)}T00:00:00`) : null;
+}
+
+function formatShortDate(value?: string | null) {
+  const date = toLocalDate(value);
+  return date ? date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '--';
+}
+
+function formatDateRange(start?: string | null, end?: string | null) {
+  return `${formatShortDate(start)}${end ? ` - ${formatShortDate(end)}` : ''}`;
+}
+
+function moodLabel(score?: number | null) {
+  if (!score) return 'Chưa gửi cảm xúc hôm nay';
+  if (score >= 5) return 'Vui vẻ';
+  if (score === 4) return 'Bình tĩnh';
+  if (score === 3) return 'Bình thường';
+  if (score === 2) return 'Lo lắng hoặc mệt mỏi';
+  return 'Bực bội';
+}
+
 function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return { text: 'Chào buổi sáng', icon: 'wb_sunny' };
-  if (h < 18) return { text: 'Chào buổi chiều', icon: 'partly_cloudy_day' };
-  return { text: 'Chào buổi tối', icon: 'nightlight' };
+  const hour = new Date().getHours();
+  if (hour < 11) return { text: 'Chào buổi sáng', icon: 'wb_sunny' };
+  if (hour < 18) return { text: 'Chào buổi chiều', icon: 'light_mode' };
+  return { text: 'Chào buổi tối', icon: 'dark_mode' };
 }
 
-interface PartnerCycle { _id: string; startDate: string; cycleLength: number; periodLength: number; }
-
-function getPartnerCycleInfo(cycle: PartnerCycle) {
-  const today = new Date();
-  const start = new Date(cycle.startDate);
-  const cycleDay = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1);
-  const cycleLen = cycle.cycleLength || 28;
-  const daysUntilPeriod = cycleLen - cycleDay;
-  let phase = 'Hoàng thể';
-  if (cycleDay <= cycle.periodLength) phase = 'Kinh nguyệt';
-  else if (cycleDay <= 13)            phase = 'Nang trứng';
-  else if (cycleDay <= 16)            phase = 'Rụng trứng';
-  return { cycleDay, phase, daysUntilPeriod, cycleLen };
-}
-
-function formatDateRange(start?: string | Date | null, end?: string | Date | null) {
-  if (!start) return '—';
-  const s = new Date(start);
-  const e = end ? new Date(end) : null;
-  const format = (d: Date) => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-  return `${format(s)}${e ? ` - ${format(e)}` : ''}`;
-}
-
-function getPeriodDateRanges(cycle: PartnerCycle | null) {
-  if (!cycle) return { lastStart: null, lastEnd: null, nextStart: null, nextEnd: null };
-  const lastStart = new Date(cycle.startDate);
-  const lastEnd = new Date(lastStart.getTime() + (cycle.periodLength - 1) * 86_400_000);
-  const nextStart = new Date(lastStart.getTime() + cycle.cycleLength * 86_400_000);
-  const nextEnd = new Date(nextStart.getTime() + (cycle.periodLength - 1) * 86_400_000);
-  return { lastStart, lastEnd, nextStart, nextEnd };
-}
-
-function getCareTips(phase: string): string[] {
-  if (phase === 'Kinh nguyệt') return ['🌡️ Chuẩn bị túi chườm ấm', '🍫 Mua chocolate / đồ ăn em thích', '🤗 Nhẹ nhàng và thông cảm hơn'];
-  if (phase === 'Rụng trứng')  return ['⚡ Năng lượng em đang ở đỉnh cao', '💑 Lên kế hoạch hẹn hò lãng mạn đi!', '🏃 Cùng em vận động thể thao'];
-  if (phase === 'Nang trứng')  return ['✨ Em đang tự tin & hứng khởi', '🎯 Ủng hộ kế hoạch của em', '💬 Trò chuyện sâu hơn'];
-  return ['🌙 Em cần nghỉ ngơi nhiều hơn', '☕ Pha cho em ly trà ấm nhé', '🎵 Cùng thư giãn với nhạc nhẹ'];
+function getCareTips(phase: string) {
+  const normalized = phase.toLowerCase();
+  if (normalized.includes('kinh')) {
+    return ['Pha cho em ly trà ấm nhé', 'Nhắc em nghỉ ngơi nhiều hơn', 'Hỏi em có cần túi chườm không'];
+  }
+  if (normalized.includes('rụng')) {
+    return ['Cùng em vận động nhẹ nhàng', 'Lên kế hoạch hẹn hò thư giãn', 'Giữ nhịp trò chuyện dịu dàng'];
+  }
+  return ['Lắng nghe cảm xúc của Người ấy', 'Cùng lên lịch sinh hoạt lành mạnh', 'Gửi một lời nhắn quan tâm'];
 }
 
 function getActivityBars() {
   const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-  const todayIndex = (new Date().getDay() + 6) % 7;
-  return days.map((day, i) => ({
+  const today = (new Date().getDay() + 6) % 7;
+  return days.map((day, index) => ({
     day,
-    h: i === todayIndex ? '70%' : i < todayIndex ? '40%' : '0%',
-    cls: i === todayIndex ? 'bg-gradient-to-t from-blue-500 to-indigo-400' : i < todayIndex ? 'bg-blue-200' : 'bg-blue-100',
-    active: i === todayIndex,
+    h: index === today ? '76%' : index < today ? `${30 + index * 8}%` : '18%',
+    cls: index === today ? 'bg-blue-400' : index < today ? 'bg-indigo-200' : 'bg-slate-100',
+    active: index === today,
   }));
 }
 
-function buildMonthCalendar(partnerCycle: PartnerCycle | null) {
+function buildMonthCalendar(
+  partnerCycles: CycleRecord[],
+  partnerInsights: CycleInsights | null,
+): { cells: Array<{ day: number | null; isToday: boolean; kind: keyof typeof CYCLE_DAY_CLASSES | null }>; monthName: string } {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7; // Mon=0
+  const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7;
   const monthName = now.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+  const cells: Array<{ day: number | null; isToday: boolean; kind: keyof typeof CYCLE_DAY_CLASSES | null }> = [];
 
-  const cells: Array<{ day: number | null; isToday: boolean; isPeriod: boolean; isOvulation: boolean; isFertile: boolean }> = [];
-  for (let i = 0; i < firstDayOfWeek; i++) cells.push({ day: null, isToday: false, isPeriod: false, isOvulation: false, isFertile: false });
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const isToday = d === now.getDate();
-    let isPeriod = false, isOvulation = false, isFertile = false;
-    if (partnerCycle) {
-      const start = new Date(partnerCycle.startDate);
-      start.setHours(0, 0, 0, 0);
-      const cellDate = new Date(year, month, d);
-      const cycleDay = Math.floor((cellDate.getTime() - start.getTime()) / 86_400_000) + 1;
-      const cLen = partnerCycle.cycleLength || 28;
-      const pLen = partnerCycle.periodLength || 5;
-      const normalised = ((cycleDay - 1) % cLen + cLen) % cLen + 1;
-      if (normalised >= 1 && normalised <= pLen) isPeriod = true;
-      else if (normalised >= 13 && normalised <= 16) isOvulation = true;
-      else if (normalised >= 11 && normalised <= 17) isFertile = true;
-    }
-    cells.push({ day: d, isToday, isPeriod, isOvulation, isFertile });
+  for (let i = 0; i < firstDayOfWeek; i++) cells.push({ day: null, isToday: false, kind: null });
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    cells.push({
+      day,
+      isToday: day === now.getDate(),
+      kind: getCycleDayKind(date, partnerCycles, partnerInsights),
+    });
   }
+
   return { cells, monthName };
 }
 
-/* ── Mood options ── */
-const MOOD_OPTIONS = [
-  { id: 'energized', emoji: '💪', label: 'Mạnh mẽ',    bg: '#eff6ff', selBg: '#dbeafe', ring: '#93c5fd' },
-  { id: 'tired',     emoji: '😴', label: 'Mệt mỏi',    bg: '#f5f3ff', selBg: '#ddd6fe', ring: '#a78bfa' },
-  { id: 'focused',   emoji: '🎯', label: 'Tập trung',   bg: '#ecfdf5', selBg: '#a7f3d0', ring: '#34d399' },
-  { id: 'stressed',  emoji: '😤', label: 'Căng thẳng',  bg: '#fff7ed', selBg: '#fed7aa', ring: '#fb923c' },
-] as const;
 
-const MALE_AI_CHIPS = ['Hôm nay nên làm gì?', 'Tips chăm bạn gái?', 'Bạn gái đang ở phase nào?', 'Cách giảm stress?'];
+const MALE_AI_CHIPS = ['Hôm nay nên làm gì?', 'Tips chăm người ấy?', 'Người ấy đang ở phase nào?', 'Cách giảm stress?'];
 
 /* ── Panel component ── */
 function Panel({ open, onClose, title, icon, iconBg, children }: {
@@ -140,9 +126,6 @@ function Panel({ open, onClose, title, icon, iconBg, children }: {
 /* ══════════════════════════════════════════════ */
 export default function MaleDashboardPage() {
   const { user } = useAuthStore();
-  const { data: subscription } = useSubscription();
-  const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
-  const planLabel = subscription?.plan && subscription.plan.includes('yearly') ? 'Premium Năm' : subscription?.plan && subscription.plan.includes('monthly') ? 'Premium Tháng' : 'Free';
   const queryClient = useQueryClient();
 
   const firstName = user?.name?.split(' ').pop() ?? 'bạn';
@@ -152,38 +135,70 @@ export default function MaleDashboardPage() {
   const partnerQuery = useQuery({
     queryKey: ['partner-cycles'],
     queryFn: async () => {
-      const { data } = await api.get('/users/partner-cycles');
-      return data as { success: boolean; cycles: PartnerCycle[]; partner?: { name: string } };
+      const { data } = await api.get('/users/partner-cycles', { params: { historyLimit: 20 } });
+      return data as {
+        success: boolean;
+        cycles: CycleRecord[];
+        history?: CycleRecord[];
+        insights?: CycleInsights | null;
+        latestMood?: number | null;
+        latestDailyLogDate?: string | null;
+        partner?: { id?: string; name?: string; avatar?: string };
+      };
     },
-    enabled: !!user?.partnerId,
+    enabled: !!user,
   });
-  const partnerCycle = partnerQuery.data?.cycles?.[0] ?? null;
-  const partnerInfo  = partnerCycle ? getPartnerCycleInfo(partnerCycle) : null;
-  const partnerName  = partnerQuery.data?.partner?.name ?? 'Bạn đời';
-  const partnerPhase = partnerInfo?.phase ?? '—';
-  const partnerDay   = partnerInfo?.cycleDay ?? 0;
-  const partnerCycleLen = partnerInfo?.cycleLen ?? 28;
-  const partnerDaysUntilPeriod = partnerInfo?.daysUntilPeriod ?? 0;
-  const hasPartner   = !!user?.partnerId;
+  const partnerCycles = partnerQuery.data?.cycles ?? [];
+  const partnerHistory = partnerQuery.data?.history ?? partnerCycles.slice(0, 8);
+  const partnerCycle = partnerCycles[0] ?? null;
+  const partnerInsights = partnerQuery.data?.insights ?? null;
+  const partnerName  = partnerQuery.data?.partner?.name ?? 'Người ấy';
+  const partnerPhase = partnerInsights?.estimatedPhase ?? partnerInsights?.currentPhase ?? '—';
+  const partnerDay   = partnerInsights?.confirmedPeriodDay ?? partnerInsights?.estimatedCycleDay ?? 0;
+  const partnerCycleLen = Math.round(partnerInsights?.averageCycleLength ?? partnerCycle?.cycleLength ?? 28);
+  const partnerPeriodLen = Math.round(partnerInsights?.averagePeriodLength ?? partnerCycle?.periodLength ?? 5);
+  const partnerPeriodStatus = partnerInsights?.periodStatus ?? 'UPCOMING';
+  const partnerRingValue = partnerPeriodStatus === 'CONFIRMED'
+    ? partnerInsights?.confirmedPeriodDay ?? partnerDay ?? '--'
+    : partnerPeriodStatus === 'UPCOMING'
+      ? partnerInsights?.daysUntilEstimatedPeriod ?? '--'
+      : partnerPeriodStatus === 'PREDICTED'
+        ? partnerInsights?.estimatedPeriodDay ?? '--'
+        : partnerInsights?.periodDelayDays ?? '--';
+  const partnerRingEyebrow = partnerPeriodStatus === 'CONFIRMED'
+    ? 'Ngày kinh nguyệt'
+    : partnerPeriodStatus === 'UPCOMING'
+      ? 'Còn'
+      : partnerPeriodStatus === 'PREDICTED'
+        ? 'Ngày dự kiến'
+        : 'Đã trễ';
+  const partnerRingCaption = partnerPeriodStatus === 'CONFIRMED'
+    ? 'Đã ghi nhận'
+    : partnerPeriodStatus === 'UPCOMING'
+      ? 'ngày nữa tới kỳ'
+      : partnerPeriodStatus === 'PREDICTED'
+        ? 'Kỳ kinh ước tính'
+        : 'ngày chưa ghi nhận';
+  const partnerRingStroke = partnerPeriodStatus === 'DELAYED' ? '#94a3b8' : partnerPeriodStatus === 'UPCOMING' ? '#93c5fd' : '#f472b6';
+  const partnerFertilityLabel = partnerInsights?.fertilityStatus === 'HIGH'
+    ? 'Cao'
+    : partnerInsights?.fertilityStatus === 'LOW'
+      ? 'Thấp'
+      : 'Chưa đủ dữ liệu';
+  const partnerConfidenceLabel = partnerInsights?.predictionConfidence === 'HIGH'
+    ? 'Cao'
+    : partnerInsights?.predictionConfidence === 'MEDIUM'
+      ? 'Trung bình'
+      : 'Đang học dữ liệu';
+  const hasPartner   = !!partnerQuery.data?.partner || !!user?.partnerId;
+  const latestMoodLabel = moodLabel(partnerQuery.data?.latestMood ?? null);
 
   const careTips = getCareTips(partnerPhase);
 
   /* ── Panels ── */
-  type PanelId = 'health' | 'mood' | 'chat' | null;
+  type PanelId = 'chat' | null;
   const [panel, setPanel] = useState<PanelId>(null);
   const close = () => setPanel(null);
-
-  /* ── Health log ── */
-  const [health, setHealth] = useState({ workoutDone: false, sleepHours: 7, stressLevel: 3, energyLevel: 75 });
-  const [healthSaved, setHealthSaved] = useState(false);
-  const saveHealth = () => { setHealthSaved(true); setTimeout(() => { setHealthSaved(false); close(); }, 1500); };
-
-  /* ── Mood ── */
-  const [selectedMoods, setSelectedMoods] = useState<Set<string>>(new Set());
-  const [moodNote, setMoodNote] = useState('');
-  const [moodSaved, setMoodSaved] = useState(false);
-  const toggleMood = (id: string) => setSelectedMoods(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const saveMood = () => { setMoodSaved(true); setTimeout(() => { setMoodSaved(false); close(); }, 1500); };
 
   /* ── Chat ── */
   const chatQuery = useQuery<ChatMessage[]>({
@@ -209,20 +224,13 @@ export default function MaleDashboardPage() {
   };
 
   const circumference = 2 * Math.PI * 40;
-  const energyOffset = circumference * (1 - health.energyLevel / 100);
-  const partnerStatusLabel = partnerPhase === 'Kinh nguyệt' ? 'Đang trong kỳ kinh' : `Ước tính ${partnerPhase.toLowerCase()}`;
-  const { lastStart, lastEnd, nextStart, nextEnd } = getPeriodDateRanges(partnerCycle);
+  const partnerStatusLabel = partnerPeriodStatus === 'CONFIRMED' ? 'Đang trong kỳ kinh' : `Ước tính ${partnerPhase.toLowerCase()}`;
 
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-screen bg-[#f0f7ff] overflow-x-hidden relative font-sans">
-      {/* Blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="lp-blob bg-blue-200/40   w-[500px] h-[500px] rounded-full top-[-100px] left-[-100px]" />
-        <div className="lp-blob bg-indigo-100/50  w-[400px] h-[400px] rounded-full bottom-[-80px] right-[-80px]" />
-        <div className="lp-blob bg-cyan-100/30    w-[350px] h-[350px] rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-      </div>
+    <div className="min-h-screen overflow-x-hidden relative font-sans bg-[#f5fbff]">
+      <PageBackdrop variant="male" />
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <Navbar />
@@ -237,17 +245,7 @@ export default function MaleDashboardPage() {
                 <span>{greeting.text}</span>
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
-                <span>{firstName}</span>
-                {isPremium ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-blue-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse">
-                    💎 {planLabel}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                    🍀 Free
-                  </span>
-                )}
-                <span className="font-normal text-slate-400">,</span>
+                <span>{firstName}</span>                <span className="font-normal text-slate-400">,</span>
                 <span className="font-medium" style={{ background: 'linear-gradient(90deg,#60a5fa,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                   hôm nay bạn mạnh mẽ! 💙
                 </span>
@@ -274,7 +272,7 @@ export default function MaleDashboardPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="material-symbols-outlined text-pink-500 text-[22px]">favorite</span>
-                    <h3 className="text-lg font-bold text-slate-800">Sức khỏe của {hasPartner ? partnerName : 'Bạn đời'}</h3>
+                    <h3 className="text-lg font-bold text-slate-800">Sức khỏe của {hasPartner ? partnerName : 'Người ấy'}</h3>
                     {hasPartner && (
                       <span className="flex h-2.5 w-2.5 relative ml-1">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75" />
@@ -292,99 +290,66 @@ export default function MaleDashboardPage() {
               </div>
 
               {hasPartner ? (
-                <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                  {/* Cycle ring */}
-                  <div className="relative size-44 flex-shrink-0">
-                    <svg className="size-full -rotate-90" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="40" fill="none" stroke="#fce7f3" strokeWidth="8" />
-                      <circle cx="50" cy="50" r="40" fill="none" stroke="url(#partnerCycleGrad)" strokeWidth="8"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={partnerDay > 0 ? circumference * (1 - partnerDay / partnerCycleLen) : circumference}
-                        strokeLinecap="round" />
-                      <defs>
-                        <linearGradient id="partnerCycleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#fb7185" />
-                          <stop offset="100%" stopColor="#f472b6" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-0.5">Ngày chu kỳ</span>
-                      <span className="text-4xl font-extrabold text-slate-900">{partnerDay > 0 ? partnerDay : '—'}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">/ {partnerCycleLen} ngày</span>
-                      <span className="text-pink-500 text-[11px] font-extrabold mt-1">{partnerPhase}</span>
+                <div className="relative z-10 grid gap-8 lg:grid-cols-[240px_1fr] lg:items-center">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="relative size-52 flex-shrink-0">
+                      <svg className="size-full -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="#fce7f3" strokeWidth="8" />
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke={partnerRingStroke}
+                          strokeWidth="8"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={partnerDay > 0 ? circumference * (1 - Math.min(partnerDay / partnerCycleLen, 1)) : circumference}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">{partnerRingEyebrow}</span>
+                        <span className="text-5xl font-extrabold text-slate-900">{partnerRingValue}</span>
+                        <span className="mt-1 text-sm font-extrabold text-slate-500">{partnerRingCaption}</span>
+                        <span className="mt-1 text-[11px] font-bold text-pink-500">{partnerPhase}</span>
+                      </div>
                     </div>
+                    <Link to="/male-settings/notifications" className="text-xs font-bold text-blue-500 hover:text-blue-600">
+                      Dữ liệu đồng bộ từ Người ấy
+                    </Link>
                   </div>
 
-                  <div className="flex-1 w-full space-y-4">
-                    {/* Phase status */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl border border-pink-100/70" style={{ background: 'linear-gradient(135deg,#fdf2f8,#fae8ff)' }}>
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-pink-500 text-[22px]">water_drop</span>
-                        <div>
-                          <p className="text-[10px] text-pink-500 font-extrabold uppercase tracking-wider">Giai đoạn hiện tại</p>
-                          <p className="text-lg font-extrabold text-slate-900">{partnerPhase}</p>
-                        </div>
-                      </div>
-                      <span className="text-3xl">
-                        {partnerPhase === 'Rụng trứng' ? '🌸' : partnerPhase === 'Kinh nguyệt' ? '🌡️' : '✨'}
+                  <div className="w-full space-y-4">
+                    <CyclePreviewCalendar cycles={partnerCycles} insights={partnerInsights} />
+
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-sm">{partnerPeriodLen} ngày kinh trung bình</span>
+                      <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 shadow-sm">Tin cậy: {partnerConfidenceLabel}</span>
+                      <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-bold text-sky-700">
+                        Rụng trứng ước tính: {formatDateRange(partnerInsights?.estimatedOvulationDate ?? null, null)}
+                      </span>
+                      <span className="rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-bold text-violet-700">
+                        Khả năng thụ thai ước tính: {partnerFertilityLabel}
                       </span>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                      <div className="rounded-2xl border border-rose-100 bg-white p-3.5 shadow-sm">
-                        <div className="flex items-center gap-2 text-rose-500">
-                          <span className="material-symbols-outlined text-[18px]">event_available</span>
-                          <p className="text-[10px] font-black uppercase tracking-wide">Kỳ gần nhất</p>
-                        </div>
-                        <p className="mt-2 text-sm font-extrabold text-slate-800">
-                          {formatDateRange(lastStart, lastEnd)}
-                        </p>
-                        <p className="mt-1 text-[10px] font-bold text-rose-500">Đã đồng bộ</p>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 sm:flex-col">
-                        <span className="h-px w-6 bg-rose-200 sm:h-6 sm:w-px" />
-                        <span className="whitespace-nowrap rounded-full border border-rose-100 bg-white px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">{partnerCycleLen} ngày</span>
-                        <span className="h-px w-6 bg-rose-200 sm:h-6 sm:w-px" />
-                      </div>
-                      <div className="rounded-2xl border border-dashed border-rose-200 bg-rose-50/50 p-3.5">
-                        <div className="flex items-center gap-2 text-rose-500">
-                          <span className="material-symbols-outlined text-[18px]">event_upcoming</span>
-                          <p className="text-[10px] font-black uppercase tracking-wide">Kỳ tiếp theo</p>
-                        </div>
-                        <p className="mt-2 text-sm font-extrabold text-slate-800">
-                          {formatDateRange(nextStart, nextEnd)}
-                        </p>
-                        <p className="mt-1 text-[10px] font-bold text-rose-400">Dự kiến</p>
-                      </div>
-                    </div>
-
-                    {/* Care tips */}
-                    <div className="rounded-2xl p-4 border border-pink-100" style={{ background: 'linear-gradient(135deg,#fdf2f8,#f5f3ff)' }}>
-                      <p className="text-[10px] font-extrabold text-pink-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                    <div className="rounded-2xl border border-pink-100 p-4" style={{ background: 'linear-gradient(135deg,#fdf2f8,#f5f3ff)' }}>
+                      <p className="mb-2 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-widest text-pink-500">
                         <span className="material-symbols-outlined text-[14px]">tips_and_updates</span>
                         Gợi ý chăm sóc hôm nay
                       </p>
                       <ul className="space-y-1.5">
                         {careTips.map((tip, i) => (
-                          <li key={i} className="text-xs text-slate-600 font-medium flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-pink-400 flex-shrink-0" />
+                          <li key={i} className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-pink-400" />
                             {tip}
                           </li>
                         ))}
                       </ul>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <button onClick={() => setPanel('chat')} className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white transition-all hover:opacity-90 active:scale-[0.98]"
-                        style={{ background: 'linear-gradient(135deg,#fb7185,#e879f9)', boxShadow: '0 6px 20px rgba(251,113,133,0.35)' }}>
-                        <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                        Hỏi Hi AI cách chăm sóc
-                      </button>
-                      <button onClick={() => setPanel('chat')} className="w-full py-3 rounded-xl border border-pink-200 bg-white text-pink-500 font-bold text-sm hover:bg-pink-50 transition-all flex items-center justify-center gap-2 shadow-sm">
-                        <span className="material-symbols-outlined text-[18px]">send</span>
-                        Gửi lời nhắn
-                      </button>
+                    <div className="rounded-2xl border border-rose-100 bg-white/80 px-4 py-3 text-xs font-semibold text-slate-500">
+                      Dự đoán chỉ mang tính tham khảo, không thay thế tư vấn y khoa hoặc biện pháp tránh thai.
                     </div>
                   </div>
                 </div>
@@ -405,7 +370,7 @@ export default function MaleDashboardPage() {
                     <div className="bg-gradient-to-r from-blue-50/50 to-pink-50/30 p-4 rounded-2xl border border-slate-100">
                       <h4 className="font-extrabold text-slate-800 text-base mb-2">Đồng hành cùng sức khỏe của người ấy</h4>
                       <p className="text-xs text-slate-500 leading-relaxed">
-                        Kết nối tài khoản giúp bạn cập nhật tự động chu kỳ kinh nguyệt của bạn gái, nhận cảnh báo tâm lý và những lời khuyên y học hữu ích từ AI.
+                        Kết nối tài khoản giúp bạn cập nhật tự động chu kỳ kinh nguyệt của người ấy, nhận cảnh báo tâm lý và những lời khuyên y học hữu ích từ AI.
                       </p>
                     </div>
 
@@ -426,121 +391,71 @@ export default function MaleDashboardPage() {
 
                     <Link to="/male-settings/notifications" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-sm shadow-md hover:shadow-lg active:scale-[0.97] transition-all w-fit">
                       <span className="material-symbols-outlined text-lg">person_add</span>
-                      Kết nối với bạn đời ngay
+                      Kết nối với người ấy ngay
                     </Link>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* ── 2. My health & mood card (1 col) ── */}
-            <div className="md:col-span-1 bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-white/80 flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-28 h-28 bg-blue-200/20 rounded-full blur-2xl pointer-events-none" />
-              <div className="space-y-5">
-                <div className="flex items-center justify-between mb-2 relative z-10">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-blue-500 text-[22px]">person</span>
-                    Sức khỏe của bạn
+            {/* ── 2. Người ấy + quick mood (1 col) ── */}
+            <aside className="md:col-span-1 space-y-5">
+              <div className="rounded-3xl border border-blue-100/80 bg-blue-50/70 p-6 shadow-sm backdrop-blur-sm">
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 font-extrabold text-slate-800">
+                    <span className="material-symbols-outlined text-blue-500 text-[22px]">favorite</span>
+                    Người ấy
                   </h3>
-                  <button onClick={() => setPanel('health')} className="w-8 h-8 rounded-full bg-slate-50 hover:bg-blue-50 flex items-center justify-center text-slate-400 hover:text-blue-500 transition-colors">
-                    <span className="material-symbols-outlined text-lg">edit</span>
-                  </button>
+                  <span className={`h-2.5 w-2.5 rounded-full ${hasPartner ? 'bg-emerald-400' : 'bg-slate-300'}`} />
                 </div>
 
-                {/* Mini energy ring */}
-                <div className="flex justify-center">
-                  <div className="relative size-28">
-                    <svg className="size-full -rotate-90" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="40" fill="none" stroke="#e0f2fe" strokeWidth="10" />
-                      <circle cx="50" cy="50" r="40" fill="none" stroke="url(#maleEnergyGrad)" strokeWidth="10"
-                        strokeDasharray={circumference} strokeDashoffset={energyOffset} strokeLinecap="round" />
-                      <defs>
-                        <linearGradient id="maleEnergyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8" />
-                          <stop offset="100%" stopColor="#6366f1" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-2xl font-extrabold text-slate-900">{health.energyLevel}%</span>
-                      <span className="text-blue-500 text-[10px] font-bold">Năng lượng</span>
+                {hasPartner ? (
+                  <div className="text-center">
+                    <div className="relative mx-auto mb-3 size-20 rounded-full border-4 border-white bg-gradient-to-br from-blue-200 to-violet-200 shadow-md">
+                      <span className="material-symbols-outlined flex h-full items-center justify-center text-4xl text-white">person</span>
+                    </div>
+                    <h4 className="text-lg font-extrabold text-slate-900">{partnerName}</h4>
+                    <p className="text-xs font-semibold text-slate-400">Đã kết nối</p>
+                    <div className="mt-4 rounded-2xl border border-white bg-white/80 p-3.5 text-left shadow-sm">
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">Cảm xúc mới nhất</p>
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-outlined text-blue-500">emoji_emotions</span>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{latestMoodLabel}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-400">
+                            {partnerQuery.data?.latestDailyLogDate ? `Cập nhật ${formatShortDate(partnerQuery.data.latestDailyLogDate)}` : 'Chưa có cập nhật cảm xúc'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Logged Mood strip */}
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                  <p className="text-[10px] text-slate-400 font-extrabold uppercase mb-1.5">Tâm trạng hôm nay</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedMoods.size > 0 ? (
-                      Array.from(selectedMoods).map(moodId => {
-                        const m = MOOD_OPTIONS.find(o => o.id === moodId);
-                        return m ? (
-                          <span key={moodId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-slate-100 text-xs font-bold text-slate-700 shadow-sm">
-                            <span>{m.emoji}</span>
-                            <span>{m.label}</span>
-                          </span>
-                        ) : null;
-                      })
-                    ) : (
-                      <span className="text-slate-400 text-xs font-medium">Chưa ghi nhận tâm trạng</span>
-                    )}
+                ) : (
+                  <div className="flex flex-col items-center gap-3 py-6 text-center">
+                    <div className="flex size-16 items-center justify-center rounded-full bg-blue-50">
+                      <span className="material-symbols-outlined text-4xl text-blue-300">person_add</span>
+                    </div>
+                    <p className="text-sm text-slate-500">Chưa kết nối với ai</p>
+                    <Link to="/male-settings/notifications" className="text-xs font-bold text-blue-500 hover:underline">
+                      Kết nối ngay →
+                    </Link>
                   </div>
-                </div>
+                )}
 
-                <div className="space-y-3.5">
-                  {/* Sleep */}
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-slate-600 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-indigo-400 text-[16px]">bedtime</span>
-                        Giấc ngủ
-                      </span>
-                      <span className="font-bold text-indigo-500">{health.sleepHours}h</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(health.sleepHours / 9) * 100}%`, background: 'linear-gradient(90deg,#818cf8,#6366f1)' }} />
-                    </div>
-                  </div>
-
-                  {/* Stress */}
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-slate-600 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-cyan-400 text-[16px]">psychology</span>
-                        Căng thẳng
-                      </span>
-                      <span className="font-bold text-cyan-500">{['','Rất thấp','Thấp','TB','Cao','Cao!'][health.stressLevel]}</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(health.stressLevel / 5) * 100}%`, background: 'linear-gradient(90deg,#67e8f9,#22d3ee)' }} />
-                    </div>
-                  </div>
-
-                  {/* Workout */}
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-blue-500 text-[18px]">sports_gymnastics</span>
-                      <span className="text-xs font-bold text-slate-700">Tập luyện hôm nay:</span>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${health.workoutDone ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>
-                      {health.workoutDone ? 'Đã tập' : 'Chưa tập'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                <button onClick={() => setPanel('health')} className="py-2.5 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-600 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm">
-                  <span className="material-symbols-outlined text-base">fitness_center</span>
-                  Nhật ký
-                </button>
-                <button onClick={() => setPanel('mood')} className="py-2.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm">
-                  <span className="material-symbols-outlined text-base">edit_note</span>
-                  Tâm trạng
+                <button
+                  onClick={() => setPanel('chat')}
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-100 bg-white py-2.5 text-sm font-bold text-blue-600 shadow-sm transition-all hover:bg-blue-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">send</span>
+                  Gửi lời nhắn
                 </button>
               </div>
-            </div>
+
+              <QuickMoodCard
+                accent="blue"
+                sendToPartner={hasPartner}
+                className="border-blue-100/80 bg-white/90"
+              />
+            </aside>
 
             {/* Row 2: Secondary panels in grid columns */}
             <div className="md:col-span-4 grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -558,10 +473,10 @@ export default function MaleDashboardPage() {
                       partnerPhase === 'Rụng trứng'
                         ? `"Hôm nay ${partnerName} đang rất năng động và tự tin. Hãy lên kế hoạch hẹn hò lãng mạn cùng em nhé!"`
                         : partnerPhase === 'Kinh nguyệt'
-                        ? `"Người ấy đang trong kỳ kinh nguyệt, cơ thể nhạy cảm và mỏi mệt. Hãy pha trà ấm, chuẩn bị túi chườm để bên em."`
-                        : `"Hãy duy trì giao tiếp nhẹ nhàng và dành thời gian chất lượng chất lượng bên bạn đời hôm nay."`
+                        ? '"Người ấy đang trong kỳ kinh nguyệt, cơ thể nhạy cảm và mỏi mệt. Hãy pha trà ấm, chuẩn bị túi chườm để bên em."'
+                        : '"Hãy duy trì giao tiếp nhẹ nhàng và dành thời gian chất lượng bên người ấy hôm nay."'
                     ) : (
-                      `"Bắt đầu kết nối với bạn đời để nhận các chỉ dẫn tâm lý y học cá nhân hóa cho mối quan hệ của bạn."`
+                      '"Bắt đầu kết nối với người ấy để nhận các chỉ dẫn tâm lý y học cá nhân hóa cho mối quan hệ của bạn."'
                     )}
                   </p>
                 </div>
@@ -595,11 +510,10 @@ export default function MaleDashboardPage() {
                   ))}
                 </div>
               </div>
-
-              {/* ── 5. Partner cycle mini calendar ── */}
+              {/* Partner cycle mini calendar */}
               <div className="lg:col-span-4 bg-blue-50/40 rounded-3xl p-6 shadow-sm border border-blue-100/70 flex flex-col justify-between">
                 {(() => {
-                  const { cells, monthName } = buildMonthCalendar(partnerCycle);
+                  const { cells, monthName } = buildMonthCalendar(partnerCycles, partnerInsights);
                   return (
                     <>
                       <div className="flex justify-between items-center mb-4">
@@ -609,11 +523,11 @@ export default function MaleDashboardPage() {
                         </h3>
                         <span className="text-[10px] font-bold text-slate-400">{monthName}</span>
                       </div>
-                      
+
                       {!hasPartner ? (
                         <div className="flex-grow flex flex-col items-center justify-center text-center py-6 gap-2">
                           <span className="material-symbols-outlined text-slate-300 text-3xl">calendar_today</span>
-                          <p className="text-xs text-slate-400 leading-relaxed px-4">Kết nối đối tác để xem dự báo lịch chu kỳ tháng này</p>
+                          <p className="text-xs text-slate-400 leading-relaxed px-4">Kết nối Người ấy để xem dự báo lịch chu kỳ tháng này</p>
                         </div>
                       ) : (
                         <>
@@ -622,26 +536,29 @@ export default function MaleDashboardPage() {
                               <div key={i} className="text-[9px] uppercase font-black text-slate-400 mb-1">{d}</div>
                             ))}
                             {cells.map((cell, i) => (
-                              <div key={i}
-                                className={`h-7 flex items-center justify-center rounded-lg text-xs font-semibold relative
-                                  ${!cell.day ? '' :
-                                    cell.isToday ? 'font-black text-white shadow-sm' :
-                                    cell.isPeriod ? 'text-rose-700 bg-rose-50 border border-rose-100' :
-                                    cell.isOvulation ? 'text-pink-800 bg-pink-50 border border-pink-100' :
-                                    cell.isFertile ? 'text-purple-700 bg-purple-50/80 border border-purple-100' :
-                                    'text-slate-500'}`}
+                              <div
+                                key={i}
+                                className={`h-7 flex items-center justify-center rounded-lg text-xs font-semibold relative ${
+                                  !cell.day
+                                    ? ''
+                                    : cell.isToday
+                                      ? 'font-black text-white shadow-sm'
+                                      : cell.kind
+                                        ? CYCLE_DAY_CLASSES[cell.kind]
+                                        : 'text-slate-500'
+                                }`}
                                 style={cell.isToday ? { background: 'linear-gradient(135deg,#3b82f6,#6366f1)' } : undefined}
                               >
                                 {cell.day ?? ''}
-                                {cell.isOvulation && <span className="absolute bottom-0.5 size-1 rounded-full bg-pink-500" />}
+                                {cell.kind === 'ovulation' && <span className="absolute bottom-0.5 size-1 rounded-full bg-sky-500" />}
                               </div>
                             ))}
                           </div>
-                          
+
                           <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 justify-center flex-wrap pt-2 border-t border-blue-100/50">
-                            <div className="flex items-center gap-1"><span className="size-2 rounded bg-rose-100 border border-rose-200" /> Kinh nguyệt</div>
-                            <div className="flex items-center gap-1"><span className="size-2 rounded bg-pink-100 border border-pink-200" /> Rụng trứng</div>
-                            <div className="flex items-center gap-1"><span className="size-2 rounded bg-purple-50 border border-purple-100" /> Thụ thai</div>
+                            <div className="flex items-center gap-1"><span className="size-2 rounded bg-rose-100 border border-rose-200" /> Kinh nguy?t</div>
+                            <div className="flex items-center gap-1"><span className="size-2 rounded border border-dashed border-rose-300" /> Dự kiến</div>
+                            <div className="flex items-center gap-1"><span className="size-2 rounded-full bg-sky-200 border border-sky-300" /> Rụng trứng</div>
                           </div>
                         </>
                       )}
@@ -651,32 +568,72 @@ export default function MaleDashboardPage() {
               </div>
             </div>
 
-            {/* ── 6. Ask Hi AI gợi ý câu hỏi ── */}
-            <div className="md:col-span-4 bg-white/90 backdrop-blur-sm rounded-3xl p-7 shadow-sm border border-white/80">
-              <div className="mb-5">
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-blue-500 text-[22px]">contact_support</span>
-                  Gợi ý hỏi Hi AI
-                </h3>
-                <p className="text-slate-400 text-xs mt-0.5 ml-7">AI đề xuất các chủ đề giúp bạn thấu hiểu bạn đời</p>
+              <div className="md:col-span-4 rounded-3xl border border-blue-100/70 bg-white/90 p-7 shadow-sm backdrop-blur-sm">
+              <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Sắp phát triển</p>
+                  <h3 className="mt-1 text-lg font-extrabold text-slate-900">Hoàn thiện sức khỏe của tôi</h3>
+                  <p className="mt-1 text-sm text-slate-500">Các module này giúp dashboard nam bớt chỉ là “người xem chu kỳ” và trở thành nhật ký sức khỏe thật sự.</p>
+                </div>
+                <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-600">MVP roadmap</span>
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {MALE_AI_CHIPS.map((q) => (
-                  <button key={q} onClick={() => { setChatInput(q); setPanel('chat'); }}
-                    className="group p-4 rounded-2xl bg-slate-50 hover:bg-blue-50/40 border border-slate-100 hover:border-blue-100 transition-all cursor-pointer text-left w-full shadow-sm hover:shadow-md">
-                    <div className="flex justify-between items-start gap-2">
-                      <h4 className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors text-xs leading-relaxed">{q}</h4>
-                      <span className="material-symbols-outlined text-slate-300 group-hover:text-blue-400 transition-colors text-[16px] flex-shrink-0 mt-0.5">arrow_outward</span>
-                    </div>
-                  </button>
+              <div className="grid gap-3 md:grid-cols-5">
+                {[
+                  ['Giấc ngủ', 'Theo dõi giờ ngủ, chất lượng ngủ và tác động tới năng lượng.'],
+                  ['Stress', 'Ghi mức căng thẳng, trigger và gợi ý thở/nghỉ ngắn.'],
+                  ['Lối sống sinh sản', 'Checklist vận động, rượu bia, thuốc lá, nước và dinh dưỡng.'],
+                  ['Triệu chứng nam', 'Ghi đau, mệt, ham muốn, ghi chú riêng tư theo ngày.'],
+                  ['Báo cáo AI', 'Tổng hợp xu hướng tuần/tháng và lời khuyên cá nhân hóa.'],
+                ].map(([title, desc]) => (
+                  <article key={title} className="rounded-2xl border border-slate-100 bg-gradient-to-br from-blue-50/70 to-white p-4">
+                    <p className="text-sm font-extrabold text-slate-800">{title}</p>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-500">{desc}</p>
+                  </article>
                 ))}
               </div>
-              <button onClick={() => setPanel('chat')} className="w-full mt-5 py-3 border-2 border-dashed border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 rounded-xl font-bold text-sm bg-white hover:bg-blue-50/30 transition-all flex items-center justify-center gap-2 shadow-sm">
-                <span className="material-symbols-outlined text-base">chat</span>
-                Mở Hi AI Chat đầy đủ
-              </button>
             </div>
+
+            <div className="md:col-span-4 rounded-3xl border border-blue-100/70 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
+              <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Theo dõi chu kỳ</p>
+                  <h3 className="mt-1 text-lg font-extrabold text-slate-900">Lịch sử chu kỳ của Người ấy</h3>
+                  <p className="mt-1 text-sm text-slate-500">Chỉ hiển thị các kỳ đã được Người ấy xác nhận. Ngày dự đoán vẫn là thông tin tham khảo.</p>
+                </div>
+                <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-600">
+                  {partnerHistory.length} kỳ đã ghi
+                </span>
+              </div>
+
+              {!hasPartner ? (
+                <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 p-6 text-center text-sm font-semibold text-slate-500">
+                  Kết nối Người ấy để xem lịch sử chu kỳ được chia sẻ.
+                </div>
+              ) : partnerHistory.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center text-sm font-semibold text-slate-500">
+                  Người ấy chưa có dữ liệu chu kỳ đã xác nhận.
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {partnerHistory.slice(0, 8).map((record) => (
+                    <article key={record._id ?? record.startDate} className="rounded-2xl border border-blue-50 bg-gradient-to-br from-white to-blue-50/50 p-4 shadow-sm">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <span className="flex size-9 items-center justify-center rounded-xl bg-rose-100 text-rose-500">
+                          <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                        </span>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm">Đã ghi nhận</span>
+                      </div>
+                      <p className="text-base font-extrabold text-slate-900">{formatDateRange(record.startDate, record.endDate)}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-400">
+                        {record.periodLength ?? partnerPeriodLen} ngày kinh · {record.cycleLength ?? partnerCycleLen} ngày chu kỳ
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <HealthVideoSection />
 
             {/* ── 7. Upgrade Premium Plans (4 cols) ── */}
             <div className="md:col-span-4 rounded-3xl overflow-hidden relative bg-white/80 backdrop-blur-sm border border-blue-100/50 p-6 shadow-sm">
@@ -686,146 +643,10 @@ export default function MaleDashboardPage() {
           </div>
         </main>
 
-        <footer className="bg-white/60 border-t border-white/40 py-6 px-4 md:px-8 backdrop-blur-sm">
-          <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-slate-400">
-            <p>© 2025 Hi Inc. All rights reserved.</p>
-            <div className="flex gap-6">
-              <span className="hover:text-blue-500 transition-colors cursor-pointer">Privacy</span>
-              <span className="hover:text-blue-500 transition-colors cursor-pointer">Help Center</span>
-              <Link to="/male-settings/notifications" className="hover:text-blue-500 transition-colors">Settings</Link>
-            </div>
-          </div>
-        </footer>
+        <SiteFooter tone="blue" />
       </div>
 
       {/* ═══ Panels ═══ */}
-
-      {/* Panel 1: Health Log */}
-      <Panel open={panel === 'health'} onClose={close} title="Nhật ký sức khỏe" icon="fitness_center" iconBg="bg-blue-100 text-blue-500">
-        <div style={{ background: 'linear-gradient(160deg,#f0f9ff 0%,#e0e7ff 100%)' }}>
-
-          {/* Energy */}
-          <div className="px-6 py-4 border-b border-blue-50">
-            <div className="flex justify-between items-center mb-3">
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">⚡ Mức năng lượng</label>
-              <span className="text-sm font-extrabold text-blue-500">{health.energyLevel}%</span>
-            </div>
-            <input type="range" min={0} max={100} value={health.energyLevel}
-              onChange={e => setHealth(p => ({ ...p, energyLevel: +e.target.value }))}
-              className="w-full h-2 rounded-full cursor-pointer appearance-none" style={{ accentColor: '#3b82f6' }} />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1"><span>Kiệt sức</span><span>Tràn năng lượng</span></div>
-          </div>
-
-          {/* Sleep */}
-          <div className="px-6 py-4 border-b border-blue-50">
-            <div className="flex justify-between items-center mb-3">
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">🌙 Giờ ngủ</label>
-              <span className="text-sm font-extrabold text-indigo-500">{health.sleepHours}h</span>
-            </div>
-            <input type="range" min={4} max={10} step={0.5} value={health.sleepHours}
-              onChange={e => setHealth(p => ({ ...p, sleepHours: +e.target.value }))}
-              className="w-full h-2 rounded-full cursor-pointer appearance-none" style={{ accentColor: '#6366f1' }} />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1"><span>4h</span><span>10h</span></div>
-          </div>
-
-          {/* Stress */}
-          <div className="px-6 py-4 border-b border-blue-50">
-            <div className="flex justify-between items-center mb-3">
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">🧠 Mức căng thẳng</label>
-              <span className="text-sm font-extrabold text-cyan-500">{['','Rất thấp','Thấp','Trung bình','Cao','Rất cao'][health.stressLevel]}</span>
-            </div>
-            <div className="flex gap-2">
-              {[1,2,3,4,5].map(v => (
-                <button key={v} onClick={() => setHealth(p => ({ ...p, stressLevel: v }))}
-                  className="flex-1 h-3 rounded-full transition-all duration-300"
-                  style={{ background: v <= health.stressLevel ? 'linear-gradient(90deg,#67e8f9,#22d3ee)' : '#e2e8f0', transform: v === health.stressLevel ? 'scaleY(1.4)' : 'scaleY(1)' }} />
-              ))}
-            </div>
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1"><span>Rất thấp</span><span>Rất cao</span></div>
-          </div>
-
-          {/* Workout */}
-          <div className="px-6 py-4 border-b border-blue-50">
-            <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wide mb-3">🏋️ Hôm nay có tập luyện không?</p>
-            <div className="flex gap-3">
-              {(['Có rồi! 💪', 'Chưa, bận quá'] as const).map((label, i) => (
-                <button key={label} onClick={() => setHealth(p => ({ ...p, workoutDone: i === 0 }))}
-                  className="flex-1 py-3 rounded-xl text-sm font-bold transition-all border-2"
-                  style={health.workoutDone === (i === 0)
-                    ? { background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: 'white', borderColor: 'transparent', boxShadow: '0 4px 14px rgba(59,130,246,0.35)' }
-                    : { background: 'white', color: '#94a3b8', borderColor: '#e2e8f0' }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Save */}
-          <div className="px-6 py-6">
-            <button onClick={saveHealth}
-              className="w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 text-white"
-              style={{ background: healthSaved ? '#22c55e' : 'linear-gradient(135deg,#3b82f6,#6366f1)', boxShadow: healthSaved ? 'none' : '0 8px 24px rgba(59,130,246,0.35)' }}>
-              <span className="material-symbols-outlined">{healthSaved ? 'check_circle' : 'save'}</span>
-              {healthSaved ? 'Đã lưu!' : 'Lưu nhật ký'}
-            </button>
-          </div>
-        </div>
-      </Panel>
-
-      {/* Panel 2: Mood detail */}
-      <Panel open={panel === 'mood'} onClose={close} title="Nhật ký tâm trạng" icon="edit_note" iconBg="bg-indigo-100 text-indigo-500">
-        <div style={{ background: 'linear-gradient(160deg,#f0f9ff 0%,#e0e7ff 100%)' }}>
-          <div className="px-6 pt-4 pb-3 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-extrabold text-blue-400 uppercase tracking-widest">Hôm nay</p>
-              <p className="text-sm font-bold text-slate-700">{new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-            </div>
-            {selectedMoods.size > 0 && (
-              <div className="px-3 py-1.5 rounded-full text-xs font-extrabold text-white" style={{ background: 'linear-gradient(135deg,#3b82f6,#6366f1)' }}>
-                {selectedMoods.size} trạng thái
-              </div>
-            )}
-          </div>
-
-          <div className="px-5 py-3">
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Cảm xúc hôm nay</p>
-            <div className="grid grid-cols-2 gap-3">
-              {MOOD_OPTIONS.map(({ id, emoji, label, bg, selBg, ring }) => {
-                const active = selectedMoods.has(id);
-                return (
-                  <button key={id} onClick={() => toggleMood(id)}
-                    className="flex flex-col items-center py-5 rounded-2xl transition-all duration-200 border-2"
-                    style={{ background: active ? selBg : bg, borderColor: active ? ring : 'transparent', boxShadow: active ? `0 8px 20px ${ring}55` : '0 2px 8px rgba(0,0,0,0.06)', transform: active ? 'scale(1.05)' : 'scale(1)' }}>
-                    <span className="text-3xl mb-1">{emoji}</span>
-                    <span className={`text-xs font-bold ${active ? 'text-slate-800' : 'text-slate-500'}`}>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="px-5 pb-4">
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-base">📝</span>
-                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">Ghi chú</span>
-              </div>
-              <textarea value={moodNote} onChange={e => setMoodNote(e.target.value)}
-                placeholder="Hôm nay bạn nghĩ gì? Sự kiện nổi bật..."
-                rows={3} className="w-full text-sm text-slate-700 resize-none outline-none bg-transparent placeholder-blue-200 leading-relaxed" />
-            </div>
-          </div>
-
-          <div className="px-5 pb-8">
-            <button onClick={saveMood}
-              className="w-full py-4 rounded-2xl font-bold text-base text-white flex items-center justify-center gap-2 transition-all"
-              style={{ background: moodSaved ? '#22c55e' : 'linear-gradient(135deg,#3b82f6,#6366f1)', boxShadow: moodSaved ? 'none' : '0 10px 28px rgba(59,130,246,0.40)' }}>
-              <span className="material-symbols-outlined">{moodSaved ? 'check_circle' : 'save'}</span>
-              {moodSaved ? 'Đã lưu! 💙' : 'Lưu tâm trạng'}
-            </button>
-          </div>
-        </div>
-      </Panel>
 
       {/* Panel 3: AI Chat */}
       <Panel open={panel === 'chat'} onClose={close} title="Hi AI Chat" icon="auto_awesome" iconBg="bg-blue-100 text-blue-500">

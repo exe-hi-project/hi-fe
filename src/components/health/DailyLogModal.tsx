@@ -127,7 +127,11 @@ export default function DailyLogModal({ open, mode, onClose, onSaved }: DailyLog
     setSelectedSymptoms(new Set(log?.symptoms?.map((symptom) => symptom.symptomId) ?? []));
   }, [logQuery.data, logQuery.isFetching, logQuery.isLoading, open, selectedDate]);
 
-  const dictionary = dictionaryQuery.data ?? [];
+  const rawDictionary = dictionaryQuery.data ?? [];
+  const hasDetailedMoods = rawDictionary.some((symptom) => symptom.category === 'EMOTIONAL' && symptom.name !== 'Tâm trạng thay đổi');
+  const dictionary = hasDetailedMoods
+    ? rawDictionary.filter((symptom) => symptom.name !== 'Tâm trạng thay đổi')
+    : rawDictionary;
   const normalizedSearch = search.trim().toLocaleLowerCase('vi-VN');
   const visibleGroups = GROUPS.map((group) => ({
     ...group,
