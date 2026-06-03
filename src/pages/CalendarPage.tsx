@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import SiteFooter from '../components/layout/SiteFooter';
 import api from '../lib/api';
 import type { CycleInsights, CycleRecord } from '../types/shared';
+import { CYCLE_DAY_CLASSES, getCycleDayKind } from '../utils/cycleCalendar';
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const MONTHS = [
@@ -21,32 +23,20 @@ const MONTHS = [
   'Tháng 12',
 ];
 
-function isWithin(date: Date, startDate?: string | null, endDate?: string | null) {
-  return !!startDate && !!endDate && date >= new Date(startDate) && date <= new Date(endDate);
-}
-
-function getDayType(date: Date, cycles: CycleRecord[], insights?: CycleInsights): 'period' | 'predicted' | 'ovulation' | null {
-  for (const cycle of cycles) {
-    const start = new Date(cycle.startDate);
-    const periodLen = cycle.periodLength || 5;
-
-    const end = new Date(start);
-    end.setDate(start.getDate() + periodLen - 1);
-    if (date >= start && date <= end) return 'period';
-  }
-  if (isWithin(date, insights?.estimatedPeriodStartDate ?? insights?.estimatedNextStartDate, insights?.estimatedPeriodEndDate ?? insights?.estimatedNextEndDate)) return 'predicted';
-  if (isWithin(date, insights?.fertileWindowStartDate, insights?.fertileWindowEndDate)) return 'ovulation';
-  return null;
+function toIsoDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export default function CalendarPage() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
+  const queryFrom = toIsoDate(new Date(year, month, -29));
+  const queryTo = toIsoDate(new Date(year, month + 1, 0));
 
   const { data: cycles = [] } = useQuery<CycleRecord[]>({
-    queryKey: ['cycles'],
-    queryFn: () => api.get('/cycle-records').then(({ data }) => data.cycleRecords ?? []),
+    queryKey: ['cycles', queryFrom, queryTo],
+    queryFn: () => api.get('/cycle-records', { params: { from: queryFrom, to: queryTo } }).then(({ data }) => data.cycleRecords ?? []),
   });
   const { data: insights } = useQuery<CycleInsights>({
     queryKey: ['cycle-insights'],
@@ -74,12 +64,6 @@ export default function CalendarPage() {
     } else {
       setMonth((value) => value + 1);
     }
-  };
-
-  const dayColorMap: Record<string, string> = {
-    period: 'bg-gradient-to-br from-rose-400 to-pink-500 text-white shadow-sm shadow-rose-200',
-    predicted: 'bg-purple-100 text-purple-700 ring-1 ring-purple-200',
-    ovulation: 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200',
   };
 
   return (
@@ -156,13 +140,13 @@ export default function CalendarPage() {
                 const day = index + 1;
                 const date = new Date(year, month, day);
                 const isToday = date.toDateString() === today.toDateString();
-                const type = getDayType(date, cycles, insights);
+                const type = getCycleDayKind(date, cycles, insights);
 
                 return (
                   <div
                     key={day}
                     className={`flex aspect-square min-h-10 items-center justify-center rounded-2xl text-sm font-bold transition-all sm:min-h-14 ${
-                      type ? dayColorMap[type] : 'text-slate-600 hover:bg-slate-50'
+                      type ? CYCLE_DAY_CLASSES[type] : 'text-slate-600 hover:bg-slate-50'
                     } ${isToday && !type ? 'bg-white text-rose-500 ring-2 ring-rose-400 ring-offset-2' : ''}`}
                   >
                     {day}
@@ -181,9 +165,10 @@ export default function CalendarPage() {
             </h3>
             <div className="space-y-3">
               {[
-                { color: 'bg-rose-400', label: 'Kinh nguyệt', desc: 'Ngày đã ghi nhận' },
-                { color: 'bg-purple-200', label: 'Ước tính', desc: 'Kỳ tiếp theo' },
-                { color: 'bg-emerald-200', label: 'Ước tính', desc: 'Khung dễ thụ thai' },
+                { color: 'bg-rose-200 ring-1 ring-rose-200', label: 'Kinh nguyệt', desc: 'Ngày đã ghi nhận' },
+                { color: 'bg-white border border-dashed border-rose-300', label: 'Ước tính', desc: 'Kỳ tiếp theo' },
+                { color: 'bg-sky-50 ring-1 ring-sky-100', label: 'Ước tính', desc: 'Cửa sổ thụ thai' },
+                { color: 'bg-sky-200 ring-1 ring-sky-300', label: 'Ước tính', desc: 'Ngày rụng trứng' },
               ].map(({ color, label, desc }) => (
                 <div key={desc} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-3">
                   <span className={`h-3.5 w-3.5 rounded-full ${color}`} />
@@ -213,6 +198,7 @@ export default function CalendarPage() {
           </p>
         </aside>
       </div>
+      <SiteFooter tone="rose" className="-mx-4 md:-mx-8" />
     </div>
   );
 }

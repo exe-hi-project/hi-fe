@@ -17,6 +17,39 @@ const HERO_AVATARS = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDrHggSBJ7kuTMD-hhbtQvAv77BRutVr5vKS_Pdsei5vMlUlfSlgSnG4Sr9JDQuwRwv50rffloePA103YE8jvdKL0M9PktbgksP0l8DHwodP8dU51DG3ayJ5wNXyiioP1g0dypXJVS5rD3AJDTqtwboP9HLMrkOGma3OJXDfjBsx35DPkdHzMP5N9QfcHtmeneBCZkkoVwKeqCt7N1HD2_hw8TJxtbyFixX8-zg8Vwy1znOGLKn8P49N6kMrwQawCSA_CsmI8IVtA',
 ];
 
+const LANDING_PLANS = [
+  {
+    name: 'Free',
+    price: '0đ',
+    description: 'Bắt đầu theo dõi sức khỏe sinh sản cá nhân.',
+    features: ['Theo dõi chu kỳ cơ bản', 'Lịch sử cá nhân không giới hạn', 'Nhắc lịch cơ bản', 'AI hỏi đáp giới hạn'],
+    to: '/register',
+    cta: 'Bắt đầu miễn phí',
+    highlight: false,
+  },
+  {
+    name: 'Premium tháng',
+    price: '49.000đ',
+    suffix: '/tháng',
+    description: 'Mở khóa phân tích nâng cao và AI chăm sóc sâu hơn.',
+    features: ['Analytics chu kỳ và triệu chứng', 'AI Premium ưu tiên', 'Chia sẻ với Người ấy nâng cao', 'Video sức khỏe được duyệt'],
+    to: '/register?plan=monthly',
+    cta: 'Chọn gói tháng',
+    highlight: true,
+  },
+  {
+    name: 'Premium năm',
+    price: '399.000đ',
+    suffix: '/năm',
+    badge: 'Tiết kiệm 32%',
+    description: 'Tối ưu cho người dùng muốn theo dõi dài hạn.',
+    features: ['Tất cả Premium tháng', 'Báo cáo định kỳ', 'Ưu tiên tính năng mới', 'Giá tốt nhất trong năm'],
+    to: '/register?plan=yearly',
+    cta: 'Chọn gói năm',
+    highlight: false,
+  },
+];
+
 export default function LandingPage() {
   return (
     <div className="lp-root">
@@ -301,6 +334,71 @@ export default function LandingPage() {
           </div>
         </div>
 
+        {/* ── Pricing Section ── */}
+        <div id="pricing" className="px-4 md:px-10 flex justify-center py-16 md:py-20 bg-white/50 backdrop-blur-sm">
+          <div className="flex w-full max-w-[1100px] flex-col gap-10">
+            <div className="mx-auto flex max-w-[720px] flex-col gap-3 text-center">
+              <span className="mx-auto w-fit rounded-full border border-pink-100 bg-white px-4 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-pink-500 shadow-sm">
+                Gói Hi
+              </span>
+              <h2 className="text-3xl font-black tracking-tight text-slate-900 md:text-4xl">
+                Chọn nhịp chăm sóc phù hợp với bạn
+              </h2>
+              <p className="text-base font-medium leading-relaxed text-slate-500 md:text-lg">
+                Free mở toàn bộ dữ liệu cá nhân cơ bản. Premium tập trung vào phân tích, báo cáo và AI nâng cao.
+              </p>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-3">
+              {LANDING_PLANS.map((plan) => (
+                <div
+                  key={plan.name}
+                  className={`relative flex min-h-[420px] flex-col rounded-[2rem] border p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+                    plan.highlight
+                      ? 'border-pink-200 bg-gradient-to-br from-white via-pink-50 to-purple-50'
+                      : 'border-slate-100 bg-white/90'
+                  }`}
+                >
+                  {plan.badge && (
+                    <span className="absolute right-5 top-5 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
+                      {plan.badge}
+                    </span>
+                  )}
+                  <div className="mb-6">
+                    <h3 className="text-xl font-black text-slate-900">{plan.name}</h3>
+                    <p className="mt-2 min-h-[48px] text-sm font-medium leading-relaxed text-slate-500">{plan.description}</p>
+                  </div>
+
+                  <div className="mb-6 flex items-end gap-1">
+                    <span className="text-4xl font-black tracking-tight text-slate-900">{plan.price}</span>
+                    {plan.suffix && <span className="pb-1 text-sm font-bold text-slate-400">{plan.suffix}</span>}
+                  </div>
+
+                  <ul className="mb-8 flex flex-1 flex-col gap-3">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2 text-sm font-semibold leading-relaxed text-slate-600">
+                        <span className="material-symbols-outlined mt-0.5 text-[16px] text-pink-400">check_circle</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    to={plan.to}
+                    className={`flex h-12 items-center justify-center rounded-full px-5 text-sm font-extrabold transition-all active:scale-[0.98] ${
+                      plan.highlight
+                        ? 'bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 text-white shadow-lg shadow-pink-200 hover:shadow-xl'
+                        : 'border border-pink-100 bg-white text-pink-500 hover:bg-pink-50'
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* ── CTA Section ── */}
         <div className="px-4 md:px-10 py-16 flex justify-center">
           <div className="w-full max-w-[1100px] rounded-[2.5rem] bg-gradient-to-r from-blue-100 via-purple-100 to-pink-100 p-8 md:p-16 text-center relative overflow-hidden shadow-lg">
@@ -329,21 +427,59 @@ export default function LandingPage() {
         </div>
 
         {/* ── Footer ── */}
-        <footer className="bg-white/60 backdrop-blur-sm border-t border-slate-100">
-          <div className="max-w-[1100px] mx-auto px-4 py-12 flex flex-col md:flex-row justify-between items-center gap-6">
-            <Link to="/" className="flex items-center gap-2">
-              <HiLogo size={30} />
-              <span
-                className="font-black text-lg tracking-tight"
-                style={{ background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
-              >Hi, Lover</span>
-            </Link>
-            <div className="flex gap-8 text-sm font-medium text-slate-500">
-              <a href="#" className="hover:text-blue-500 transition-colors">Điều khoản</a>
-              <a href="#" className="hover:text-blue-500 transition-colors">Bảo mật</a>
-              <a href="#" className="hover:text-blue-500 transition-colors">Liên hệ</a>
+        <footer className="border-t border-slate-100 bg-white/80 backdrop-blur-sm">
+          <div className="mx-auto grid max-w-[1100px] gap-10 px-4 py-12 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+            <div>
+              <Link to="/" className="flex items-center gap-2">
+                <HiLogo size={34} />
+                <span
+                  className="text-xl font-black tracking-tight"
+                  style={{ background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+                >
+                  Hi, Lover
+                </span>
+              </Link>
+              <p className="mt-4 max-w-[320px] text-sm font-medium leading-relaxed text-slate-500">
+                Hi giúp người Việt theo dõi sức khỏe sinh sản, hiểu cảm xúc và đồng hành với Người ấy bằng dữ liệu cá nhân cùng AI tiếng Việt.
+              </p>
             </div>
-            <div className="text-sm text-slate-500">© 2025 Harmony Cycle. All rights reserved.</div>
+
+            <div>
+              <h4 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-900">Sản phẩm</h4>
+              <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500">
+                <a href="#features" className="hover:text-pink-500">Tính năng</a>
+                <a href="#pricing" className="hover:text-pink-500">Gói Hi</a>
+                <a href="#reviews" className="hover:text-pink-500">Đánh giá</a>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-900">Tài khoản</h4>
+              <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500">
+                <Link to="/login" className="hover:text-pink-500">Đăng nhập</Link>
+                <Link to="/register" className="hover:text-pink-500">Đăng ký</Link>
+                <a href="#" className="hover:text-pink-500">Điều khoản</a>
+                <a href="#" className="hover:text-pink-500">Bảo mật</a>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-900">Liên hệ</h4>
+              <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500">
+                <a href="mailto:hilover.space@gmail.com" className="hover:text-pink-500">hilover.space@gmail.com</a>
+                <a
+                  href="https://www.facebook.com/share/1HJnvBpE6L/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-pink-500"
+                >
+                  Facebook cộng đồng Hi
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-slate-100 px-4 py-5 text-center text-xs font-semibold text-slate-400">
+            © 2026 Hi Lover. All rights reserved. Dự đoán sức khỏe chỉ mang tính tham khảo, không thay thế tư vấn y khoa.
           </div>
         </footer>
 

@@ -2,14 +2,19 @@ import { useState, useRef, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { useSubscription } from '../hooks/useSubscription';
 import Navbar from '../components/layout/Navbar';
+import PageBackdrop from '../components/layout/PageBackdrop';
+import SiteFooter from '../components/layout/SiteFooter';
 import CycleHistoryDrawer from '../components/cycles/CycleHistoryDrawer';
+import CyclePreviewCalendar from '../components/cycles/CyclePreviewCalendar';
 import DailyLogModal, { type DailyLogMode } from '../components/health/DailyLogModal';
+import HealthVideoSection from '../components/health/HealthVideoSection';
+import QuickMoodCard from '../components/health/QuickMoodCard';
 import api from '../lib/api';
 import { ChatMessage } from '../types';
 import PricingCard from '../components/PricingCard';
 import type { CycleInsights, CycleRecord } from '../types/shared';
+import { CYCLE_DAY_CLASSES, getCycleDayKind } from '../utils/cycleCalendar';
 
 /* ─── types & helpers ───────────────────────────────── */
 interface PartnerCyclesResponse {
@@ -44,7 +49,7 @@ function getWeekBars() {
   }));
 }
 
-const AI_CHIPS = ['Hôm nay nên ăn gì?', 'Tại sao tôi hay cáu?', '😣 Giảm đau bụng ngay?', 'Khi nào kỳ kinh tới?'];
+const AI_CHIPS = ['Hôm nay nên ăn gì?', 'Tại sao tôi hay cáu?', 'Giảm đau bụng ngay?', 'Khi nào kỳ kinh tới?'];
 
 function toLocalDate(value?: string | null) {
   return value ? new Date(`${value.slice(0, 10)}T00:00:00`) : null;
@@ -69,10 +74,6 @@ function getCurrentWeekDates() {
   const mondayOffset = (today.getDay() + 6) % 7;
   const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayOffset);
   return Array.from({ length: 7 }, (_, index) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index));
-}
-
-function dateIsWithin(date: string, start?: string | null, end?: string | null) {
-  return !!start && date >= start.slice(0, 10) && date <= (end?.slice(0, 10) ?? start.slice(0, 10));
 }
 
 function getLocalCalendarDayDifference(target?: string | null, origin = new Date()) {
@@ -118,9 +119,6 @@ function Panel({ open, onClose, title, icon, iconBg, children }: {
 /* ─── Main component ─────────────────────────────────── */
 export default function FemaleDashboardPage() {
   const { user } = useAuthStore();
-  const { data: subscription } = useSubscription();
-  const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
-  const planLabel = subscription?.plan && subscription.plan.includes('yearly') ? 'Premium Năm' : subscription?.plan && subscription.plan.includes('monthly') ? 'Premium Tháng' : 'Free';
   const hasPartner = !!user?.partnerId;
 
   const firstName = user?.name?.split(' ').pop() ?? 'bạn';
@@ -130,7 +128,7 @@ export default function FemaleDashboardPage() {
   const queryClient = useQueryClient();
   const cycleQuery = useQuery({
     queryKey: ['cycles'],
-    queryFn: () => api.get('/cycle-records').then(({ data }) => ({
+    queryFn: () => api.get('/cycle-records/history', { params: { page: 0, limit: 12 } }).then(({ data }) => ({
       success: true,
       cycles: (data.cycleRecords ?? []) as CycleRecord[],
     })),
@@ -155,17 +153,28 @@ export default function FemaleDashboardPage() {
     enabled: hasPartner,
   });
   const partnerName = partnerQuery.data?.partner?.name ?? 'Bạn đời';
-  const periodStatus = insights?.periodStatus ?? 'UPCOMING';
   const confirmedPeriodDay = insights?.confirmedPeriodDay ?? null;
   const phase = insights?.estimatedPhase ?? '—';
   const estimatedPeriodStartDate = insights?.estimatedPeriodStartDate ?? insights?.estimatedNextStartDate;
   const estimatedPeriodEndDate = insights?.estimatedPeriodEndDate ?? insights?.estimatedNextEndDate;
   const fallbackDaysUntilEstimatedPeriod = getLocalCalendarDayDifference(estimatedPeriodStartDate);
+  const rawPeriodStatus = insights?.periodStatus ?? 'UPCOMING';
+  const periodStatus = rawPeriodStatus === 'PREDICTED' && fallbackDaysUntilEstimatedPeriod !== null && fallbackDaysUntilEstimatedPeriod <= 0
+    ? 'DELAYED'
+    : rawPeriodStatus;
   const daysUntilEstimatedPeriod = insights?.daysUntilEstimatedPeriod
     ?? (fallbackDaysUntilEstimatedPeriod !== null ? Math.max(fallbackDaysUntilEstimatedPeriod, 0) : null);
   const fallbackEstimatedPeriodDay = getLocalCalendarDayDifference(estimatedPeriodStartDate) ?? 0;
   const estimatedPeriodDay = insights?.estimatedPeriodDay
     ?? (periodStatus === 'PREDICTED' ? Math.max(-fallbackEstimatedPeriodDay + 1, 1) : null);
+  const periodDelayDays = periodStatus === 'DELAYED'
+    ? insights?.periodDelayDays ?? Math.max(-(fallbackDaysUntilEstimatedPeriod ?? 0), 0)
+    : 0;
+  const fertilityLabel = insights?.fertilityStatus === 'HIGH'
+    ? 'Cao'
+    : insights?.fertilityStatus === 'LOW'
+      ? 'Thấp'
+      : 'Chưa đủ dữ liệu';
   const cycleLen       = Math.round(insights?.averageCycleLength ?? latestCycle?.cycleLength ?? 28);
   const periodLen      = Math.round(insights?.averagePeriodLength ?? latestCycle?.periodLength ?? 5);
   const confidenceLabel = insights?.predictionConfidence === 'HIGH'
@@ -190,7 +199,7 @@ export default function FemaleDashboardPage() {
         ? daysUntilEstimatedPeriod ?? '--'
         : periodStatus === 'PREDICTED'
           ? estimatedPeriodDay ?? '--'
-          : insights?.periodDelayDays ?? '--';
+          : periodDelayDays;
   const ringEyebrow = !latestCycle
     ? 'Chưa có dữ liệu'
     : periodStatus === 'CONFIRMED'
@@ -215,7 +224,7 @@ export default function FemaleDashboardPage() {
     : periodStatus === 'CONFIRMED'
       ? `Ngày ${confirmedPeriodDay} kỳ kinh`
       : periodStatus === 'DELAYED'
-        ? `Trễ ${insights?.periodDelayDays ?? 0} ngày`
+        ? `Trễ ${periodDelayDays} ngày`
         : `Ước tính ${phase.toLowerCase()}`;
   const today = new Date();
   const currentWeekDates = getCurrentWeekDates();
@@ -274,13 +283,8 @@ export default function FemaleDashboardPage() {
   if (user?.gender !== 'female') return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="min-h-screen bg-[#f8f6f7] overflow-x-hidden relative font-sans">
-      {/* Decorative blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="lp-blob bg-pink-200/40  w-[500px] h-[500px] rounded-full top-[-100px] left-[-100px]" />
-        <div className="lp-blob bg-yellow-100/50 w-[400px] h-[400px] rounded-full bottom-[-80px] right-[-80px]" />
-        <div className="lp-blob bg-blue-100/30  w-[350px] h-[350px] rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-      </div>
+    <div className="min-h-screen overflow-x-hidden relative font-sans bg-[#fff8fb]">
+      <PageBackdrop variant="female" />
 
       <div className="relative z-10 flex flex-col min-h-screen">
         {/* ── Navbar ── */}
@@ -297,17 +301,7 @@ export default function FemaleDashboardPage() {
                 <span>{greeting.text}</span>
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
-                <span>{firstName}</span>
-                {isPremium ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse">
-                    💎 {planLabel}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                    🍀 Free
-                  </span>
-                )}
-                <span className="font-normal text-slate-400">,</span>
+                <span>{firstName}</span>                <span className="font-normal text-slate-400">,</span>
                 <span
                   className="font-medium"
                   style={{
@@ -354,7 +348,7 @@ export default function FemaleDashboardPage() {
 
               <div className="relative z-10 space-y-5">
                   <div className="flex flex-col items-center gap-6 md:flex-row">
-                    <div className="relative size-44 flex-shrink-0">
+                    <div className="relative size-52 flex-shrink-0 md:size-56">
                       <svg className="size-full -rotate-90" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="8" />
                         <circle cx="50" cy="50" r="40" fill="none" stroke={ringStroke} strokeWidth="8"
@@ -363,13 +357,14 @@ export default function FemaleDashboardPage() {
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{ringEyebrow}</span>
-                        <span className="text-4xl font-extrabold text-slate-900">{ringValue}</span>
-                        <span className={`mt-1 text-xs font-bold ${periodStatus === 'DELAYED' ? 'text-slate-500' : 'text-pink-500'}`}>{ringCaption}</span>
+                        <span className="text-5xl font-extrabold text-slate-900">{ringValue}</span>
+                        <span className={`mt-1 text-sm font-bold ${periodStatus === 'DELAYED' ? 'text-slate-500' : 'text-pink-500'}`}>{ringCaption}</span>
                       </div>
                     </div>
 
-                    <div className="flex-1 rounded-3xl border border-slate-100 bg-slate-50/70 p-4">
-                      <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                    <div className="flex-1 rounded-3xl border border-slate-100 bg-gradient-to-br from-rose-50/70 via-white to-sky-50/50 p-4">
+                      <CyclePreviewCalendar cycles={cycleQuery.data?.cycles ?? []} insights={insights} />
+                      <div className="hidden gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                         <div className="rounded-2xl border border-rose-100 bg-white p-3.5 shadow-sm">
                           <div className="flex items-center gap-2 text-rose-500">
                             <span className="material-symbols-outlined text-[18px]">event_available</span>
@@ -396,6 +391,8 @@ export default function FemaleDashboardPage() {
                         <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-500 shadow-sm">{periodLen} ngày kinh trung bình</span>
                         <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-slate-500 shadow-sm">Tin cậy: {confidenceLabel}</span>
                         {(insights?.cycleCount ?? 0) < 3 && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-700">Cần thêm lịch sử</span>}
+                        {insights?.estimatedOvulationDate && <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-bold text-sky-700">Rụng trứng ước tính: {formatShortDate(insights.estimatedOvulationDate)}</span>}
+                        <span className="rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-bold text-violet-700">Khả năng thụ thai ước tính: {fertilityLabel}</span>
                       </div>
                     </div>
                   </div>
@@ -423,6 +420,10 @@ export default function FemaleDashboardPage() {
                       Thêm lịch sử
                     </button>
                   </div>
+                  <Link to="/cycles" className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-pink-500">
+                    <span className="material-symbols-outlined text-[16px]">history</span>
+                    Xem lịch sử chu kỳ
+                  </Link>
                   <p className="text-[10px] leading-relaxed text-slate-400">
                     Ngày dự kiến chỉ là ước tính, không thay thế biện pháp tránh thai hoặc tư vấn y khoa.
                   </p>
@@ -430,13 +431,14 @@ export default function FemaleDashboardPage() {
             </div>
 
             {/* ── 2. Partner card ── */}
-            <div className="md:col-span-1 bg-gradient-to-b from-blue-50 to-white rounded-3xl p-6 shadow-sm border border-blue-100 flex flex-col justify-between relative overflow-hidden">
+            <div className="md:col-span-1 space-y-4">
+            <div className="bg-gradient-to-b from-blue-50 to-white rounded-3xl p-5 shadow-sm border border-blue-100 flex flex-col justify-between relative overflow-hidden">
               <div className="absolute top-0 right-0 w-28 h-28 bg-blue-200/20 rounded-full blur-2xl pointer-events-none" />
               <div>
                 <div className="flex items-center justify-between mb-5 relative z-10">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <span className="material-symbols-outlined text-blue-500 text-[22px]">favorite</span>
-                    Đối tác
+                    Người ấy
                   </h3>
                   {hasPartner && (
                     <span className="flex h-3 w-3 relative">
@@ -487,6 +489,8 @@ export default function FemaleDashboardPage() {
                 <span className="material-symbols-outlined text-[18px]">send</span>
                 Gửi lời nhắn
               </button>
+            </div>
+            <QuickMoodCard sendToPartner={hasPartner} />
             </div>
 
             <div className="md:col-span-4 grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -566,19 +570,11 @@ export default function FemaleDashboardPage() {
                   {currentWeekDates.map((date) => {
                     const dateIso = toIsoDate(date);
                     const isToday = dateIso === toIsoDate(today);
-                    const isRecorded = (cycleQuery.data?.cycles ?? []).some((record) => dateIsWithin(dateIso, record.startDate, record.endDate));
-                    const isPredicted = dateIsWithin(dateIso, estimatedPeriodStartDate, estimatedPeriodEndDate);
-                    const isFertile = dateIsWithin(dateIso, insights?.fertileWindowStartDate, insights?.fertileWindowEndDate);
+                    const kind = getCycleDayKind(date, cycleQuery.data?.cycles ?? [], insights);
                     return (
                       <div
                         key={dateIso}
-                        className={`h-8 flex items-center justify-center rounded-lg text-sm transition-all
-                          ${!isRecorded && !isPredicted && !isFertile ? 'text-slate-500 bg-white/50' : ''}
-                          ${isRecorded ? 'bg-rose-400 text-white shadow-sm' : ''}
-                          ${!isRecorded && isPredicted ? 'border border-dashed border-rose-400 bg-rose-50 text-rose-600' : ''}
-                          ${!isRecorded && !isPredicted && isFertile ? 'border border-violet-200 bg-violet-50 text-violet-600' : ''}
-                          ${isToday ? 'font-black ring-2 ring-slate-800 ring-offset-1' : ''}
-                        `}
+                        className={`h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${kind ? CYCLE_DAY_CLASSES[kind] : 'text-slate-500 bg-white/50'} ${isToday ? 'ring-2 ring-slate-800 ring-offset-1' : ''}`}
                       >
                         {date.getDate()}
                       </div>
@@ -586,15 +582,18 @@ export default function FemaleDashboardPage() {
                   })}
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-xs font-medium text-slate-500 justify-center">
+              <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500 justify-center">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" /> Đã ghi nhận
+                  <span className="w-2 h-2 rounded-full bg-rose-200 border border-rose-200 inline-block" /> Đã ghi nhận
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-rose-50 border border-dashed border-rose-400 inline-block" /> Dự kiến
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-violet-100 border border-violet-200 inline-block" /> Cửa sổ thụ thai
+                  <span className="w-2 h-2 rounded-full bg-sky-50 border border-sky-100 inline-block" /> Cửa sổ thụ thai
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-sky-200 border border-sky-300 inline-block" /> Rụng trứng
                 </div>
               </div>
             </div>
@@ -658,7 +657,10 @@ export default function FemaleDashboardPage() {
               </button>
             </div>
 
-            {/* ── 8. Upgrade Plans (full width) ── */}
+            {/* ── 8. Curated health videos ── */}
+            <HealthVideoSection />
+
+            {/* ── 9. Upgrade Plans (full width) ── */}
             <div className="md:col-span-4 rounded-3xl overflow-hidden relative bg-white/80 backdrop-blur-sm border border-pink-100/50 p-6 shadow-sm">
               <PricingCard />
             </div>
@@ -666,17 +668,7 @@ export default function FemaleDashboardPage() {
           </div>
         </main>
 
-        {/* ── Footer ── */}
-        <footer className="bg-white/60 border-t border-white/40 py-6 px-4 md:px-8 backdrop-blur-sm">
-          <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-slate-400">
-            <p>© 2025 Hi Inc. All rights reserved.</p>
-            <div className="flex gap-6">
-              <span className="hover:text-pink-500 transition-colors cursor-pointer">Privacy</span>
-              <span className="hover:text-pink-500 transition-colors cursor-pointer">Help Center</span>
-              <Link to="/settings" className="hover:text-pink-500 transition-colors">Settings</Link>
-            </div>
-          </div>
-        </footer>
+        <SiteFooter tone="rose" />
       </div>
 
       {/* ═══ Panels ═══ */}

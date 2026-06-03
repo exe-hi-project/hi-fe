@@ -1,33 +1,35 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
+import PageBackdrop from '../components/layout/PageBackdrop';
+import SiteFooter from '../components/layout/SiteFooter';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
 import type { CycleInsights, CycleRecord } from '../types/shared';
 
 const PHASES = [
-  { label: 'Kinh nguyệt', bg: '#fb7185', light: '#fff1f2' },
-  { label: 'Nang trứng', bg: '#fbbf24', light: '#fffbeb' },
-  { label: 'Rụng trứng', bg: '#34d399', light: '#ecfdf5' },
-  { label: 'Hoàng thể', bg: '#a78bfa', light: '#f5f3ff' },
+  { label: 'Kinh nguyệt', bg: '#fecdd3', light: '#fff1f2' },
+  { label: 'Nang trứng', bg: '#e0f2fe', light: '#f0f9ff' },
+  { label: 'Rụng trứng', bg: '#bae6fd', light: '#f0f9ff' },
+  { label: 'Hoàng thể', bg: '#e2e8f0', light: '#f8fafc' },
 ];
 
 function getPhaseColor(day: number, periodLen: number, cycleLen: number) {
   const ovulationDay = Math.max(periodLen + 1, cycleLen - 14);
-  if (day <= periodLen) return { bg: 'rgba(251,113,133,0.25)', text: '#be123c', label: 'Kinh nguyệt' };
-  if (day < ovulationDay - 1) return { bg: 'rgba(251,191,36,0.25)', text: '#92400e', label: 'Nang trứng' };
-  if (day <= ovulationDay + 1) return { bg: 'rgba(52,211,153,0.25)', text: '#065f46', label: 'Rụng trứng' };
-  return { bg: 'rgba(167,139,250,0.25)', text: '#5b21b6', label: 'Hoàng thể' };
+  if (day <= periodLen) return { bg: 'rgba(254,205,211,0.8)', text: '#be123c', label: 'Kinh nguyệt' };
+  if (day < ovulationDay - 1) return { bg: 'rgba(224,242,254,0.9)', text: '#0369a1', label: 'Nang trứng' };
+  if (day <= ovulationDay + 1) return { bg: 'rgba(186,230,253,0.9)', text: '#0369a1', label: 'Rụng trứng' };
+  return { bg: 'rgba(226,232,240,0.9)', text: '#475569', label: 'Hoàng thể' };
 }
 
 function fmt(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(`${dateStr.slice(0, 10)}T00:00:00`).toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function fmtShort(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short' });
+  return new Date(`${dateStr.slice(0, 10)}T00:00:00`).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short' });
 }
 
 function nextPeriod(startDate: string, cycleLen: number) {
@@ -41,10 +43,20 @@ export default function CyclesPage() {
   const [selected, setSelected] = useState<number | null>(null);
   const [tab, setTab] = useState<'history' | 'stats'>('history');
 
-  const { data: cycles = [], isLoading: cyclesLoading } = useQuery<CycleRecord[]>({
-    queryKey: ['cycles'],
-    queryFn: () => api.get('/cycle-records').then(({ data }) => data.cycleRecords ?? []),
+  const historyQuery = useInfiniteQuery({
+    queryKey: ['cycle-history'],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.get('/cycle-records/history', { params: { page: pageParam, limit: 20 } }).then(({ data }) => data as {
+      cycleRecords: CycleRecord[];
+      total: number;
+      page: number;
+      hasMore: boolean;
+    }),
+    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
   });
+  const cycles = historyQuery.data?.pages.flatMap((page) => page.cycleRecords) ?? [];
+  const cyclesTotal = historyQuery.data?.pages[0]?.total ?? cycles.length;
+  const cyclesLoading = historyQuery.isLoading;
 
   const { data: insights } = useQuery<CycleInsights | null>({
     queryKey: ['cycle-insights'],
@@ -79,11 +91,8 @@ export default function CyclesPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#f8f6f7] font-sans overflow-x-hidden">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute w-[480px] h-[480px] rounded-full bg-pink-200/30 blur-3xl -top-24 -left-24" />
-        <div className="absolute w-[380px] h-[380px] rounded-full bg-violet-200/25 blur-3xl bottom-0 right-0" />
-      </div>
+    <div className="min-h-screen font-sans overflow-x-hidden bg-[#fff8fb]">
+      <PageBackdrop variant="female" />
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <Navbar />
@@ -97,7 +106,7 @@ export default function CyclesPage() {
                 </Link>
                 <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">Lịch sử chu kỳ</h1>
               </div>
-              <p className="text-sm text-slate-400 ml-10">Theo dõi {cycles.length} chu kỳ đã ghi nhận</p>
+              <p className="text-sm text-slate-400 ml-10">Theo dõi {cyclesTotal} chu kỳ đã ghi nhận</p>
             </div>
             <Link
               to="/female-dashboard"
@@ -131,8 +140,8 @@ export default function CyclesPage() {
                 {[
                   { icon: 'calendar_month', label: 'Độ dài TB', value: `${avgLen} ngày`, from: '#f9a8d4', to: '#f472b6', iconColor: '#f472b6' },
                   { icon: 'water_drop', label: 'Kinh nguyệt TB', value: `${avgPeriod} ngày`, from: '#fca5a5', to: '#f87171', iconColor: '#ef4444' },
-                  { icon: 'bar_chart', label: 'Tính đều đặn', value: `${regularity}%`, from: '#6ee7b7', to: '#34d399', iconColor: '#059669' },
-                  { icon: 'history', label: 'Chu kỳ đã ghi', value: `${cycles.length} chu kỳ`, from: '#c4b5fd', to: '#a78bfa', iconColor: '#7c3aed' },
+                  { icon: 'bar_chart', label: 'Tính đều đặn', value: `${regularity}%`, from: '#93c5fd', to: '#38bdf8', iconColor: '#0284c7' },
+                  { icon: 'history', label: 'Chu kỳ đã ghi', value: `${cyclesTotal} chu kỳ`, from: '#c4b5fd', to: '#a78bfa', iconColor: '#7c3aed' },
                 ].map((stat) => (
                   <div key={stat.label} className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-white/80 flex items-center gap-4">
                     <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `linear-gradient(135deg,${stat.from}55,${stat.to}33)` }}>
@@ -144,6 +153,35 @@ export default function CyclesPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="mb-6 rounded-3xl border border-sky-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h2 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
+                      <span className="material-symbols-outlined text-sky-500">info</span>
+                      Hi tính chu kỳ thế nào?
+                    </h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
+                      Hi chỉ dùng các kỳ kinh đã được bạn xác nhận trong lịch sử. Độ dài chu kỳ được tính từ khoảng cách giữa các ngày bắt đầu kỳ liên tiếp; nếu chưa đủ dữ liệu, hệ thống dùng mặc định cá nhân rồi fallback 28 ngày.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-black text-sky-700">Dự đoán tham khảo</span>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-2xl bg-rose-50/70 p-3">
+                    <p className="text-xs font-extrabold text-rose-600">Kỳ tiếp theo</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">Ước tính từ kỳ gần nhất cộng độ dài chu kỳ trung bình.</p>
+                  </div>
+                  <div className="rounded-2xl bg-sky-50/80 p-3">
+                    <p className="text-xs font-extrabold text-sky-700">Rụng trứng & thụ thai</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">Ngày rụng trứng ước tính khoảng 14 ngày trước kỳ tiếp theo; cửa sổ thụ thai là 5 ngày trước đến 1 ngày sau.</p>
+                  </div>
+                  <div className="rounded-2xl bg-violet-50/70 p-3">
+                    <p className="text-xs font-extrabold text-violet-700">Triệu chứng</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">Triệu chứng, lượng kinh và cảm xúc chỉ tạo phân tích xu hướng theo phase, không tự xác nhận kỳ mới hay thay thế tư vấn y khoa.</p>
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-2 mb-5 bg-white/60 rounded-2xl p-1 backdrop-blur-sm border border-white w-fit shadow-sm">
@@ -184,7 +222,7 @@ export default function CyclesPage() {
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2.5">
                               <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base font-extrabold flex-shrink-0" style={{ background: isActive ? 'linear-gradient(135deg,#f472b6,#a78bfa)' : '#f1f5f9', color: isActive ? 'white' : '#94a3b8' }}>
-                                {cycles.length - index}
+                                {cyclesTotal - index}
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-slate-700">{fmtShort(cycle.startDate)}</p>
@@ -192,21 +230,45 @@ export default function CyclesPage() {
                               </div>
                             </div>
                             {isLatest && (
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold text-white uppercase tracking-wide" style={{ background: 'linear-gradient(135deg,#34d399,#059669)' }}>
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold text-white uppercase tracking-wide" style={{ background: 'linear-gradient(135deg,#38bdf8,#0284c7)' }}>
                                 Hiện tại
                               </span>
                             )}
                           </div>
 
-                          <div className="flex gap-0.5 rounded-lg overflow-hidden h-2">
-                            <div className="rounded-sm" style={{ width: `${((cycle.periodLength || 5) / (cycle.cycleLength || 28)) * 100}%`, background: '#fb7185' }} />
-                            <div className="rounded-sm" style={{ width: `${Math.max(((ovulationDay - 2 - (cycle.periodLength || 5)) / (cycle.cycleLength || 28)) * 100, 0)}%`, background: '#fbbf24' }} />
-                            <div className="rounded-sm" style={{ width: `${(3 / (cycle.cycleLength || 28)) * 100}%`, background: '#34d399' }} />
-                            <div className="flex-1 rounded-sm" style={{ background: '#a78bfa' }} />
+                          <div className="mt-3 grid grid-cols-7 gap-1">
+                            {Array.from({ length: 7 }).map((_, dayIndex) => {
+                              const isPeriodDay = dayIndex < Math.min(cycle.periodLength || 5, 7);
+                              return (
+                                <span
+                                  key={dayIndex}
+                                  className={`flex h-7 items-center justify-center rounded-lg text-[10px] font-extrabold ${isPeriodDay ? 'bg-rose-200 text-rose-800' : 'bg-slate-50 text-slate-400'}`}
+                                >
+                                  {dayIndex + 1}
+                                </span>
+                              );
+                            })}
+                          </div>
+
+                          <div className="mt-3 flex gap-0.5 rounded-lg overflow-hidden h-2">
+                            <div className="rounded-sm" style={{ width: `${((cycle.periodLength || 5) / (cycle.cycleLength || 28)) * 100}%`, background: '#fecdd3' }} />
+                            <div className="rounded-sm" style={{ width: `${Math.max(((ovulationDay - 2 - (cycle.periodLength || 5)) / (cycle.cycleLength || 28)) * 100, 0)}%`, background: '#e0f2fe' }} />
+                            <div className="rounded-sm" style={{ width: `${(3 / (cycle.cycleLength || 28)) * 100}%`, background: '#bae6fd' }} />
+                            <div className="flex-1 rounded-sm" style={{ background: '#e2e8f0' }} />
                           </div>
                         </button>
                       );
                     })}
+                    {historyQuery.hasNextPage && (
+                      <button
+                        type="button"
+                        onClick={() => historyQuery.fetchNextPage()}
+                        disabled={historyQuery.isFetchingNextPage}
+                        className="w-full rounded-2xl border border-rose-100 bg-white/80 px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 disabled:opacity-50"
+                      >
+                        {historyQuery.isFetchingNextPage ? 'Đang tải...' : 'Tải thêm lịch sử'}
+                      </button>
+                    )}
                   </div>
 
                   {activeCycle && (
@@ -215,7 +277,7 @@ export default function CyclesPage() {
                         <div className="px-6 py-5 flex items-center justify-between" style={{ background: 'linear-gradient(135deg,#fce7f3,#ede9fe)' }}>
                           <div>
                             <p className="text-[10px] font-extrabold text-pink-400 uppercase tracking-widest mb-0.5">
-                              Chu kỳ #{cycles.length - cycles.findIndex((cycle) => cycle._id === activeCycle._id)}
+                              Chu kỳ #{cyclesTotal - cycles.findIndex((cycle) => cycle._id === activeCycle._id)}
                               {activeCycle._id === cycles[0]?._id ? ' · Gần nhất đã ghi nhận' : ''}
                             </p>
                             <h2 className="text-xl font-extrabold text-slate-900">{fmt(activeCycle.startDate)}</h2>
@@ -246,7 +308,7 @@ export default function CyclesPage() {
                               </p>
                             </div>
                             <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(activeDay / (activeCycle.cycleLength || 28)) * 100}%`, background: 'linear-gradient(90deg,#fb7185,#f472b6,#a78bfa)' }} />
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(activeDay / (activeCycle.cycleLength || 28)) * 100}%`, background: 'linear-gradient(90deg,#fecdd3,#bae6fd,#e2e8f0)' }} />
                             </div>
                           </div>
                         )}
@@ -289,8 +351,8 @@ export default function CyclesPage() {
                             <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wide mb-0.5">Kinh nguyệt</p>
                             <p className="text-2xl font-extrabold text-slate-900">{activeCycle.periodLength || 5} <span className="text-sm font-bold text-slate-400">ngày</span></p>
                           </div>
-                          <div className="p-3.5 rounded-2xl" style={{ background: '#f0fdf4' }}>
-                            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide mb-0.5">Kỳ kinh tiếp</p>
+                          <div className="p-3.5 rounded-2xl" style={{ background: '#f0f9ff' }}>
+                            <p className="text-[10px] font-bold text-sky-500 uppercase tracking-wide mb-0.5">Kỳ kinh tiếp</p>
                             <p className="text-sm font-extrabold text-slate-800">
                               {activeCycle._id === cycles[0]?._id && insights?.estimatedPeriodStartDate
                                 ? fmtShort(insights.estimatedPeriodStartDate)
@@ -389,12 +451,7 @@ export default function CyclesPage() {
           )}
         </main>
 
-        <footer className="bg-white/60 border-t border-white/40 py-5 px-4 md:px-8 backdrop-blur-sm">
-          <div className="max-w-[1200px] mx-auto flex justify-between items-center text-xs text-slate-400">
-            <p>Hi App</p>
-            <Link to="/female-dashboard" className="hover:text-pink-500 transition-colors font-medium">Về Dashboard</Link>
-          </div>
-        </footer>
+        <SiteFooter tone="rose" />
       </div>
     </div>
   );
