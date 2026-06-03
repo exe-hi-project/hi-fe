@@ -1,5 +1,9 @@
-import { useMemo, useState, useEffect } from 'react';
+ import { useMemo, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import HiLogo from '../components/ui/HiLogo';
+import PageBackdrop from '../components/layout/PageBackdrop';
+import SiteFooter from '../components/layout/SiteFooter';
+import { useAuthStore } from '../store/authStore';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -15,23 +19,18 @@ import {
   CaretRight,
   Crown,
   CurrencyCircleDollar,
-  Coins,
   CreditCard,
   PaperPlaneRight,
-  Sliders,
   Cpu,
   Database,
   ChartPieSlice,
-  CheckCircle,
-  Clock,
-  XCircle,
   TrendUp,
   Pulse,
+  VideoCamera,
 } from '@phosphor-icons/react';
 
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import {
   Area,
@@ -47,10 +46,9 @@ import {
   CartesianGrid,
   BarChart,
   Bar,
-  LineChart,
-  Line,
 } from 'recharts';
 import api from '../lib/api';
+import HealthVideoAdminPanel from '../components/admin/HealthVideoAdminPanel';
 
 interface MoodItem {
   name: string;
@@ -108,6 +106,8 @@ interface AdminUser {
   email: string;
   gender: 'female' | 'male' | 'other';
   role: 'user' | 'admin';
+  accountStatus?: 'ACTIVE' | 'LOCKED' | 'DELETED';
+  accountStatusReason?: string | null;
   onboardingCompleted?: boolean;
   createdAt: string;
 }
@@ -150,7 +150,9 @@ const STAT_CARDS = [
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'overview' | 'payos' | 'users' | 'system'>('overview');
+  const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
+  const [activeTab, setActiveTab] = useState<'overview' | 'payos' | 'users' | 'videos' | 'system'>('overview');
   const [q, setQ] = useState('');
   const [searchText, setSearchText] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
@@ -170,6 +172,9 @@ export default function AdminPage() {
   const [campaignTitle, setCampaignTitle] = useState<string>('');
   const [campaignBody, setCampaignBody] = useState<string>('');
   const [isSendingCampaign, setIsSendingCampaign] = useState<boolean>(false);
+  const [notificationTarget, setNotificationTarget] = useState<AdminUser | null>(null);
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
 
 
 
@@ -238,6 +243,57 @@ export default function AdminPage() {
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ userId, status, reason }: { userId: string; status: 'ACTIVE' | 'LOCKED'; reason?: string }) => {
+      const { data } = await api.patch(`/admin/users/${userId}/status`, { status, reason });
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Đã cập nhật trạng thái tài khoản');
+      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Không thể cập nhật trạng thái tài khoản');
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data } = await api.delete(`/admin/users/${userId}`);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Đã xóa mềm tài khoản');
+      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Không thể xóa tài khoản');
+    },
+  });
+
+  const sendUserNotificationMutation = useMutation({
+    mutationFn: async ({ userId, title, message }: { userId: string; title: string; message: string }) => {
+      const { data } = await api.post(`/admin/users/${userId}/notifications`, {
+        title,
+        message,
+        type: 'ADMIN_MESSAGE',
+      });
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Đã gửi thông báo cho người dùng');
+      setNotificationTarget(null);
+      setNotificationTitle('');
+      setNotificationMessage('');
+      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Không thể gửi thông báo');
+    },
+  });
+
   const exportCsvMutation = useMutation({
     mutationFn: async () => {
       const response = await api.get('/admin/users/export', { responseType: 'blob' });
@@ -261,7 +317,6 @@ export default function AdminPage() {
   const displayStats = overviewQuery.data?.overview;
   const displayFinancial = overviewQuery.data?.financialReport;
   const displayMonthlyFinancials = overviewQuery.data?.monthlyFinancials || [];
-  const displayRecentUsers = overviewQuery.data?.recentUsers || [];
   const displayUsers = usersQuery.data?.items || [];
   const displayPagination = usersQuery.data?.pagination;
   const displayPayOSReport = overviewQuery.data?.payosReport;
@@ -409,14 +464,16 @@ export default function AdminPage() {
     if (activeTab === 'overview') return 'Tổng quan hệ thống';
     if (activeTab === 'payos') return 'Doanh thu PayOS';
     if (activeTab === 'users') return 'Quản lý tài khoản';
+    if (activeTab === 'videos') return 'Video sức khỏe';
     return 'Hệ thống & AI';
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-[#f8f6f7] text-slate-800 flex font-sans">
+    <div className="min-h-screen text-slate-800 flex font-sans bg-[#f8fbff]">
+      <PageBackdrop variant="admin" />
 
       {/* ── LIGHT SIDEBAR ── */}
-      <aside className="w-[220px] shrink-0 bg-white border-r border-slate-100 flex flex-col sticky top-0 h-screen overflow-y-auto">
+      <aside className="relative z-10 w-[220px] shrink-0 bg-white/90 backdrop-blur-xl border-r border-slate-100 flex flex-col sticky top-0 h-screen overflow-y-auto">
 
         {/* ── Logo block ── */}
         <div className="px-5 pt-6 pb-5">
@@ -439,6 +496,7 @@ export default function AdminPage() {
             { id: 'overview', label: 'Tổng quan', Icon: ChartPieSlice, desc: 'Thống kê tổng hợp' },
             { id: 'payos', label: 'Doanh thu', Icon: CurrencyCircleDollar, desc: 'PayOS & giao dịch' },
             { id: 'users', label: 'Người dùng', Icon: Users, desc: 'Tài khoản & phân quyền' },
+            { id: 'videos', label: 'Video sức khỏe', Icon: VideoCamera, desc: 'Nguồn nội dung duyệt' },
             { id: 'system', label: 'Hệ thống', Icon: Cpu, desc: 'AI & dịch vụ' },
           ].map((tab) => {
             const active = activeTab === tab.id;
@@ -487,6 +545,16 @@ export default function AdminPage() {
             </span>
             <span className="text-[10px] text-slate-400 font-medium">Hệ thống hoạt động</span>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              navigate('/login', { replace: true });
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-extrabold text-rose-600 transition-all hover:-translate-y-0.5 hover:bg-rose-100 active:scale-[0.98]"
+          >
+            Đăng xuất
+          </button>
           {/* App version badge */}
           <div className="flex items-center justify-between">
             <span className="text-[9px] text-slate-300 font-medium">Hi Admin v2.5</span>
@@ -498,7 +566,7 @@ export default function AdminPage() {
       </aside>
 
       {/* ── MAIN AREA ── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="relative z-10 flex-1 flex flex-col min-w-0">
 
         {/* Top bar */}
         <header className="sticky top-0 z-10 bg-white border-b border-slate-200/60 px-7 py-3.5 flex items-center justify-between">
@@ -700,6 +768,8 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+
+            {activeTab === 'videos' && <HealthVideoAdminPanel />}
 
 
             {/* ── TAB 2: PAYOS ── */}
@@ -970,22 +1040,67 @@ export default function AdminPage() {
                                     }`}>
                                       {user.onboardingCompleted ? 'Onboarded' : 'Pending'}
                                     </span>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase ${
+                                      user.accountStatus === 'LOCKED'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-100'
+                                        : user.accountStatus === 'DELETED'
+                                          ? 'bg-red-50 text-red-600 border-red-100'
+                                          : 'bg-sky-50 text-sky-600 border-sky-100'
+                                    }`}>
+                                      {user.accountStatus === 'LOCKED' ? 'Locked' : user.accountStatus === 'DELETED' ? 'Deleted' : 'Active'}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
-                              <Button
-                                variant={user.role === 'admin' ? 'ghost' : 'secondary'}
-                                size="sm"
-                                className={`rounded-xl text-xs font-bold border shrink-0 ${
-                                  user.role === 'admin'
-                                    ? 'text-rose-500 border-rose-200 bg-rose-50/30 hover:bg-rose-50'
-                                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                }`}
-                                loading={updateRoleMutation.isPending && updateRoleMutation.variables?.userId === user._id}
-                                onClick={() => updateRoleMutation.mutate({ userId: user._id, role: user.role === 'admin' ? 'user' : 'admin' })}
-                              >
-                                {user.role === 'admin' ? 'Hạ quyền' : 'Nâng Admin'}
-                              </Button>
+                              <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                <Button
+                                  variant={user.role === 'admin' ? 'ghost' : 'secondary'}
+                                  size="sm"
+                                  className="rounded-xl text-xs font-bold border shrink-0"
+                                  loading={updateRoleMutation.isPending && updateRoleMutation.variables?.userId === user._id}
+                                  disabled={user.accountStatus === 'DELETED'}
+                                  onClick={() => updateRoleMutation.mutate({ userId: user._id, role: user.role === 'admin' ? 'user' : 'admin' })}
+                                >
+                                  {user.role === 'admin' ? 'Hạ quyền' : 'Nâng Admin'}
+                                </Button>
+                                <Button
+                                  variant={user.accountStatus === 'LOCKED' ? 'secondary' : 'outline'}
+                                  size="sm"
+                                  className="rounded-xl text-xs font-bold shrink-0"
+                                  loading={updateStatusMutation.isPending && updateStatusMutation.variables?.userId === user._id}
+                                  disabled={user.accountStatus === 'DELETED'}
+                                  onClick={() => {
+                                    const locking = user.accountStatus !== 'LOCKED';
+                                    const reason = locking ? window.prompt('Lý do khóa tài khoản?', 'Vi phạm chính sách sử dụng') ?? undefined : undefined;
+                                    updateStatusMutation.mutate({ userId: user._id, status: locking ? 'LOCKED' : 'ACTIVE', reason });
+                                  }}
+                                >
+                                  {user.accountStatus === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="rounded-xl text-xs font-bold border border-slate-200 shrink-0"
+                                  disabled={user.accountStatus === 'DELETED'}
+                                  onClick={() => setNotificationTarget(user)}
+                                >
+                                  Gửi TB
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  className="rounded-xl text-xs font-bold shrink-0"
+                                  loading={deleteUserMutation.isPending && deleteUserMutation.variables === user._id}
+                                  disabled={user.accountStatus === 'DELETED'}
+                                  onClick={() => {
+                                    if (window.confirm(`Xóa mềm tài khoản ${user.email}? Người dùng sẽ không thể đăng nhập.`)) {
+                                      deleteUserMutation.mutate(user._id);
+                                    }
+                                  }}
+                                >
+                                  Xóa
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1196,6 +1311,55 @@ export default function AdminPage() {
 
           </div>
         </main>
+
+        <SiteFooter tone="admin" />
+
+        {notificationTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                sendUserNotificationMutation.mutate({
+                  userId: notificationTarget._id,
+                  title: notificationTitle,
+                  message: notificationMessage,
+                });
+              }}
+              className="w-full max-w-lg rounded-3xl border border-white/80 bg-white p-6 shadow-2xl"
+            >
+              <div className="mb-5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-rose-500">Thông báo cá nhân</p>
+                <h3 className="mt-1 text-lg font-extrabold text-slate-900">Gửi cho {notificationTarget.name}</h3>
+                <p className="mt-1 text-xs text-slate-400">{notificationTarget.email}</p>
+              </div>
+              <div className="space-y-3">
+                <Input
+                  value={notificationTitle}
+                  onChange={(event) => setNotificationTitle(event.target.value)}
+                  placeholder="Tiêu đề thông báo"
+                  required
+                  className="rounded-xl border-slate-200"
+                />
+                <textarea
+                  value={notificationMessage}
+                  onChange={(event) => setNotificationMessage(event.target.value)}
+                  placeholder="Nội dung gửi tới người dùng..."
+                  required
+                  rows={5}
+                  className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm text-slate-800 outline-none transition-colors focus:border-rose-300"
+                />
+              </div>
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <Button type="button" variant="secondary" onClick={() => setNotificationTarget(null)}>
+                  Hủy
+                </Button>
+                <Button type="submit" loading={sendUserNotificationMutation.isPending}>
+                  Gửi thông báo
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

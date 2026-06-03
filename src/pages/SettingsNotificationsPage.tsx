@@ -264,7 +264,7 @@ export default function SettingsNotificationsPage() {
                         value={partnerCode}
                         onChange={(event) => setPartnerCode(event.target.value)}
                         className="min-w-0 flex-1 rounded-2xl border border-pink-100 bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.16em] text-slate-800 outline-none transition focus:border-pink-300 focus:ring-4 focus:ring-pink-100"
-                        placeholder="NHẬP MÃ NGƯỜI ẤY"
+                        placeholder="NHẬP MàNGƯỜI ẤY"
                         disabled={isConnecting}
                       />
                       <button

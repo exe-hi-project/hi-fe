@@ -6,6 +6,7 @@
 export type UserRole = 'user' | 'admin';
 export type Gender = 'female' | 'male' | 'other';
 export type AuthProvider = 'local' | 'google' | 'facebook';
+export type AccountStatus = 'ACTIVE' | 'LOCKED' | 'DELETED';
 export type AiPersonality = 'friendly' | 'professional' | 'caring' | 'playful';
 export type AiTone = 'warm' | 'casual' | 'formal';
 
@@ -37,6 +38,8 @@ export interface User {
   reminderDaysBefore?: number;
   partnerNotifications?: boolean;
   onboardingCompleted?: boolean;
+  accountStatus?: AccountStatus;
+  accountStatusReason?: string | null;
   subscription?: UserSubscription;
   createdAt?: string;
   updatedAt?: string;
@@ -112,6 +115,7 @@ export interface CycleInsights {
   periodDelayDays?: number | null;
   daysUntilEstimatedPeriod?: number | null;
   estimatedPeriodDay?: number | null;
+  fertilityStatus?: 'UNKNOWN' | 'LOW' | 'HIGH';
   predictionConfidence: 'LOW' | 'MEDIUM' | 'HIGH';
   hasOutliers: boolean;
   warnings: string[];
@@ -137,6 +141,11 @@ export interface UpsertDailyLogDto {
     symptomId: number;
     severity?: SymptomSeverity;
   }>;
+}
+
+export interface UpdateDailyLogMoodDto {
+  moodScore?: number;
+  notes?: string;
 }
 
 export interface SymptomDictionary {
@@ -180,4 +189,42 @@ export interface ApiResponse<TData = unknown> {
 export interface ApiErrorResponse {
   success: false;
   message: string;
+}
+
+// ── content.types ───────────────────────────────────────────
+export type HealthVideoStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+export interface HealthVideo {
+  _id: number;
+  youtubeVideoId: string;
+  title: string;
+  description?: string;
+  channelName: string;
+  sourceUrl: string;
+  thumbnailUrl: string;
+  topicTags: string[];
+  interestTags: string[];
+  goalTags: string[];
+  phaseTags: string[];
+  language: string;
+  priority: number;
+  status: HealthVideoStatus;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UpsertHealthVideoDto {
+  youtubeVideoId: string;
+  title: string;
+  description?: string;
+  channelName: string;
+  topicTags?: string[];
+  interestTags?: string[];
+  goalTags?: string[];
+  phaseTags?: string[];
+  language?: string;
+  priority?: number;
+  status?: HealthVideoStatus;
 }

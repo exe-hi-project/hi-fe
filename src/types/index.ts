@@ -23,6 +23,7 @@ declare global {
 export type UserRole = 'user' | 'admin';
 export type Gender = 'female' | 'male' | 'other';
 export type AuthProvider = 'local' | 'google' | 'facebook';
+export type AccountStatus = 'ACTIVE' | 'LOCKED' | 'DELETED';
 export type AiPersonality = 'friendly' | 'professional' | 'caring' | 'playful';
 export type AiTone = 'warm' | 'casual' | 'formal';
 
@@ -60,6 +61,8 @@ export interface User {
   reminderDaysBefore?: number;
   partnerNotifications?: boolean;
   onboardingCompleted?: boolean;
+  accountStatus?: AccountStatus;
+  accountStatusReason?: string | null;
   subscription?: UserSubscription;
   createdAt?: string;
   updatedAt?: string;

@@ -13,10 +13,14 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-r from-pink-400 to-rose-400 text-white font-semibold py-2.5 px-6 rounded-xl hover:from-pink-500 hover:to-rose-500 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95;
+    @apply text-white font-semibold py-2.5 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    background: linear-gradient(270deg, #f9a8c9, #d4a8e8, #a8dff0, #d4a8e8, #f9a8c9);
+    background-size: 300% 300%;
+    animation: lp-gradient-flow 4s ease infinite;
+    box-shadow: 0 8px 28px -6px rgba(200, 150, 220, 0.45);
   }
   .btn-secondary {
-    @apply bg-white text-pink-500 font-semibold py-2.5 px-6 rounded-xl border-2 border-pink-200 hover:bg-pink-50 transition-all duration-200;
+    @apply bg-white text-pink-500 font-semibold py-2.5 px-6 rounded-xl border border-pink-200 transition-all duration-200 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-pink-200 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .card {
     @apply bg-white rounded-2xl shadow-sm border border-pink-100 p-5;
