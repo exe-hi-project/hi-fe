@@ -75,6 +75,7 @@ function getProjectedWindow(
 
 export function getCycleDayKind(date: Date, cycles: CycleRecord[], insights?: CycleInsights | null): CycleDayKind | null {
   const dateIso = toIsoDate(date);
+
   for (const cycle of cycles) {
     const start = cycle.startDate.slice(0, 10);
     const end = cycle.endDate?.slice(0, 10) ?? addDays(start, (cycle.periodLength || 5) - 1);
@@ -111,10 +112,18 @@ export function getCalendarRange(anchor: Date, weeks = 3) {
   ));
 }
 
-export function getCalendarAnchor(insights?: CycleInsights | null) {
+export function getCalendarAnchor(insights?: CycleInsights | null, cycles: CycleRecord[] = []) {
   const today = new Date();
+  if (insights?.periodStatus === 'CONFIRMED') {
+    const confirmedAnchor = fromIsoDate(insights.lastRecordedStartDate ?? cycles[0]?.startDate);
+    if (confirmedAnchor) return confirmedAnchor;
+  }
+
   const predicted = fromIsoDate(insights?.estimatedPeriodStartDate ?? insights?.estimatedNextStartDate);
   if (!predicted) return today;
-  const diff = Math.abs(Date.UTC(predicted.getFullYear(), predicted.getMonth(), predicted.getDate()) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+  const diff = Math.abs(
+    Date.UTC(predicted.getFullYear(), predicted.getMonth(), predicted.getDate())
+    - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
+  );
   return diff <= 21 * 86_400_000 ? today : predicted;
 }

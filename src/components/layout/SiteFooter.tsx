@@ -6,58 +6,115 @@ interface SiteFooterProps {
   className?: string;
 }
 
-const toneClasses = {
-  rose: 'hover:text-pink-500',
-  blue: 'hover:text-blue-500',
-  admin: 'hover:text-violet-500',
-  neutral: 'hover:text-slate-700',
+const toneStyles = {
+  rose: {
+    glow: 'from-pink-200/55 via-violet-100/45 to-sky-100/50',
+    link: 'hover:text-pink-500',
+    badge: 'from-sky-300 via-violet-400 to-pink-400',
+  },
+  blue: {
+    glow: 'from-sky-200/60 via-blue-100/45 to-pink-100/35',
+    link: 'hover:text-blue-500',
+    badge: 'from-sky-300 via-blue-400 to-violet-400',
+  },
+  admin: {
+    glow: 'from-violet-200/55 via-sky-100/45 to-pink-100/45',
+    link: 'hover:text-violet-500',
+    badge: 'from-violet-400 via-sky-400 to-pink-400',
+  },
+  neutral: {
+    glow: 'from-sky-100/50 via-violet-100/45 to-pink-100/45',
+    link: 'hover:text-slate-900',
+    badge: 'from-sky-300 via-violet-400 to-pink-400',
+  },
 };
 
+const productLinks = [
+  ['Tổng quan', '/female-dashboard'],
+  ['Chu kỳ', '/cycles'],
+  ['Gói Hi', '/#pricing'],
+  ['Cài đặt', '/settings/notifications'],
+];
+
+const resourceLinks = [
+  ['Điều khoản', '/terms'],
+  ['Bảo mật', '/privacy'],
+  ['Trợ giúp', '/help'],
+  ['Đăng nhập', '/login'],
+];
+
 export default function SiteFooter({ tone = 'neutral', className = '' }: SiteFooterProps) {
-  const linkClass = `transition-colors ${toneClasses[tone]}`;
+  const styles = toneStyles[tone];
+  const linkClass = `text-sm font-bold text-slate-500 transition-colors ${styles.link}`;
 
   return (
-    <footer className={`border-t border-white/60 bg-white/65 px-4 py-8 text-sm text-slate-500 backdrop-blur-xl ${className}`}>
-      <div className="mx-auto grid w-full max-w-[1400px] gap-6 md:grid-cols-[1.2fr_1fr_1fr] md:items-start">
-        <div>
-          <div className="flex items-center gap-2">
-            <HiLogo size={34} />
+    <footer className={`px-4 pb-8 pt-4 ${className}`}>
+      <div className="mx-auto w-full max-w-[1400px]">
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/75 bg-white/75 p-6 shadow-[0_24px_80px_rgba(148,163,184,0.22)] backdrop-blur-2xl md:p-8">
+          <div className={`pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gradient-to-br ${styles.glow} blur-3xl`} />
+          <div className={`pointer-events-none absolute -bottom-28 left-16 h-64 w-64 rounded-full bg-gradient-to-tr ${styles.glow} blur-3xl`} />
+
+          <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.8fr_0.8fr_0.9fr]">
             <div>
-              <p className="font-extrabold text-slate-900">Hi</p>
-              <p className="text-xs font-semibold text-slate-400">Sức khỏe sinh sản thông minh</p>
+              <div className="flex items-center gap-3">
+                <HiLogo size={42} />
+                <div>
+                  <p className="bg-gradient-to-r from-slate-950 via-blue-600 to-pink-500 bg-clip-text text-2xl font-black tracking-tight text-transparent">
+                    HiLover
+                  </p>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-300">Wellness companion</p>
+                </div>
+              </div>
+              <p className="mt-4 max-w-md text-sm font-semibold leading-relaxed text-slate-500">
+                HiLover giúp bạn theo dõi chu kỳ, cảm xúc và sức khỏe sinh sản bằng một trải nghiệm riêng tư, mềm mại và dễ hiểu.
+              </p>
+              <div className={`mt-5 inline-flex rounded-full bg-gradient-to-r ${styles.badge} p-[1px] shadow-lg`}>
+                <span className="rounded-full bg-white/90 px-4 py-2 text-xs font-black text-slate-700">
+                  Dữ liệu cá nhân là của bạn. Dự đoán luôn là tham khảo.
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Sản phẩm</p>
+              <div className="mt-4 grid gap-2">
+                {productLinks.map(([label, href]) => href.startsWith('/#') ? (
+                  <a key={href} className={linkClass} href={href}>{label}</a>
+                ) : (
+                  <Link key={href} className={linkClass} to={href}>{label}</Link>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Tài nguyên</p>
+              <div className="mt-4 grid gap-2">
+                {resourceLinks.map(([label, href]) => (
+                  <Link key={href} className={linkClass} to={href}>{label}</Link>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Cộng đồng & liên hệ</p>
+              <div className="mt-4 grid gap-3 text-sm font-semibold text-slate-500">
+                <a className={`inline-flex items-center gap-2 ${linkClass}`} href="mailto:hilover.space@gmail.com">
+                  <span className="material-symbols-outlined text-lg">mail</span>
+                  hilover.space@gmail.com
+                </a>
+                <a
+                  className={`inline-flex items-center gap-2 ${linkClass}`}
+                  href="https://www.facebook.com/share/1HJnvBpE6L/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span className="material-symbols-outlined text-lg">groups</span>
+                  Facebook Hi
+                </a>
+                <p className="pt-2 text-xs font-bold text-slate-400">© 2026 HiLover. All rights reserved.</p>
+              </div>
             </div>
           </div>
-          <p className="mt-3 max-w-md text-xs leading-relaxed text-slate-400">
-            Hi giúp bạn theo dõi chu kỳ, cảm xúc và sức khỏe sinh sản theo cách riêng tư, mềm mại và dễ hiểu.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-bold md:justify-center">
-          <Link className={linkClass} to="/female-dashboard">Tổng quan</Link>
-          <Link className={linkClass} to="/cycles">Chu kỳ</Link>
-          <Link className={linkClass} to="/pricing">Gói Hi</Link>
-          <Link className={linkClass} to="/settings">Cài đặt</Link>
-        </div>
-
-        <div className="space-y-2 text-xs md:text-right">
-          <p>
-            Liên hệ:{' '}
-            <a className={`font-bold text-slate-700 ${linkClass}`} href="mailto:hilover.space@gmail.com">
-              hilover.space@gmail.com
-            </a>
-          </p>
-          <p>
-            Cộng đồng:{' '}
-            <a
-              className={`font-bold text-slate-700 ${linkClass}`}
-              href="https://www.facebook.com/share/1HJnvBpE6L/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Facebook Hi
-            </a>
-          </p>
-          <p className="text-slate-400">© 2026 Hi. All rights reserved.</p>
         </div>
       </div>
     </footer>

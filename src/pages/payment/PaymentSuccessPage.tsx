@@ -8,7 +8,7 @@ export default function PaymentSuccessPage() {
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-pink-100 text-4xl text-pink-500 animate-bounce">
           🎉
         </div>
-        <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-gray-900 font-sans">
+        <h1 className="hi-page-title mt-6 text-3xl font-sans">
           Thanh toán thành công!
         </h1>
         <p className="mt-3 text-base text-gray-500 font-sans">
@@ -18,7 +18,7 @@ export default function PaymentSuccessPage() {
         <div className="mt-8 space-y-3">
           <Link
             to="/female-dashboard"
-            className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-pink-500 to-pink-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-pink-500/25 hover:from-pink-600 hover:to-pink-700 hover:shadow-pink-600/30 active:scale-[0.98] transition-all duration-200"
+            className="hi-btn-primary flex w-full items-center justify-center rounded-2xl px-6 py-3.5 text-base font-semibold"
           >
             Về Dashboard của tôi
           </Link>

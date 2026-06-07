@@ -203,8 +203,8 @@ export default function OnboardingPage() {
         {step === 0 && (
           <div className="w-full max-w-2xl">
             <div className="text-center mb-10">
-              <h1 className="text-4xl sm:text-5xl font-black text-gray-900 leading-tight mb-2">Chào mừng bạn!</h1>
-              <h2 className="text-3xl sm:text-4xl font-black leading-tight mb-4" style={{ background: 'linear-gradient(135deg, #9b6ee8, #f472a0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Bạn là ai?</h2>
+              <h1 className="hi-page-title text-4xl sm:text-5xl mb-2">Chào mừng bạn!</h1>
+              <h2 className="hi-page-title text-3xl sm:text-4xl mb-4">Bạn là ai?</h2>
               <p className="text-gray-500 text-base">Chọn giới tính để chúng tôi tối ưu hóa trải nghiệm theo dõi sức khỏe của bạn.</p>
             </div>
 
@@ -237,7 +237,7 @@ export default function OnboardingPage() {
             </div>
 
             <div className="flex justify-center">
-              <button onClick={handleNext} disabled={!gender} className="h-13 rounded-full text-white text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-40" style={{ ...gradBtn, height: 52, paddingLeft: 48, paddingRight: 48 }}>
+              <button onClick={handleNext} disabled={!gender} className="hi-btn-primary h-13 rounded-full text-sm font-bold flex items-center gap-2 px-12" style={{ height: 52 }}>
                 Tiếp tục <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </button>
             </div>
@@ -248,7 +248,7 @@ export default function OnboardingPage() {
         {step === 1 && (
           <div className="w-full max-w-2xl">
             <div className="text-center mb-8">
-              <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">Sở thích của bạn là gì?</h1>
+              <h1 className="hi-page-title text-3xl sm:text-4xl mb-3">Sở thích của bạn là gì?</h1>
               <p className="text-gray-500 text-sm max-w-sm mx-auto">Chọn những chủ đề bạn quan tâm để chúng tôi cá nhân hóa lời khuyên và bài viết dành riêng cho bạn.</p>
             </div>
 
@@ -275,7 +275,7 @@ export default function OnboardingPage() {
             </div>
 
             <div className="flex flex-col items-center gap-3">
-              <button onClick={handleNext} className="h-13 rounded-full text-white text-sm font-bold flex items-center gap-2 transition-all" style={{ ...gradBtn, height: 52, paddingLeft: 48, paddingRight: 48 }}>
+              <button onClick={handleNext} className="hi-btn-primary h-13 rounded-full text-sm font-bold flex items-center gap-2 px-12" style={{ height: 52 }}>
                 Tiếp theo <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </button>
               <button onClick={handleNext} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Bỏ qua bước này</button>
@@ -287,7 +287,7 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="w-full max-w-xl">
             <div className="text-center mb-8">
-              <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
+              <h1 className="hi-page-title text-3xl sm:text-4xl mb-3">
                 {gender === 'male' ? <>Bạn muốn Hi giúp gì<br />cho bạn?</> : <>Bạn muốn Hi hỗ trợ<br />điều gì nhất?</>}
               </h1>
               <p className="text-gray-500 text-sm">Hi sẽ tuỳ chỉnh giao diện và lời khuyên dựa trên lựa chọn này.</p>
@@ -350,7 +350,7 @@ export default function OnboardingPage() {
             )}
 
             <div className="flex justify-center">
-              <button onClick={handleNext} disabled={selectedGoals.length === 0} className="rounded-full text-white text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-40" style={{ ...gradBtn, height: 52, paddingLeft: 48, paddingRight: 48 }}>
+              <button onClick={handleNext} disabled={selectedGoals.length === 0} className="hi-btn-primary rounded-full text-sm font-bold flex items-center gap-2 px-12" style={{ height: 52 }}>
                 Tiếp tục <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </button>
             </div>
@@ -362,7 +362,7 @@ export default function OnboardingPage() {
           <div className="w-full max-w-3xl">
             <div className="mb-7">
               <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#f472b6' }}>BƯỚC 4/5</div>
-              <h1 className="text-3xl font-black text-gray-900 mb-1">Thiết lập Chu kỳ của bạn</h1>
+              <h1 className="hi-page-title text-3xl mb-1">Thiết lập Chu kỳ của bạn</h1>
               <p className="text-gray-500 text-sm max-w-md">Để AI dự đoán chính xác, hãy cho chúng tôi biết ngày đầu tiên của kỳ kinh gần nhất.</p>
             </div>
 
@@ -624,7 +624,7 @@ export default function OnboardingPage() {
         {step === 4 && (
           <div className="w-full max-w-md text-center">
             <div className="text-7xl mb-5" style={{ animation: 'bounceIn 0.6s ease both' }}>🎉</div>
-            <h1 className="text-4xl font-black text-gray-900 mb-3">Bạn đã sẵn sàng!</h1>
+            <h1 className="hi-page-title text-4xl mb-3">Bạn đã sẵn sàng!</h1>
             <p className="text-gray-500 mb-8 leading-relaxed">
               Chào mừng <span className="font-bold text-gray-800">{user?.name?.split(' ').pop() ?? 'bạn'}</span> đến với{' '}
               <span className="font-black" style={{ color: '#9b6ee8' }}>Hi, Lover</span>. Hành trình sức khỏe của bạn bắt đầu từ đây. 💕

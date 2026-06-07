@@ -13,7 +13,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({ showAnchors = false }: NavbarProps) {
-  const { token, user, logout } = useAuthStore();
+  const { token, user, logout, setUser } = useAuthStore();
   const { data: subscription } = useSubscription();
   const location = useLocation();
   const loggedIn = !!token;
@@ -28,6 +28,21 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
     staleTime: 30_000,
   });
   const unreadCount = unreadData?.unreadCount ?? 0;
+
+  useQuery({
+    queryKey: ['profile-connection-poll', user?._id],
+    queryFn: async () => {
+      const { data } = await api.get('/users/profile');
+      const nextUser = data?.user ?? data?.data?.user;
+      if (nextUser && nextUser.partnerId !== user?.partnerId) {
+        setUser(nextUser);
+      }
+      return nextUser;
+    },
+    enabled: loggedIn && !isAdmin,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
 
   const dashboardLinks = isAdmin
     ? [{ to: '/admin', label: 'Quản trị', icon: 'admin_panel_settings' }]

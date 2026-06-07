@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import SiteFooter from '../components/layout/SiteFooter';
 import api from '../lib/api';
 import type { CycleInsights, CycleRecord } from '../types/shared';
-import { CYCLE_DAY_CLASSES, getCycleDayKind } from '../utils/cycleCalendar';
+import { CYCLE_DAY_CLASSES, CYCLE_LEGEND, getCycleDayKind, toIsoDate } from '../utils/cycleCalendar';
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const MONTHS = [
@@ -23,16 +22,12 @@ const MONTHS = [
   'Tháng 12',
 ];
 
-function toIsoDate(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
 export default function CalendarPage() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const queryFrom = toIsoDate(new Date(year, month, -29));
-  const queryTo = toIsoDate(new Date(year, month + 1, 0));
+  const queryFrom = toIsoDate(new Date(year, month - 1, 1));
+  const queryTo = toIsoDate(new Date(year, month + 2, 0));
 
   const { data: cycles = [] } = useQuery<CycleRecord[]>({
     queryKey: ['cycles', queryFrom, queryTo],
@@ -77,9 +72,9 @@ export default function CalendarPage() {
               <span className="material-symbols-outlined text-pink-400 text-[20px]">calendar_month</span>
               <span>Theo dõi chu kỳ</span>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Lịch sức khỏe của bạn</h1>
+            <h1 className="hi-page-title text-3xl">Lịch sức khỏe của bạn</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">
-              Xem nhanh ngày kinh nguyệt, dự đoán chu kỳ tiếp theo và khung rụng trứng trong cùng một lịch.
+              Xem nhanh ngày kinh nguyệt, kỳ dự đoán, rụng trứng và cửa sổ thụ thai trong cùng một lịch.
             </p>
           </div>
 
@@ -105,6 +100,7 @@ export default function CalendarPage() {
               <button
                 onClick={prevMonth}
                 className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm transition-colors hover:bg-pink-50 hover:text-pink-500"
+                aria-label="Tháng trước"
               >
                 <span className="material-symbols-outlined text-[20px]">chevron_left</span>
               </button>
@@ -118,6 +114,7 @@ export default function CalendarPage() {
             <button
               onClick={nextMonth}
               className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm transition-colors hover:bg-pink-50 hover:text-pink-500 sm:ml-auto"
+              aria-label="Tháng sau"
             >
               <span className="material-symbols-outlined text-[20px]">chevron_right</span>
             </button>
@@ -147,7 +144,8 @@ export default function CalendarPage() {
                     key={day}
                     className={`flex aspect-square min-h-10 items-center justify-center rounded-2xl text-sm font-bold transition-all sm:min-h-14 ${
                       type ? CYCLE_DAY_CLASSES[type] : 'text-slate-600 hover:bg-slate-50'
-                    } ${isToday && !type ? 'bg-white text-rose-500 ring-2 ring-rose-400 ring-offset-2' : ''}`}
+                    } ${isToday ? 'ring-2 ring-slate-800 ring-offset-2' : ''}`}
+                    title={date.toLocaleDateString('vi-VN')}
                   >
                     {day}
                   </div>
@@ -164,17 +162,22 @@ export default function CalendarPage() {
               Chú giải
             </h3>
             <div className="space-y-3">
-              {[
-                { color: 'bg-rose-200 ring-1 ring-rose-200', label: 'Kinh nguyệt', desc: 'Ngày đã ghi nhận' },
-                { color: 'bg-white border border-dashed border-rose-300', label: 'Ước tính', desc: 'Kỳ tiếp theo' },
-                { color: 'bg-sky-50 ring-1 ring-sky-100', label: 'Ước tính', desc: 'Cửa sổ thụ thai' },
-                { color: 'bg-sky-200 ring-1 ring-sky-300', label: 'Ước tính', desc: 'Ngày rụng trứng' },
-              ].map(({ color, label, desc }) => (
-                <div key={desc} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-3">
-                  <span className={`h-3.5 w-3.5 rounded-full ${color}`} />
+              {CYCLE_LEGEND.map((item) => (
+                <div key={item.kind} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-3">
+                  <span className={`h-3.5 w-3.5 rounded-full ${item.dotClassName}`} />
                   <div>
-                    <p className="text-sm font-bold text-slate-700">{label}</p>
-                    <p className="text-xs text-slate-400">{desc}</p>
+                    <p className="text-sm font-bold text-slate-700">{item.label}</p>
+                    <p className="text-xs text-slate-400">
+                      {item.kind === 'recorded'
+                        ? 'Ngày đã ghi nhận'
+                        : item.kind === 'predicted'
+                          ? 'Kỳ tiếp theo ước tính'
+                          : item.kind === 'ovulation'
+                            ? 'Ngày rụng trứng ước tính'
+                            : item.kind === 'fertile'
+                              ? 'Cửa sổ thụ thai ước tính'
+                              : 'Kỳ đã trễ chưa ghi nhận'}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -187,7 +190,7 @@ export default function CalendarPage() {
             </div>
             <h3 className="text-base font-extrabold text-slate-900">Mẹo nhỏ hôm nay</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-500">
-              Ghi chu kỳ đều đặn giúp AI dự đoán chính xác hơn và cá nhân hóa lời khuyên theo từng giai đoạn.
+              Ghi chu kỳ đều đặn giúp Hi dự đoán chính xác hơn và cá nhân hóa lời khuyên theo từng giai đoạn.
             </p>
             <Button className="mt-5 w-full" onClick={() => window.location.assign('/cycles')}>
               Xem lịch sử chu kỳ
@@ -198,7 +201,6 @@ export default function CalendarPage() {
           </p>
         </aside>
       </div>
-      <SiteFooter tone="rose" className="-mx-4 md:-mx-8" />
     </div>
   );
 }
