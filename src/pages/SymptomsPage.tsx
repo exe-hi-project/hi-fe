@@ -112,7 +112,7 @@ export default function SymptomsPage() {
               <span className={clsx('material-symbols-outlined text-[20px]', accent)}>monitor_heart</span>
               <span>Nhật ký cơ thể</span>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Triệu chứng theo ngày</h1>
+            <h1 className="hi-page-title text-3xl">Triệu chứng theo ngày</h1>
             <p className="mt-2 text-sm leading-relaxed text-slate-500">Theo dõi xu hướng cơ thể để hiểu chu kỳ tốt hơn. Đây không phải chẩn đoán y khoa.</p>
           </div>
           <Button onClick={() => setOpen(true)}>Ghi triệu chứng</Button>

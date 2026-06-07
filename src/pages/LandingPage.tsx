@@ -80,7 +80,7 @@ export default function LandingPage() {
                     <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Yêu thương trọn vẹn</span>
                   </div>
 
-                  <h1 className="text-slate-900 text-3xl md:text-4xl lg:text-5xl font-extrabold leading-[1.2] tracking-tight">
+                  <h1 className="hi-page-title text-3xl md:text-4xl lg:text-5xl">
                     Hiểu mình, Hiểu người,{' '}
                     <span className="bg-gradient-to-r from-blue-500 to-pink-400 bg-clip-text text-transparent">
                       Yêu thương trọn vẹn
@@ -162,7 +162,7 @@ export default function LandingPage() {
           <div className="flex flex-col max-w-[1100px] flex-1">
             <div className="flex flex-col items-center gap-12">
               <div className="flex flex-col gap-3 text-center max-w-[700px]">
-                <h2 className="text-slate-900 text-3xl md:text-4xl font-black leading-tight tracking-tight">
+                <h2 className="hi-page-title text-3xl md:text-4xl">
                   Mọi tính năng bạn cần
                 </h2>
                 <p className="text-slate-500 text-lg font-normal leading-relaxed">
@@ -262,7 +262,7 @@ export default function LandingPage() {
         <div id="reviews" className="px-4 md:px-10 flex flex-1 justify-center py-16 md:py-20 relative">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/40 to-transparent pointer-events-none" />
           <div className="flex flex-col max-w-[1100px] flex-1 z-10">
-            <h2 className="text-slate-900 text-2xl md:text-3xl font-bold mb-10 text-center">
+            <h2 className="hi-page-title text-2xl md:text-3xl mb-10 text-center">
               Cặp đôi nói gì về Harmony Cycle?
             </h2>
 
@@ -341,7 +341,7 @@ export default function LandingPage() {
               <span className="mx-auto w-fit rounded-full border border-pink-100 bg-white px-4 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-pink-500 shadow-sm">
                 Gói Hi
               </span>
-              <h2 className="text-3xl font-black tracking-tight text-slate-900 md:text-4xl">
+              <h2 className="hi-page-title text-3xl md:text-4xl">
                 Chọn nhịp chăm sóc phù hợp với bạn
               </h2>
               <p className="text-base font-medium leading-relaxed text-slate-500 md:text-lg">
@@ -386,9 +386,9 @@ export default function LandingPage() {
                   <Link
                     to={plan.to}
                     className={`flex h-12 items-center justify-center rounded-full px-5 text-sm font-extrabold transition-all active:scale-[0.98] ${
-                      plan.highlight
-                        ? 'bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 text-white shadow-lg shadow-pink-200 hover:shadow-xl'
-                        : 'border border-pink-100 bg-white text-pink-500 hover:bg-pink-50'
+                      plan.name === 'Free'
+                        ? 'border border-pink-100 bg-white text-pink-500 shadow-sm hover:-translate-y-0.5 hover:bg-pink-50'
+                        : 'lp-btn-gradient text-white shadow-lg'
                     }`}
                   >
                     {plan.cta}
@@ -407,7 +407,7 @@ export default function LandingPage() {
             <div className="absolute bottom-0 right-0 w-48 h-48 bg-blue-500 opacity-10 rounded-full blur-2xl translate-x-1/3 translate-y-1/3" />
 
             <div className="relative z-10 flex flex-col items-center gap-6">
-              <h2 className="text-slate-900 text-3xl md:text-5xl font-black tracking-tight max-w-[800px]">
+              <h2 className="hi-page-title text-3xl md:text-5xl max-w-[800px]">
                 Bắt đầu hành trình thấu hiểu ngay hôm nay
               </h2>
               <p className="text-slate-500 text-lg md:text-xl font-medium max-w-[600px]">
@@ -458,8 +458,9 @@ export default function LandingPage() {
               <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500">
                 <Link to="/login" className="hover:text-pink-500">Đăng nhập</Link>
                 <Link to="/register" className="hover:text-pink-500">Đăng ký</Link>
-                <a href="#" className="hover:text-pink-500">Điều khoản</a>
-                <a href="#" className="hover:text-pink-500">Bảo mật</a>
+                <Link to="/terms" className="hover:text-pink-500">Điều khoản</Link>
+                <Link to="/privacy" className="hover:text-pink-500">Bảo mật</Link>
+                <Link to="/help" className="hover:text-pink-500">Trợ giúp</Link>
               </div>
             </div>
 

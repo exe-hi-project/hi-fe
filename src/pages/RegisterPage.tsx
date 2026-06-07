@@ -308,7 +308,7 @@ export default function RegisterPage() {
               <span className="mx-4 text-gray-400 text-xs font-semibold uppercase tracking-widest flex-shrink-0">Hoặc đăng ký qua</span>
               <div className="flex-grow border-t border-gray-100" />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <button type="button" onClick={handleGoogleLogin} className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all text-sm font-semibold text-gray-700">
                 <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -324,12 +324,6 @@ export default function RegisterPage() {
                 </svg>
                 Facebook
               </button>
-              <button type="button" className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all text-sm font-semibold text-gray-700">
-                <svg className="w-5 h-5 flex-shrink-0 text-black" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.29-1.23 3.57-1.23.6 0 2.72.16 3.84 1.47-3.54 1.55-2.8 5.86 1.05 7.6-.66 1.84-1.74 4.03-3.54 4.39zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-                </svg>
-                Apple ID
-              </button>
             </div>
           </div>
 
@@ -342,9 +336,9 @@ export default function RegisterPage() {
         {/* Footer */}
         <div className="px-8 lg:px-12 py-4 flex-shrink-0">
           <div className="flex gap-6 text-xs text-gray-400">
-            <a href="#" className="hover:text-gray-600 transition-colors">Điều khoản sử dụng</a>
-            <a href="#" className="hover:text-gray-600 transition-colors">Chính sách bảo mật</a>
-            <a href="#" className="hover:text-gray-600 transition-colors">Trợ giúp</a>
+            <Link to="/terms" className="hover:text-gray-600 transition-colors">Điều khoản sử dụng</Link>
+            <Link to="/privacy" className="hover:text-gray-600 transition-colors">Chính sách bảo mật</Link>
+            <Link to="/help" className="hover:text-gray-600 transition-colors">Trợ giúp</Link>
           </div>
         </div>
       </div>

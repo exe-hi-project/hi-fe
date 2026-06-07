@@ -26,6 +26,14 @@ export function usePartnerConnection() {
   const setUser = useAuthStore((state) => state.setUser);
   const queryClient = useQueryClient();
 
+  const invalidatePartnerState = () => {
+    queryClient.invalidateQueries({ queryKey: ['profile'] });
+    queryClient.invalidateQueries({ queryKey: ['profile-connection-poll'] });
+    queryClient.invalidateQueries({ queryKey: ['partner-cycles'] });
+    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+  };
+
   const refreshProfile = async () => {
     const { data } = await api.get<UserApiResponse>('/users/profile');
     const user = unwrapUser(data);
@@ -41,10 +49,10 @@ export function usePartnerConnection() {
       return refreshProfile();
     },
     onSuccess: () => {
-      toast.success('Kết nối cặp đôi thành công');
-      queryClient.invalidateQueries({ queryKey: ['partner-cycles'] });
+      toast.success('Kết nối Người ấy thành công');
+      invalidatePartnerState();
     },
-    onError: (error) => toast.error(getErrorMessage(error, 'Không thể kết nối cặp đôi')),
+    onError: (error) => toast.error(getErrorMessage(error, 'Không thể kết nối Người ấy')),
   });
 
   const disconnectPartner = useMutation({
@@ -53,10 +61,10 @@ export function usePartnerConnection() {
       return refreshProfile();
     },
     onSuccess: () => {
-      toast.success('Đã ngắt kết nối cặp đôi');
-      queryClient.invalidateQueries({ queryKey: ['partner-cycles'] });
+      toast.success('Đã hủy kết nối với Người ấy');
+      invalidatePartnerState();
     },
-    onError: (error) => toast.error(getErrorMessage(error, 'Không thể ngắt kết nối')),
+    onError: (error) => toast.error(getErrorMessage(error, 'Không thể hủy kết nối')),
   });
 
   return { connectPartner, disconnectPartner };

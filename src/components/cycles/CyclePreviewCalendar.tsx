@@ -1,5 +1,12 @@
 import type { CycleInsights, CycleRecord } from '../../types/shared';
-import { CYCLE_DAY_CLASSES, CYCLE_LEGEND, getCalendarAnchor, getCalendarRange, getCycleDayKind, toIsoDate } from '../../utils/cycleCalendar';
+import {
+  CYCLE_DAY_CLASSES,
+  CYCLE_LEGEND,
+  getCalendarAnchor,
+  getCalendarRange,
+  getCycleDayKind,
+  toIsoDate,
+} from '../../utils/cycleCalendar';
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -13,7 +20,7 @@ function monthLabel(date: Date) {
 }
 
 export default function CyclePreviewCalendar({ cycles, insights }: CyclePreviewCalendarProps) {
-  const anchor = getCalendarAnchor(insights);
+  const anchor = getCalendarAnchor(insights, cycles);
   const days = getCalendarRange(anchor, 3);
   const todayIso = toIsoDate(new Date());
   const shownMonths = Array.from(new Set(days.map((date) => monthLabel(date)))).join(' / ');

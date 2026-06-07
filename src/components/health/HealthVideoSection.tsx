@@ -156,7 +156,7 @@ export default function HealthVideoSection() {
               href={selectedVideo.sourceUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800"
+              className="hi-btn-primary rounded-xl px-5 py-3 text-sm font-bold"
             >
               Xem trên YouTube
             </a>

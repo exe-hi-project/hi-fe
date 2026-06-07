@@ -25,7 +25,7 @@ export type Gender = 'female' | 'male' | 'other';
 export type AuthProvider = 'local' | 'google' | 'facebook';
 export type AccountStatus = 'ACTIVE' | 'LOCKED' | 'DELETED';
 export type AiPersonality = 'friendly' | 'professional' | 'caring' | 'playful';
-export type AiTone = 'warm' | 'casual' | 'formal';
+export type AiTone = 'warm' | 'casual' | 'formal' | 'FRIENDLY' | 'PLAYFUL' | 'SCIENTIFIC' | 'CONCISE' | 'CARE_PARTNER';
 
 export interface ApiResponse<TData = unknown> {
   success: boolean;
@@ -112,9 +112,27 @@ export interface Symptom {
 export interface Notification {
   _id: string;
   userId: string;
-  type: 'period_coming' | 'period_started' | 'reminder' | 'partner' | 'PARTNER_CONNECT' | 'PARTNER_DISCONNECT' | 'PERIOD_REMINDER' | 'PARTNER_PERIOD_REMINDER';
+  type:
+    | 'period_coming'
+    | 'period_started'
+    | 'reminder'
+    | 'partner'
+    | 'PARTNER_CONNECT'
+    | 'PARTNER_DISCONNECT'
+    | 'PERIOD_REMINDER'
+    | 'PARTNER_PERIOD_REMINDER'
+    | 'PERIOD_UPCOMING'
+    | 'PARTNER_PERIOD_UPCOMING'
+    | 'DAILY_CHECK_IN'
+    | 'PARTNER_MOOD_UPDATE'
+    | 'SYMPTOM_LOG_REMINDER'
+    | 'SYMPTOM_LOG_END_OF_DAY'
+    | 'PARTNER_SYMPTOM_LOG_NUDGE';
   title: string;
   message: string;
+  actionUrl?: string;
+  dedupeKey?: string;
+  metadata?: Record<string, unknown>;
   read: boolean;
   createdAt: string;
 }
@@ -124,5 +142,7 @@ export interface ChatMessage {
   userId: string;
   role: 'user' | 'assistant';
   content: string;
+  sessionDate?: string;
+  sessionTitle?: string;
   createdAt: string;
 }

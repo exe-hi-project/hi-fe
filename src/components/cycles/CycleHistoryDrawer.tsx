@@ -68,9 +68,11 @@ function getMonthGrid(month: Date) {
 }
 
 function recordToRange(record: CycleRecord): DateRange {
+  const periodLength = Math.max(record.periodLength ?? 1, 1);
+  const fallbackEndDate = toIsoDate(new Date(fromIsoDate(record.startDate.slice(0, 10)).getTime() + (periodLength - 1) * 86_400_000));
   return {
     startDate: record.startDate.slice(0, 10),
-    endDate: record.endDate?.slice(0, 10) ?? record.startDate.slice(0, 10),
+    endDate: record.endDate?.slice(0, 10) ?? fallbackEndDate,
   };
 }
 
@@ -206,8 +208,8 @@ export default function CycleHistoryDrawer({
 
   const footer = (
     <div className="grid grid-cols-2 gap-3">
-      <button onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50">Hủy</button>
-      <button onClick={save} disabled={saving || (editingRecord ? !draftStart || !draftEnd : pendingRanges.length === 0)} className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
+      <button onClick={onClose} className="hi-btn-secondary rounded-xl px-4 py-3 text-sm font-bold">Hủy</button>
+      <button onClick={save} disabled={saving || (editingRecord ? !draftStart || !draftEnd : pendingRanges.length === 0)} className="hi-btn-primary rounded-xl px-4 py-3 text-sm font-bold">
         {saving ? 'Đang lưu...' : editingRecord ? 'Lưu thay đổi' : 'Lưu lịch sử'}
       </button>
     </div>

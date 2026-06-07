@@ -5,9 +5,10 @@ import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import PageBackdrop from '../components/layout/PageBackdrop';
 import SiteFooter from '../components/layout/SiteFooter';
+import DailyLogModal from '../components/health/DailyLogModal';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
-import type { CycleInsights, CycleRecord } from '../types/shared';
+import type { CycleInsights, CycleRecord, DailyLog } from '../types/shared';
 
 const PHASES = [
   { label: 'Kinh nguyệt', bg: '#fecdd3', light: '#fff1f2' },
@@ -38,10 +39,27 @@ function nextPeriod(startDate: string, cycleLen: number) {
   return d.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long' });
 }
 
+function toIsoDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function addIsoDays(value: string, amount: number) {
+  const base = new Date(`${value.slice(0, 10)}T00:00:00`);
+  return toIsoDate(new Date(base.getFullYear(), base.getMonth(), base.getDate() + amount));
+}
+
+function buildPeriodDates(cycle: CycleRecord | null) {
+  if (!cycle) return [];
+  const periodLength = Math.max(1, Math.min(cycle.periodLength || 5, 30));
+  return Array.from({ length: periodLength }, (_, index) => addIsoDays(cycle.startDate, index));
+}
+
 export default function CyclesPage() {
   const { user } = useAuthStore();
   const [selected, setSelected] = useState<number | null>(null);
   const [tab, setTab] = useState<'history' | 'stats'>('history');
+  const [logModalOpen, setLogModalOpen] = useState(false);
+  const [logModalDate, setLogModalDate] = useState<string | null>(null);
 
   const historyQuery = useInfiniteQuery({
     queryKey: ['cycle-history'],
@@ -80,13 +98,27 @@ export default function CyclesPage() {
   const avgPeriod = Math.round(insights?.averagePeriodLength ?? 0);
   const minLen = cycles.length ? Math.min(...cycles.map((cycle) => cycle.cycleLength || 28)) : 0;
   const maxLen = cycles.length ? Math.max(...cycles.map((cycle) => cycle.cycleLength || 28)) : 0;
-  const regularity = avgLen ? Math.max(0, Math.round(100 - ((maxLen - minLen) / avgLen) * 100)) : 0;
+  const regularity = insights?.regularityScore ?? (avgLen ? Math.max(0, Math.round(100 - ((maxLen - minLen) / avgLen) * 100)) : 0);
   const activeDay = activeCycle?._id === cycles[0]?._id && ['CONFIRMED', 'UPCOMING'].includes(insights?.periodStatus ?? '')
     ? insights?.estimatedCycleDay ?? 0
     : 0;
   const phaseImpacts = insights?.phaseSymptomImpacts ?? [];
   const topSymptomsByImpact = insights?.topSymptoms ?? [];
   const overallSymptomImpact = insights?.symptomImpactScore ?? 0;
+
+  const symptomHistoryQuery = useQuery<{ dailyLogs: DailyLog[] }>({
+    queryKey: ['cycle-symptom-history', activeCycle?._id],
+    queryFn: () => api.get(`/cycle-records/${activeCycle?._id}/symptom-history`).then(({ data }) => ({
+      dailyLogs: data.dailyLogs ?? [],
+    })),
+    enabled: !!activeCycle?._id,
+  });
+  const symptomLogsByDate = new Map((symptomHistoryQuery.data?.dailyLogs ?? []).map((log) => [log.logDate.slice(0, 10), log]));
+  const activePeriodDates = buildPeriodDates(activeCycle);
+  const openDailyLogForDate = (date: string) => {
+    setLogModalDate(date);
+    setLogModalOpen(true);
+  };
 
   if (!user) return null;
 
@@ -104,7 +136,7 @@ export default function CyclesPage() {
                 <Link to="/female-dashboard" className="w-8 h-8 flex items-center justify-center rounded-full bg-white/80 shadow-sm hover:bg-pink-50 transition-colors border border-white">
                   <span className="material-symbols-outlined text-slate-400 text-[18px]">arrow_back</span>
                 </Link>
-                <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">Lịch sử chu kỳ</h1>
+                <h1 className="hi-page-title text-2xl md:text-3xl">Lịch sử chu kỳ</h1>
               </div>
               <p className="text-sm text-slate-400 ml-10">Theo dõi {cyclesTotal} chu kỳ đã ghi nhận</p>
             </div>
@@ -129,7 +161,7 @@ export default function CyclesPage() {
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 mb-2">Chưa có dữ liệu chu kỳ</h2>
               <p className="text-sm text-slate-500 mb-6">Hãy ghi chu kỳ đầu tiên để xem lịch sử và phân tích cá nhân hóa.</p>
-              <Link to="/female-dashboard" className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}>
+              <Link to="/female-dashboard" className="hi-btn-primary inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold">
                 <span className="material-symbols-outlined text-[18px]">add</span>
                 Ghi chu kỳ
               </Link>
@@ -364,12 +396,117 @@ export default function CyclesPage() {
                             <p className="text-sm font-extrabold text-slate-800 truncate">{activeCycle.notes || 'Không có'}</p>
                           </div>
                         </div>
+                        <div className="px-6 py-5">
+                          <div className="mb-4 flex items-center justify-between">
+                            <div>
+                              <p className="text-[10px] font-extrabold uppercase tracking-widest text-pink-400">Triệu chứng trong kỳ</p>
+                              <p className="text-xs font-semibold text-slate-400">Hiển thị nhật ký đã ghi trong khoảng ngày của kỳ này.</p>
+                            </div>
+                          </div>
+                          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {activePeriodDates.map((dateIso, index) => {
+                              const existingLog = symptomLogsByDate.get(dateIso);
+                              return (
+                                <button
+                                  key={dateIso}
+                                  type="button"
+                                  onClick={() => openDailyLogForDate(dateIso)}
+                                  className={`rounded-2xl border px-3 py-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm ${
+                                    existingLog
+                                      ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                      : 'border-slate-100 bg-white text-slate-600'
+                                  }`}
+                                >
+                                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Ngày {index + 1}</p>
+                                  <p className="mt-1 text-sm font-black">{fmtShort(dateIso)}</p>
+                                  <p className="mt-1 text-[11px] font-bold">
+                                    {existingLog ? 'Cập nhật triệu chứng' : 'Ghi triệu chứng'}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {symptomHistoryQuery.isLoading ? (
+                            <div className="py-6"><Spinner /></div>
+                          ) : (symptomHistoryQuery.data?.dailyLogs ?? []).length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-pink-100 bg-pink-50/40 p-4 text-sm font-semibold text-slate-500">
+                              Chưa có triệu chứng nào được ghi trong kỳ này.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {(symptomHistoryQuery.data?.dailyLogs ?? []).map((log) => (
+                                <div key={log._id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="font-black text-slate-800">{fmt(log.logDate)}</p>
+                                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-pink-500">
+                                      Lượng kinh: {log.flowIntensity === 'NONE' ? 'Không có' : log.flowIntensity === 'LIGHT' ? 'Ít' : log.flowIntensity === 'MEDIUM' ? 'Vừa' : 'Nhiều'}
+                                    </span>
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {log.hasClots && <span className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-500">Có cục máu đông</span>}
+                                    {typeof log.moodScore === 'number' && <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">Mood: {log.moodScore}/5</span>}
+                                    {(log.symptoms ?? []).map((symptom) => (
+                                      <span key={`${log._id}-${symptom.symptomId}`} className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm">
+                                        {symptom.symptomName ?? `Triệu chứng #${symptom.symptomId}`} · {symptom.severity}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  {log.notes && <p className="mt-3 rounded-xl bg-white p-3 text-xs font-semibold leading-relaxed text-slate-500">{log.notes}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2 rounded-3xl border border-white/80 bg-white/90 p-6 shadow-sm backdrop-blur">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-pink-400">Đánh giá chu kỳ</p>
+                        <h3 className="mt-2 text-2xl font-black text-slate-900">{insights?.regularityLabel ?? 'Chưa đủ dữ liệu'}</h3>
+                        <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-500">
+                          Đây là đánh giá tham khảo dựa trên các kỳ đã xác nhận, độ biến thiên chu kỳ và số ngày kinh. Không dùng như chẩn đoán y khoa.
+                        </p>
+                      </div>
+                      <div className="rounded-[2rem] bg-gradient-to-br from-sky-50 to-pink-50 px-6 py-5 text-center">
+                        <p className="text-4xl font-black text-slate-900">{regularity}%</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Điểm ổn định</p>
+                      </div>
+                    </div>
+                    <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+                      <div className="space-y-2">
+                        {(insights?.regularityReasons ?? ['Cần thêm ít nhất 3 kỳ gần nhất để Hi đánh giá ổn hơn.']).map((reason) => (
+                          <div key={reason} className="flex gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+                            <span className="material-symbols-outlined text-base text-pink-400">check_circle</span>
+                            {reason}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex h-44 items-end gap-2 rounded-3xl border border-slate-100 bg-slate-50/60 p-4">
+                        {(insights?.cycleTrendPoints ?? []).slice(-8).map((point) => {
+                          const len = point.cycleLength ?? avgLen ?? 28;
+                          const height = Math.max(18, Math.min(100, ((len - 15) / 35) * 100));
+                          return (
+                            <div key={`${point.cycleId}-${point.startDate}`} className="flex flex-1 flex-col items-center gap-2">
+                              <span className="text-[10px] font-black text-slate-500">{len}</span>
+                              <div
+                                className={`w-full rounded-t-2xl ${point.outlier ? 'bg-slate-300' : 'bg-gradient-to-t from-pink-400 to-sky-300'}`}
+                                style={{ height: `${height}%` }}
+                              />
+                              <span className="text-[10px] font-bold text-slate-400">{new Date(`${point.startDate}T00:00:00`).toLocaleDateString('vi-VN', { month: 'short' })}</span>
+                            </div>
+                          );
+                        })}
+                        {(insights?.cycleTrendPoints ?? []).length === 0 && (
+                          <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">Chưa có dữ liệu biểu đồ.</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-white/80">
                     <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
                       <span className="material-symbols-outlined text-pink-400 text-[22px]">bar_chart</span>
@@ -453,6 +590,16 @@ export default function CyclesPage() {
 
         <SiteFooter tone="rose" />
       </div>
+      <DailyLogModal
+        open={logModalOpen}
+        mode="default"
+        initialDate={logModalDate}
+        onClose={() => setLogModalOpen(false)}
+        onSaved={() => {
+          symptomHistoryQuery.refetch();
+          historyQuery.refetch();
+        }}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ export type DailyLogMode = 'default' | 'periodStart';
 interface DailyLogModalProps {
   open: boolean;
   mode: DailyLogMode;
+  initialDate?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -80,7 +81,7 @@ function getIcon(symptom: SymptomDictionary) {
   return ICON_BY_NAME[symptom.name] ?? 'monitor_heart';
 }
 
-export default function DailyLogModal({ open, mode, onClose, onSaved }: DailyLogModalProps) {
+export default function DailyLogModal({ open, mode, initialDate, onClose, onSaved }: DailyLogModalProps) {
   const queryClient = useQueryClient();
   const today = useMemo(() => toIsoDate(new Date()), []);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -92,10 +93,10 @@ export default function DailyLogModal({ open, mode, onClose, onSaved }: DailyLog
 
   useEffect(() => {
     if (open) {
-      setSelectedDate(today);
+      setSelectedDate(initialDate ?? today);
       setSearch('');
     }
-  }, [open, today]);
+  }, [initialDate, open, today]);
 
   const dictionaryQuery = useQuery<SymptomDictionary[]>({
     queryKey: ['symptom-dictionaries'],
@@ -189,14 +190,14 @@ export default function DailyLogModal({ open, mode, onClose, onSaved }: DailyLog
 
   const footer = (
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-      <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-500 transition-colors hover:bg-slate-50">
+      <button type="button" onClick={onClose} className="hi-btn-secondary rounded-xl px-5 py-3 text-sm font-bold">
         Hủy
       </button>
       <button
         type="button"
         onClick={() => saveMutation.mutate()}
         disabled={saveMutation.isPending || (mode === 'periodStart' && flowIntensity === 'NONE')}
-        className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+        className="hi-btn-primary rounded-xl px-6 py-3 text-sm font-bold"
       >
         {saveMutation.isPending ? 'Đang lưu...' : mode === 'periodStart' ? 'Xác nhận bắt đầu kỳ' : 'Lưu nhật ký'}
       </button>

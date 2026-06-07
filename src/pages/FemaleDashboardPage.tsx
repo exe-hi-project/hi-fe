@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import PageBackdrop from '../components/layout/PageBackdrop';
@@ -10,8 +10,9 @@ import CyclePreviewCalendar from '../components/cycles/CyclePreviewCalendar';
 import DailyLogModal, { type DailyLogMode } from '../components/health/DailyLogModal';
 import HealthVideoSection from '../components/health/HealthVideoSection';
 import QuickMoodCard from '../components/health/QuickMoodCard';
+import AffiliateRecommendations from '../components/affiliate/AffiliateRecommendations';
+import HiTrustExplainer from '../components/health/HiTrustExplainer';
 import api from '../lib/api';
-import { ChatMessage } from '../types';
 import PricingCard from '../components/PricingCard';
 import type { CycleInsights, CycleRecord } from '../types/shared';
 import { CYCLE_DAY_CLASSES, getCycleDayKind } from '../utils/cycleCalendar';
@@ -27,6 +28,12 @@ interface PartnerCyclesResponse {
     avatar?: string;
     gender?: string;
   };
+  latestMood?: {
+    logDate?: string;
+    moodScore?: number;
+    label?: string;
+    notes?: string;
+  } | null;
 }
 
 /* ─── greeting helpers ──────────────────────────────── */
@@ -48,8 +55,6 @@ function getWeekBars() {
     active: i === todayIndex,
   }));
 }
-
-const AI_CHIPS = ['Hôm nay nên ăn gì?', 'Tại sao tôi hay cáu?', 'Giảm đau bụng ngay?', 'Khi nào kỳ kinh tới?'];
 
 function toLocalDate(value?: string | null) {
   return value ? new Date(`${value.slice(0, 10)}T00:00:00`) : null;
@@ -85,41 +90,15 @@ function getLocalCalendarDayDifference(target?: string | null, origin = new Date
   return Math.round((targetUtc - originUtc) / 86_400_000);
 }
 
-/* ─── Panel drawer ──────────────────────────────────── */
-function Panel({ open, onClose, title, icon, iconBg, children }: {
-  open: boolean; onClose: () => void; title: string; icon: string; iconBg: string; children: React.ReactNode;
-}) {
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', h);
-    return () => document.removeEventListener('keydown', h);
-  }, [onClose]);
-  return (
-    <>
-      <div onClick={onClose}
-        className={`fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} />
-      <div className={`fixed top-0 right-0 h-full z-50 w-full max-w-[480px] bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${iconBg}`}>
-              <span className="material-symbols-outlined text-[20px]">{icon}</span>
-            </div>
-            <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-slate-500 transition-colors">
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto">{children}</div>
-      </div>
-    </>
-  );
+function openHiChat(prompt?: string) {
+  window.dispatchEvent(new CustomEvent('hi-chat:open', { detail: { prompt } }));
 }
 
 /* ─── Main component ─────────────────────────────────── */
 export default function FemaleDashboardPage() {
   const { user } = useAuthStore();
   const hasPartner = !!user?.partnerId;
+  const [trustOpen, setTrustOpen] = useState(false);
 
   const firstName = user?.name?.split(' ').pop() ?? 'bạn';
   const greeting  = getGreeting();
@@ -153,6 +132,11 @@ export default function FemaleDashboardPage() {
     enabled: hasPartner,
   });
   const partnerName = partnerQuery.data?.partner?.name ?? 'Bạn đời';
+  const latestPartnerMood = partnerQuery.data?.latestMood ?? null;
+  const partnerMoodLabel = latestPartnerMood?.label
+    ?? (typeof latestPartnerMood?.moodScore === 'number'
+    ? ['Rất mệt', 'Hơi thấp', 'Ổn định', 'Tích cực', 'Rất vui'][Math.max(1, Math.min(5, latestPartnerMood.moodScore)) - 1]
+    : null);
   const confirmedPeriodDay = insights?.confirmedPeriodDay ?? null;
   const phase = insights?.estimatedPhase ?? '—';
   const estimatedPeriodStartDate = insights?.estimatedPeriodStartDate ?? insights?.estimatedNextStartDate;
@@ -219,23 +203,13 @@ export default function FemaleDashboardPage() {
           ? 'Kỳ kinh ước tính'
           : 'ngày chưa ghi nhận';
   const ringStroke = periodStatus === 'DELAYED' ? '#94a3b8' : periodStatus === 'UPCOMING' ? '#c4b5fd' : '#f472b6';
-  const cycleContextLabel = !latestCycle
-    ? 'Chưa có dữ liệu'
-    : periodStatus === 'CONFIRMED'
-      ? `Ngày ${confirmedPeriodDay} kỳ kinh`
-      : periodStatus === 'DELAYED'
-        ? `Trễ ${periodDelayDays} ngày`
-        : `Ước tính ${phase.toLowerCase()}`;
   const today = new Date();
   const currentWeekDates = getCurrentWeekDates();
   const monthLabel = today.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 
-  /* ── Panel state ── */
-  type PanelId = 'chat' | null;
-  const [panel, setPanel] = useState<PanelId>(null);
+  /* ── Modal state ── */
   const [dailyLogOpen, setDailyLogOpen] = useState(false);
   const [dailyLogMode, setDailyLogMode] = useState<DailyLogMode>('default');
-  const close = () => setPanel(null);
   const closeDailyLog = () => {
     setDailyLogOpen(false);
     setDailyLogMode('default');
@@ -255,29 +229,6 @@ export default function FemaleDashboardPage() {
   const refreshCycleData = () => {
     queryClient.invalidateQueries({ queryKey: ['cycles'] });
     queryClient.invalidateQueries({ queryKey: ['cycle-insights'] });
-  };
-
-  /* ── Chat state ── */
-  const chatQuery = useQuery<ChatMessage[]>({
-    queryKey: ['chat'],
-    queryFn: () => api.get('/chat').then((r) => r.data.messages),
-  });
-  const messages = chatQuery.data ?? [];
-  const [chatInput, setChatInput] = useState('');
-  const chatBottom = useRef<HTMLDivElement>(null);
-  useEffect(() => { chatBottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
-  const sendChatMutation = useMutation({
-    mutationFn: (content: string) => api.post('/chat', { content }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat'] });
-    },
-  });
-
-  const sendMessage = (text = chatInput.trim()) => {
-    if (!text) return;
-    setChatInput('');
-    sendChatMutation.mutate(text);
   };
 
   if (user?.gender !== 'female') return <Navigate to="/dashboard" replace />;
@@ -300,7 +251,7 @@ export default function FemaleDashboardPage() {
                 <span className="material-symbols-outlined text-yellow-500 text-[20px]">{greeting.icon}</span>
                 <span>{greeting.text}</span>
               </div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
+              <h1 className="hi-page-title text-3xl md:text-4xl flex flex-wrap items-center gap-2">
                 <span>{firstName}</span>                <span className="font-normal text-slate-400">,</span>
                 <span
                   className="font-medium"
@@ -413,10 +364,10 @@ export default function FemaleDashboardPage() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <button onClick={() => openSymptoms(periodStatus === 'CONFIRMED' ? 'default' : 'periodStart')} className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800">
+                    <button onClick={() => openSymptoms(periodStatus === 'CONFIRMED' ? 'default' : 'periodStart')} className="hi-btn-primary rounded-xl px-4 py-3 text-sm font-bold">
                       {periodStatus === 'CONFIRMED' ? 'Ghi triệu chứng hôm nay' : 'Bắt đầu kỳ hôm nay'}
                     </button>
-                    <button onClick={() => openCycleHistory()} className="rounded-xl border border-pink-200 bg-white px-4 py-3 text-sm font-bold text-pink-500 hover:bg-pink-50">
+                    <button onClick={() => openCycleHistory()} className="hi-btn-secondary rounded-xl px-4 py-3 text-sm font-bold">
                       Thêm lịch sử
                     </button>
                   </div>
@@ -460,14 +411,25 @@ export default function FemaleDashboardPage() {
                     </div>
                     <h4 className="font-bold text-lg text-slate-900">{partnerName}</h4>
                     <p className="text-xs text-slate-400">Đã kết nối</p>
-                    <div className="bg-white/80 backdrop-blur-sm p-3.5 rounded-2xl border border-white mt-4 shadow-sm w-full">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold mb-2">Trạng thái đã gửi</p>
-                      <div className="flex items-start gap-3">
-                        <span className="text-xl">🥺</span>
-                        <p className="text-sm text-slate-700 font-medium leading-snug text-left">
-                          "Em đang trong ngày {phase.toLowerCase()}, cảm xúc hơi nhạy cảm xíu..."
+                    <div className="mt-4 w-full rounded-2xl border border-white bg-white/80 p-3.5 shadow-sm backdrop-blur-sm">
+                      <p className="mb-2 text-[10px] font-bold uppercase text-slate-400">Cảm xúc mới nhất</p>
+                      {partnerMoodLabel ? (
+                        <div className="flex items-start gap-3 text-left">
+                          <span className="material-symbols-outlined text-xl text-amber-400">sentiment_satisfied</span>
+                          <div>
+                            <p className="text-sm font-bold text-slate-700">{partnerMoodLabel}</p>
+                            <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                              {latestPartnerMood?.logDate
+                                ? new Date(`${latestPartnerMood.logDate}T00:00:00`).toLocaleDateString('vi-VN')
+                                : 'Hôm nay'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-semibold leading-snug text-slate-500">
+                          Chưa có cảm xúc được chia sẻ hôm nay.
                         </p>
-                      </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -483,8 +445,8 @@ export default function FemaleDashboardPage() {
                 )}
               </div>
               <button
-                onClick={() => setPanel('chat')}
-                className="w-full py-2.5 bg-white border border-blue-100 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-50 transition-all flex items-center justify-center gap-2 shadow-sm"
+                onClick={() => openHiChat(`Gửi một lời nhắn quan tâm cho ${partnerName}`)}
+                className="hi-btn-secondary w-full rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined text-[18px]">send</span>
                 Gửi lời nhắn
@@ -513,7 +475,7 @@ export default function FemaleDashboardPage() {
                     : '"Giai đoạn này rất tốt để học điều mới và giao tiếp xã hội. Năng lượng của bạn đang tăng dần!"'}
                 </p>
                 <button
-                  onClick={() => setPanel('chat')}
+                  onClick={() => openHiChat('Hôm nay tôi nên chăm sóc sức khỏe thế nào?')}
                   className="text-xs font-bold text-pink-400 hover:text-pink-300 flex items-center gap-1 transition-colors"
                 >
                   Hỏi Hi AI thêm <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -600,6 +562,56 @@ export default function FemaleDashboardPage() {
             </div>
 
             {/* ── 7. Community FAQ (full width) ── */}
+            <div className="md:col-span-4 rounded-3xl border border-white/80 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-pink-500">Báo cáo chu kỳ & sức khỏe</p>
+                  <h3 className="mt-2 text-2xl font-black text-slate-900">{insights?.regularityLabel ?? 'Chưa đủ dữ liệu'}</h3>
+                  <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-500">
+                    Hi đánh giá dựa trên các kỳ đã xác nhận, xu hướng độ dài chu kỳ và nhật ký triệu chứng. Đây là thông tin tham khảo, không phải chẩn đoán.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTrustOpen(true)}
+                  className="rounded-full border border-pink-100 bg-pink-50 px-4 py-2 text-xs font-black text-pink-600 transition hover:-translate-y-0.5 hover:bg-pink-100"
+                >
+                  Hi tính toán thế nào?
+                </button>
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-4">
+                <div className="rounded-3xl bg-gradient-to-br from-pink-50 to-white p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-pink-400">Tính đều đặn</p>
+                  <p className="mt-2 text-3xl font-black text-slate-900">{insights?.regularityScore ?? 0}%</p>
+                </div>
+                <div className="rounded-3xl bg-gradient-to-br from-sky-50 to-white p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-sky-500">Độ tin cậy</p>
+                  <p className="mt-2 text-xl font-black text-slate-900">{confidenceLabel}</p>
+                </div>
+                <div className="rounded-3xl bg-gradient-to-br from-violet-50 to-white p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-violet-500">Rụng trứng ước tính</p>
+                  <p className="mt-2 text-xl font-black text-slate-900">{formatShortDate(insights?.estimatedOvulationDate)}</p>
+                </div>
+                <div className="rounded-3xl bg-gradient-to-br from-amber-50 to-white p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-500">Xu hướng chu kỳ</p>
+                  <div className="mt-3 flex h-10 items-end gap-1">
+                    {(insights?.cycleTrendPoints ?? []).slice(-6).map((point, index) => (
+                      <span key={`${point.startDate}-${index}`} className="w-full rounded-t-lg bg-gradient-to-t from-pink-300 to-sky-300" style={{ height: `${Math.min(Math.max((point.cycleLength ?? 28) * 1.2, 18), 40)}px` }} />
+                    ))}
+                    {(insights?.cycleTrendPoints ?? []).length === 0 && <span className="text-xs font-bold text-slate-400">Cần thêm lịch sử</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(insights?.regularityReasons ?? ['Nhập ít nhất 3 kỳ gần nhất để Hi đánh giá ổn hơn.']).slice(0, 3).map((reason) => (
+                  <span key={reason} className="rounded-full bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">{reason}</span>
+                ))}
+                <Link to="/cycles" className="hi-btn-primary rounded-full px-4 py-2 text-xs font-black">
+                  Xem chi tiết
+                </Link>
+              </div>
+            </div>
+
             <div className="md:col-span-4 bg-white/90 backdrop-blur-sm rounded-3xl p-7 shadow-sm border border-white/80">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-7">
                 <div>
@@ -633,7 +645,7 @@ export default function FemaleDashboardPage() {
                 ].map(({ cat, q, desc }) => (
                   <button
                     key={q}
-                    onClick={() => { setChatInput(q); setPanel('chat'); }}
+                    onClick={() => openHiChat(q)}
                     className="group p-4 rounded-2xl bg-gray-50 hover:bg-pink-50/50 border border-transparent hover:border-pink-100 transition-all cursor-pointer text-left w-full"
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -650,7 +662,7 @@ export default function FemaleDashboardPage() {
                 ))}
               </div>
               <button
-                onClick={() => setPanel('chat')}
+                onClick={() => openHiChat('Các tính năng của Hi là gì?')}
                 className="block w-full mt-5 py-3 border border-gray-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-pink-50 hover:border-pink-200 hover:text-pink-600 transition-all text-center"
               >
                 Khám phá thêm cùng Hi AI
@@ -659,6 +671,14 @@ export default function FemaleDashboardPage() {
 
             {/* ── 8. Curated health videos ── */}
             <HealthVideoSection />
+
+            <div className="md:col-span-4">
+              <AffiliateRecommendations
+                compact
+                phase={insights?.estimatedPhase ?? insights?.currentPhase ?? undefined}
+                symptomCategory="đau bụng"
+              />
+            </div>
 
             {/* ── 9. Upgrade Plans (full width) ── */}
             <div className="md:col-span-4 rounded-3xl overflow-hidden relative bg-white/80 backdrop-blur-sm border border-pink-100/50 p-6 shadow-sm">
@@ -689,149 +709,8 @@ export default function FemaleDashboardPage() {
         onSaved={refreshCycleData}
       />
 
-      {/* ── Panel 3: Hi AI Chat ── */}
-      <Panel open={panel === 'chat'} onClose={close} title="Hi AI Chat" icon="auto_awesome" iconBg="bg-purple-100 text-purple-500">
-        <div className="flex flex-col h-full">
+      <HiTrustExplainer open={trustOpen} onClose={() => setTrustOpen(false)} accent="rose" />
 
-          {/* AI identity strip */}
-          <div className="px-5 py-3 flex-shrink-0 flex items-center justify-between" style={{ background: 'linear-gradient(135deg,#fdf2f8,#f5f0ff)' }}>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}>
-                  <span className="material-symbols-outlined text-white text-[20px]">auto_awesome</span>
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white" />
-              </div>
-              <div>
-                <p className="text-sm font-extrabold text-slate-800">Hi AI 🌸</p>
-                <p className="text-[11px] text-emerald-500 font-bold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                  Sẵn sàng trò chuyện
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] text-slate-400 font-medium">Hôm nay</p>
-              <p className="text-[10px] font-bold text-pink-400">{cycleContextLabel}</p>
-            </div>
-          </div>
-
-          {/* Suggestion chips */}
-          <div className="px-4 py-2.5 flex gap-2 overflow-x-auto flex-shrink-0" style={{ background: 'linear-gradient(135deg,#fdf2f8,#f5f0ff)', borderBottom: '1px solid #fce7f3' }}>
-            {AI_CHIPS.map(chip => (
-              <button
-                key={chip}
-                onClick={() => sendMessage(chip)}
-                className="px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0 transition-all hover:scale-105 active:scale-95"
-                style={{ background: 'linear-gradient(135deg,#fce7f3,#ede9fe)', color: '#9333ea', border: '1px solid #e9d5ff' }}
-              >
-                ✨ {chip}
-              </button>
-            ))}
-          </div>
-
-          {/* Message list */}
-          <div
-            className="flex-1 overflow-y-auto px-4 py-5 space-y-4 min-h-0"
-            style={{ background: 'linear-gradient(160deg,#fff9fb 0%,#f8f4ff 100%)' }}
-          >
-            {messages.length === 0 && !sendChatMutation.isPending && (
-              <div className="h-full flex flex-col items-center justify-center text-center px-6">
-                <div className="w-12 h-12 rounded-2xl mb-3 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}>
-                  <span className="material-symbols-outlined text-white text-[22px]">auto_awesome</span>
-                </div>
-                <p className="font-extrabold text-slate-800">Bắt đầu trò chuyện với Hi AI</p>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs">Tin nhắn sẽ được lấy từ hệ thống AI và lưu vào lịch sử thật của bạn.</p>
-              </div>
-            )}
-            {messages.map(msg => (
-              <div key={msg._id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === 'assistant' && (
-                  <div
-                    className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm"
-                    style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}
-                  >
-                    <span className="material-symbols-outlined text-white text-[15px]">auto_awesome</span>
-                  </div>
-                )}
-                <div
-                  className="max-w-[75%] px-4 py-3 text-sm font-medium leading-relaxed rounded-2xl"
-                  style={msg.role === 'user' ? {
-                    background: 'linear-gradient(135deg,#312e81,#4c1d95)',
-                    color: '#f3e8ff',
-                    borderBottomRightRadius: 4,
-                    boxShadow: '0 4px 14px rgba(76,29,149,0.30)',
-                  } : {
-                    background: 'linear-gradient(135deg,#fff0f8,#f5f0ff)',
-                    color: '#581c87',
-                    borderBottomLeftRadius: 4,
-                    boxShadow: '0 4px 14px rgba(244,114,182,0.15)',
-                  }}
-                >
-                  {msg.content}
-                </div>
-                {msg.role === 'user' && (
-                  <div className="w-8 h-8 rounded-xl bg-violet-100 flex-shrink-0 flex items-center justify-center border border-violet-200">
-                    <span className="material-symbols-outlined text-violet-400 text-[16px]">person</span>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {sendChatMutation.isPending && (
-              <div className="flex items-end gap-2">
-                <div
-                  className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm"
-                  style={{ background: 'linear-gradient(135deg,#f472b6,#a78bfa)' }}
-                >
-                  <span className="material-symbols-outlined text-white text-[15px]">auto_awesome</span>
-                </div>
-                <div
-                  className="px-4 py-3 rounded-2xl flex gap-1.5 items-center"
-                  style={{ background: 'linear-gradient(135deg,#fff0f8,#f5f0ff)', borderBottomLeftRadius: 4 }}
-                >
-                  <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#f472b6', animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#c084fc', animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#818cf8', animationDelay: '300ms' }} />
-                </div>
-              </div>
-            )}
-            <div ref={chatBottom} />
-          </div>
-
-          {/* Input bar */}
-          <div className="px-4 py-3 flex-shrink-0" style={{ background: 'white', borderTop: '1px solid #fce7f3' }}>
-            <div
-              className="flex gap-2 items-end rounded-2xl px-1 py-1"
-              style={{ background: 'linear-gradient(135deg,#fff5f8,#f8f0ff)', border: '1.5px solid #e9d5ff' }}
-            >
-              <textarea
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder="Hỏi Hi AI về chu kỳ của bạn..."
-                rows={1}
-                className="flex-1 px-3 py-2.5 bg-transparent text-slate-800 text-sm resize-none outline-none max-h-28 leading-relaxed"
-                style={{ caretColor: '#f472b6' }}
-              />
-              <button
-                onClick={() => sendMessage()}
-                disabled={!chatInput.trim()}
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-35 disabled:cursor-not-allowed"
-                style={{
-                  background: chatInput.trim()
-                    ? 'linear-gradient(135deg,#f472b6,#a78bfa)'
-                    : '#e5e7eb',
-                  boxShadow: chatInput.trim() ? '0 4px 14px rgba(244,114,182,0.45)' : 'none',
-                }}
-              >
-                <span className="material-symbols-outlined text-white text-[18px]">send</span>
-              </button>
-            </div>
-            <p className="text-center text-[10px] text-slate-300 mt-1.5 font-medium">Enter để gửi · Shift+Enter xuống dòng</p>
-          </div>
-        </div>
-      </Panel>
     </div>
   );
 }

@@ -50,9 +50,10 @@ export default function QuickMoodCard({
     },
     onSuccess: (payload) => {
       queryClient.invalidateQueries({ queryKey: ['daily-log', todayIso] });
+      queryClient.invalidateQueries({ queryKey: ['daily-logs'] });
       queryClient.invalidateQueries({ queryKey: ['partner-cycles'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
       onSaved?.(payload);
       toast.success(payload.partnerNotificationSent ? 'Đã gửi cảm xúc tới Người ấy' : 'Đã ghi cảm xúc nhanh');
     },

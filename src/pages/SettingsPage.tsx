@@ -106,7 +106,7 @@ export default function SettingsPage() {
               <span className={`material-symbols-outlined text-[20px] ${accent.text}`}>manage_accounts</span>
               <span>{accent.eyebrow}</span>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
+            <h1 className="hi-page-title text-3xl md:text-4xl">
               Cài đặt hồ sơ cá nhân
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500 md:text-base">
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                       e.preventDefault();
                       document.getElementById('btn-checkout-monthly')?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className={`mt-3.5 block text-center rounded-xl py-2 px-4 text-xs font-bold text-white bg-gradient-to-r ${accent.gradient} shadow-md ${accent.shadow} hover:opacity-90 transition-opacity`}
+                    className="hi-btn-primary mt-3.5 block text-center rounded-xl py-2 px-4 text-xs font-bold"
                   >
                     Nâng cấp Premium
                   </a>

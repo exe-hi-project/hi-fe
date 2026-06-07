@@ -2,7 +2,6 @@
 import { useNavigate } from 'react-router-dom';
 import HiLogo from '../components/ui/HiLogo';
 import PageBackdrop from '../components/layout/PageBackdrop';
-import SiteFooter from '../components/layout/SiteFooter';
 import { useAuthStore } from '../store/authStore';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -49,6 +48,7 @@ import {
 } from 'recharts';
 import api from '../lib/api';
 import HealthVideoAdminPanel from '../components/admin/HealthVideoAdminPanel';
+import AffiliateAdminPanel from '../components/admin/AffiliateAdminPanel';
 
 interface MoodItem {
   name: string;
@@ -89,6 +89,13 @@ interface AdminFinancialReport {
     avgTokensPerConversation: number;
     aiCostPer1kTokens: number;
   };
+}
+
+interface AffiliateReport {
+  orders: number;
+  totalCommissionVnd: number;
+  settledCommissionVnd: number;
+  totalRevenueVnd: number;
 }
 
 interface MonthlyFinancialItem {
@@ -152,7 +159,7 @@ export default function AdminPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
-  const [activeTab, setActiveTab] = useState<'overview' | 'payos' | 'users' | 'videos' | 'system'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'payos' | 'affiliate' | 'users' | 'videos' | 'system'>('overview');
   const [q, setQ] = useState('');
   const [searchText, setSearchText] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
@@ -194,6 +201,7 @@ export default function AdminPage() {
         monthlyFinancials: MonthlyFinancialItem[];
         recentUsers: AdminUser[];
         payosReport: PayOSReport;
+        affiliateReport?: AffiliateReport;
         moodDistribution?: MoodItem[];
         hourlyChatTraffic?: ChatHourItem[];
       };
@@ -463,6 +471,7 @@ export default function AdminPage() {
   const currentTabName = useMemo(() => {
     if (activeTab === 'overview') return 'Tổng quan hệ thống';
     if (activeTab === 'payos') return 'Doanh thu PayOS';
+    if (activeTab === 'affiliate') return 'Affiliate TikTok/Shopee';
     if (activeTab === 'users') return 'Quản lý tài khoản';
     if (activeTab === 'videos') return 'Video sức khỏe';
     return 'Hệ thống & AI';
@@ -533,6 +542,21 @@ export default function AdminPage() {
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => { setActiveTab('affiliate'); setPage(1); }}
+            className={`group mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
+              activeTab === 'affiliate'
+                ? 'bg-[#fdf0f4] text-[#eb477e]'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            }`}
+          >
+            <TrendUp size={16} weight={activeTab === 'affiliate' ? 'fill' : 'regular'} className="shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold leading-tight">Affiliate</p>
+              <p className="mt-0.5 truncate text-[10px] leading-tight text-slate-400">TikTok & Shopee</p>
+            </div>
+          </button>
         </nav>
 
         {/* ── Sidebar footer ── */}
@@ -571,7 +595,7 @@ export default function AdminPage() {
         {/* Top bar */}
         <header className="sticky top-0 z-10 bg-white border-b border-slate-200/60 px-7 py-3.5 flex items-center justify-between">
           <div>
-            <h1 className="text-base font-extrabold text-slate-900 tracking-tight">{currentTabName}</h1>
+            <h1 className="hi-page-title text-base">{currentTabName}</h1>
             <p className="text-[11px] text-slate-400 font-medium mt-0.5">Hi App · Bảng quản trị nội bộ</p>
           </div>
           <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full flex items-center gap-1.5">
@@ -612,6 +636,25 @@ export default function AdminPage() {
                         </div>
                       ))}
                 </div>
+                {overviewQuery.data?.affiliateReport && (
+                  <div className="rounded-2xl border border-pink-100 bg-gradient-to-r from-pink-50 via-white to-sky-50 p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-pink-500">Affiliate commission</p>
+                        <h3 className="mt-1 text-lg font-black text-slate-900">Doanh thu TikTok/Shopee</h3>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs font-black">
+                        <span className="rounded-full bg-white px-4 py-2 text-slate-600 shadow-sm">Đơn: {overviewQuery.data.affiliateReport.orders}</span>
+                        <span className="rounded-full bg-emerald-50 px-4 py-2 text-emerald-700 shadow-sm">
+                          Hoa hồng đã chốt: {Math.round(overviewQuery.data.affiliateReport.settledCommissionVnd ?? 0).toLocaleString('vi-VN')}đ
+                        </span>
+                        <span className="rounded-full bg-violet-50 px-4 py-2 text-violet-700 shadow-sm">
+                          Tổng doanh thu: {Math.round(overviewQuery.data.affiliateReport.totalRevenueVnd ?? 0).toLocaleString('vi-VN')}đ
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Charts row 1 */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -771,6 +814,8 @@ export default function AdminPage() {
 
             {activeTab === 'videos' && <HealthVideoAdminPanel />}
 
+            {activeTab === 'affiliate' && <AffiliateAdminPanel />}
+
 
             {/* ── TAB 2: PAYOS ── */}
             {activeTab === 'payos' && (
@@ -796,7 +841,7 @@ export default function AdminPage() {
                         onClick={() => setPayosPeriod(period.key)}
                         className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
                           payosPeriod === period.key
-                            ? 'bg-[#eb477e] text-white shadow-sm'
+                            ? 'bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400 text-white shadow-sm'
                             : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
@@ -988,7 +1033,7 @@ export default function AdminPage() {
                         <option value="male">Nam</option>
                         <option value="other">Khác</option>
                       </select>
-                      <Button type="submit" size="sm" className="bg-slate-900 text-white rounded-xl font-bold text-xs shrink-0">
+                    <Button type="submit" size="sm" className="rounded-xl font-bold text-xs shrink-0">
                         Lọc
                       </Button>
                     </div>
@@ -1294,7 +1339,7 @@ export default function AdminPage() {
                     <Button
                       type="submit"
                       loading={isSendingCampaign}
-                      className="w-full bg-[#eb477e] hover:bg-[#d63d70] text-white font-bold rounded-xl py-2.5 flex items-center justify-center gap-1.5"
+                      className="w-full rounded-xl py-2.5 flex items-center justify-center gap-1.5"
                     >
                       <PaperPlaneRight size={13} weight="bold" />
                       Gửi chiến dịch
@@ -1311,8 +1356,6 @@ export default function AdminPage() {
 
           </div>
         </main>
-
-        <SiteFooter tone="admin" />
 
         {notificationTarget && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">

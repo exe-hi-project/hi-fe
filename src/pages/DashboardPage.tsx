@@ -48,7 +48,7 @@ function MaleDashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Xin chào, {user?.name?.split(' ').pop()} 👋</h1>
+        <h1 className="hi-page-title text-2xl">Xin chào, {user?.name?.split(' ').pop()} 👋</h1>
         <p className="text-gray-500 text-sm mt-0.5">Hôm nay là ngày {today.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </div>
 
@@ -57,7 +57,7 @@ function MaleDashboard() {
           <div className="text-5xl mb-4">💑</div>
           <h3 className="text-lg font-bold text-gray-800 mb-2">Kết nối với bạn đời</h3>
           <p className="text-sm text-gray-500 mb-4">Kết nối để theo dõi và hỗ trợ bạn đời tốt hơn</p>
-          <a href="/male-settings/notifications" className="inline-flex items-center gap-1 text-sm font-semibold text-rose-500 hover:underline">
+          <a href="/male-settings/notifications" className="hi-btn-primary rounded-full px-5 py-2.5 text-sm font-semibold">
             Kết nối ngay →
           </a>
         </Card>

@@ -20,6 +20,8 @@ import MaleDashboardPage from './pages/MaleDashboardPage';
 import MaleSettingsNotificationsPage from './pages/MaleSettingsNotificationsPage';
 import AdminPage from './pages/AdminPage';
 import Layout from './components/layout/Layout';
+import FloatingHiChat from './components/chat/FloatingHiChat';
+import { HelpPage, PrivacyPage, TermsPage } from './pages/LegalPages';
 import PaymentSuccessPage from './pages/payment/PaymentSuccessPage';
 import PaymentCancelPage from './pages/payment/PaymentCancelPage';
 import { getSafeOAuthState } from './lib/googleAuth';
@@ -117,12 +119,16 @@ export default function App() {
   }, [location.hash, socialLogin, navigate]);
 
   return (
+    <>
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
       <Route path="/forgot-password" element={<AuthRoute><ForgotPasswordPage /></AuthRoute>} />
       <Route path="/reset-password/:token" element={<AuthRoute><ResetPasswordPage /></AuthRoute>} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/help" element={<HelpPage />} />
       <Route path="/onboarding" element={<OnboardingRoute><OnboardingPage /></OnboardingRoute>} />
       {/* Female dashboard — standalone (no sidebar Layout) */}
       <Route path="/female-dashboard" element={<UserOnlyRoute><ProtectedRoute><FemaleDashboardPage /></ProtectedRoute></UserOnlyRoute>} />
@@ -148,5 +154,7 @@ export default function App() {
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       </Route>
     </Routes>
+    <FloatingHiChat />
+    </>
   );
 }

@@ -8,7 +8,7 @@ export type Gender = 'female' | 'male' | 'other';
 export type AuthProvider = 'local' | 'google' | 'facebook';
 export type AccountStatus = 'ACTIVE' | 'LOCKED' | 'DELETED';
 export type AiPersonality = 'friendly' | 'professional' | 'caring' | 'playful';
-export type AiTone = 'warm' | 'casual' | 'formal';
+export type AiTone = 'warm' | 'casual' | 'formal' | 'FRIENDLY' | 'PLAYFUL' | 'SCIENTIFIC' | 'CONCISE' | 'CARE_PARTNER';
 
 export interface User {
   _id: string;
@@ -91,6 +91,14 @@ export interface SymptomImpactItem {
   occurrenceCount: number;
 }
 
+export interface CycleTrendPoint {
+  cycleId: number;
+  startDate: string;
+  cycleLength?: number | null;
+  periodLength?: number | null;
+  outlier?: boolean;
+}
+
 export interface CycleInsights {
   cycleCount: number;
   averageCycleLength?: number | null;
@@ -116,6 +124,11 @@ export interface CycleInsights {
   daysUntilEstimatedPeriod?: number | null;
   estimatedPeriodDay?: number | null;
   fertilityStatus?: 'UNKNOWN' | 'LOW' | 'HIGH';
+  regularityStatus?: 'UNKNOWN' | 'REGULAR' | 'NORMAL' | 'IRREGULAR';
+  regularityScore?: number;
+  regularityLabel?: string;
+  regularityReasons?: string[];
+  cycleTrendPoints?: CycleTrendPoint[];
   predictionConfidence: 'LOW' | 'MEDIUM' | 'HIGH';
   hasOutliers: boolean;
   warnings: string[];
@@ -193,6 +206,7 @@ export interface ApiErrorResponse {
 
 // ── content.types ───────────────────────────────────────────
 export type HealthVideoStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type HealthVideoTargetAudience = 'FEMALE' | 'MALE' | 'BOTH';
 
 export interface HealthVideo {
   _id: number;
@@ -209,6 +223,7 @@ export interface HealthVideo {
   language: string;
   priority: number;
   status: HealthVideoStatus;
+  targetAudience?: HealthVideoTargetAudience;
   reviewedAt?: string;
   reviewedBy?: string;
   createdAt?: string;
@@ -227,4 +242,5 @@ export interface UpsertHealthVideoDto {
   language?: string;
   priority?: number;
   status?: HealthVideoStatus;
+  targetAudience?: HealthVideoTargetAudience;
 }
