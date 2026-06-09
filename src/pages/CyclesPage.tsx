@@ -499,7 +499,28 @@ export default function CyclesPage() {
                       </div>
                       <div className="w-full h-44 rounded-3xl border border-slate-100 bg-slate-50/60 p-4">
                         {(insights?.cycleTrendPoints ?? []).length === 0 ? (
-                          <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">Chưa có dữ liệu biểu đồ.</div>
+                          <div className="flex h-full w-full flex-col items-center justify-center text-center p-1">
+                            <svg width="100" height="75" viewBox="0 0 120 90" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
+                              <circle cx="60" cy="45" r="35" fill="url(#glowGradient)" opacity="0.6" />
+                              <path d="M20 70 C 35 60, 45 40, 60 45 C 75 50, 85 25, 100 30" stroke="#f472b6" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="5 4" opacity="0.6" />
+                              <circle cx="20" cy="70" r="4" fill="#a78bfa" />
+                              <circle cx="60" cy="45" r="5" fill="#f472b6" />
+                              <circle cx="100" cy="30" r="4" fill="#60a5fa" />
+                              <rect x="42" y="20" width="36" height="24" rx="6" fill="white" stroke="#e9d5ff" strokeWidth="1.5" />
+                              <rect x="48" y="26" width="24" height="3" rx="1.5" fill="#f472b6" opacity="0.7" />
+                              <rect x="48" y="33" width="16" height="3" rx="1.5" fill="#a78bfa" opacity="0.7" />
+                              <path d="M15 30 L17 32 L15 34 L13 32 Z" fill="#fbbf24" opacity="0.8" />
+                              <path d="M105 60 L107 62 L105 64 L103 62 Z" fill="#fbbf24" opacity="0.8" />
+                              <defs>
+                                <radialGradient id="glowGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" transform="translate(60 45) rotate(90) scale(35)">
+                                  <stop stopColor="#fdf2f8" />
+                                  <stop offset="1" stopColor="#ede9fe" stopOpacity="0.2" />
+                                </radialGradient>
+                              </defs>
+                            </svg>
+                            <p className="text-xs font-bold text-slate-500">Chưa đủ dữ liệu vẽ xu hướng</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5 max-w-[240px]">Hi đang đợi bạn ghi nhận thêm chu kỳ để vẽ nên sơ đồ sức khỏe của riêng bạn đó! ✨</p>
+                          </div>
                         ) : (
                           <ResponsiveContainer width="100%" height="100%">
                             <AreaChart
@@ -584,7 +605,26 @@ export default function CyclesPage() {
                     </h3>
                     <div className="w-full h-40">
                       {cycles.length === 0 ? (
-                        <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">Chưa có dữ liệu biểu đồ.</div>
+                        <div className="flex h-full w-full flex-col items-center justify-center text-center p-1">
+                          <svg width="100" height="75" viewBox="0 0 120 90" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
+                            <circle cx="60" cy="45" r="35" fill="url(#barGlowGradient)" opacity="0.5" />
+                            <rect x="25" y="55" width="14" height="20" rx="3" fill="#fca5a5" opacity="0.7" />
+                            <rect x="45" y="35" width="14" height="40" rx="3" fill="#f9a8d4" opacity="0.8" />
+                            <rect x="65" y="45" width="14" height="30" rx="3" fill="#93c5fd" opacity="0.7" />
+                            <rect x="85" y="25" width="14" height="50" rx="3" fill="#c4b5fd" opacity="0.8" />
+                            <line x1="15" y1="75" x2="105" y2="75" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M60 22 C59 18, 54 18, 54 22 C54 26, 60 29, 60 29 C60 29, 66 26, 66 22 C66 18, 61 18, 60 22 Z" fill="#fb7185" opacity="0.9" />
+                            <path d="M22 25 L24 27 L22 29 L20 27 Z" fill="#fbbf24" opacity="0.8" />
+                            <defs>
+                              <radialGradient id="barGlowGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" transform="translate(60 45) rotate(90) scale(35)">
+                                <stop stopColor="#fff1f2" />
+                                <stop offset="1" stopColor="#f0f9ff" stopOpacity="0.2" />
+                              </radialGradient>
+                            </defs>
+                          </svg>
+                          <p className="text-xs font-bold text-slate-500">Chưa có dữ liệu so sánh</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5 max-w-[240px]">Hãy ghi chép thông tin chu kỳ đầu tiên của bạn để Hi giúp bạn theo dõi nhé! ❤️</p>
+                        </div>
                       ) : (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
@@ -661,7 +701,21 @@ export default function CyclesPage() {
                       Anh huong trieu chung theo chu ky
                     </h3>
                     {phaseImpacts.length === 0 ? (
-                      <p className="text-sm text-slate-400 py-8 text-center">Chua co du lieu trieu chung.</p>
+                      <div className="flex h-full w-full flex-col items-center justify-center text-center py-6">
+                        <svg width="100" height="75" viewBox="0 0 120 90" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
+                          <circle cx="60" cy="45" r="35" fill="url(#heartGlowGradient)" opacity="0.5" />
+                          <path d="M30 45 L40 45 L45 35 L50 55 L55 40 L60 50 L65 45 L90 45" stroke="#fda4af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M60 25 C59 21, 54 21, 54 25 C54 29, 60 32, 60 32 C60 32, 66 29, 66 25 C66 21, 61 21, 60 25 Z" fill="#fb7185" opacity="0.9" />
+                          <defs>
+                            <radialGradient id="heartGlowGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" transform="translate(60 45) rotate(90) scale(35)">
+                              <stop stopColor="#fff1f2" />
+                              <stop offset="1" stopColor="#ffe4e6" stopOpacity="0.2" />
+                            </radialGradient>
+                          </defs>
+                        </svg>
+                        <p className="text-xs font-bold text-slate-500">Chưa có dữ liệu triệu chứng</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5 max-w-[240px]">Hãy ghi nhận nhật ký sức khỏe mỗi ngày để Hi vẽ biểu đồ xu hướng triệu chứng nhé! 🌸</p>
+                      </div>
                     ) : (
                       <div className="space-y-5">
                         <div className="p-3 rounded-2xl bg-rose-50/60 border border-rose-100">

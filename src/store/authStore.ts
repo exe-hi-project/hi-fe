@@ -28,7 +28,9 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterDto) => Promise<void>;
+  register: (data: RegisterDto) => Promise<any>;
+  verifyActivation: (email: string, otp: string) => Promise<void>;
+  resendActivation: (email: string) => Promise<void>;
   socialLogin: (provider: 'google' | 'facebook', payload: Record<string, string>) => Promise<User>;
   refreshSession: () => Promise<void>;
   logout: () => void;
@@ -59,13 +61,39 @@ export const useAuthStore = create<AuthState>()(
       register: async (formData) => {
         set({ isLoading: true });
         try {
-          const { data } = await api.post<AuthApiResponse>('/auth/register', formData);
+          const { data } = await api.post<any>('/auth/register', formData);
+          set({ isLoading: false });
+          if (data.data?.pendingActivation) {
+            return data.data; // { email, pendingActivation: true }
+          }
+          const payload = unwrapAuthPayload(data);
+          localStorage.setItem('token', payload.token);
+          set({ user: payload.user, token: payload.token });
+          return payload.user;
+        } catch (err: any) {
+          set({ isLoading: false });
+          throw new Error(err.response?.data?.message || 'Đăng ký thất bại');
+        }
+      },
+
+      verifyActivation: async (email, otp) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await api.post<AuthApiResponse>('/auth/verify-activation', { email, otp });
           const payload = unwrapAuthPayload(data);
           localStorage.setItem('token', payload.token);
           set({ user: payload.user, token: payload.token, isLoading: false });
         } catch (err: any) {
           set({ isLoading: false });
-          throw new Error(err.response?.data?.message || 'Đăng ký thất bại');
+          throw new Error(err.response?.data?.message || 'Kích hoạt tài khoản thất bại');
+        }
+      },
+
+      resendActivation: async (email) => {
+        try {
+          await api.post(`/auth/resend-activation?email=${encodeURIComponent(email)}`);
+        } catch (err: any) {
+          throw new Error(err.response?.data?.message || 'Gửi lại mã OTP thất bại');
         }
       },
 
