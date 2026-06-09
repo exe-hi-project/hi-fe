@@ -378,11 +378,12 @@ export default function MaleDashboardPage() {
             </div>
           )}
 
-          <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_420px]">
+          <div className="mt-6">
             <HealthVideoSection />
-            <div className="rounded-[2rem] border border-blue-100/50 bg-white/80 p-6 shadow-sm backdrop-blur">
-              <PricingCard />
-            </div>
+          </div>
+
+          <div className="mt-6 rounded-[2rem] border border-blue-100/50 bg-white/80 p-6 shadow-sm backdrop-blur">
+            <PricingCard />
           </div>
         </main>
 

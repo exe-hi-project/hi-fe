@@ -32,7 +32,7 @@ const toneStyles = {
 const productLinks = [
   ['Tổng quan', '/female-dashboard'],
   ['Chu kỳ', '/cycles'],
-  ['Gói Hi', '/#pricing'],
+  ['Gói Đồng Hành', '/#pricing'],
   ['Cài đặt', '/settings/notifications'],
 ];
 

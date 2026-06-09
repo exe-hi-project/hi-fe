@@ -19,7 +19,7 @@ const HERO_AVATARS = [
 
 const LANDING_PLANS = [
   {
-    name: 'Free',
+    name: 'Đồng Hành Cơ Bản',
     price: '0đ',
     description: 'Bắt đầu theo dõi sức khỏe sinh sản cá nhân.',
     features: ['Theo dõi chu kỳ cơ bản', 'Lịch sử cá nhân không giới hạn', 'Nhắc lịch cơ bản', 'AI hỏi đáp giới hạn'],
@@ -28,24 +28,24 @@ const LANDING_PLANS = [
     highlight: false,
   },
   {
-    name: 'Premium tháng',
+    name: 'Đồng Hành Premium Tháng',
     price: '49.000đ',
     suffix: '/tháng',
     description: 'Mở khóa phân tích nâng cao và AI chăm sóc sâu hơn.',
     features: ['Analytics chu kỳ và triệu chứng', 'AI Premium ưu tiên', 'Chia sẻ với Người ấy nâng cao', 'Video sức khỏe được duyệt'],
     to: '/register?plan=monthly',
-    cta: 'Chọn gói tháng',
+    cta: 'Chọn Đồng Hành Tháng',
     highlight: true,
   },
   {
-    name: 'Premium năm',
+    name: 'Đồng Hành Premium Năm',
     price: '399.000đ',
     suffix: '/năm',
     badge: 'Tiết kiệm 32%',
     description: 'Tối ưu cho người dùng muốn theo dõi dài hạn.',
     features: ['Tất cả Premium tháng', 'Báo cáo định kỳ', 'Ưu tiên tính năng mới', 'Giá tốt nhất trong năm'],
     to: '/register?plan=yearly',
-    cta: 'Chọn gói năm',
+    cta: 'Chọn Đồng Hành Năm',
     highlight: false,
   },
 ];
@@ -339,7 +339,7 @@ export default function LandingPage() {
           <div className="flex w-full max-w-[1100px] flex-col gap-10">
             <div className="mx-auto flex max-w-[720px] flex-col gap-3 text-center">
               <span className="mx-auto w-fit rounded-full border border-pink-100 bg-white px-4 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-pink-500 shadow-sm">
-                Gói Hi
+                Gói Đồng Hành
               </span>
               <h2 className="hi-page-title text-3xl md:text-4xl">
                 Chọn nhịp chăm sóc phù hợp với bạn
@@ -451,7 +451,7 @@ export default function LandingPage() {
               <h4 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-900">Sản phẩm</h4>
               <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500">
                 <a href="#features" className="hover:text-pink-500">Tính năng</a>
-                <a href="#pricing" className="hover:text-pink-500">Gói Hi</a>
+                <a href="#pricing" className="hover:text-pink-500">Gói Đồng Hành</a>
                 <a href="#reviews" className="hover:text-pink-500">Đánh giá</a>
               </div>
             </div>
