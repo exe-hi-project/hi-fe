@@ -260,6 +260,9 @@ export default function FemaleDashboardPage() {
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
+                    display: 'inline-block',
+                    paddingBottom: '0.15em',
+                    marginBottom: '-0.15em',
                   }}
                 >
                   hôm nay bạn tỏa sáng! ✨
