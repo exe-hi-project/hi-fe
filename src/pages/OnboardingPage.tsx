@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import HiLogo from '../components/ui/HiLogo';
 import api from '../lib/api';
+import { trackEvent } from '../utils/analytics';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -153,6 +154,7 @@ export default function OnboardingPage() {
 
       const { data } = await api.put('/users/profile', payload);
       setUser(data.user);
+      trackEvent('ONBOARDING_COMPLETE', 'onboarding_page');
       toast.success('Thiết lập hoàn tất! Chào mừng bạn 🎉');
       navigate('/dashboard');
     } catch {

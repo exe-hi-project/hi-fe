@@ -59,9 +59,13 @@ function addIsoDays(value: string, amount: number) {
   return toIsoDate(new Date(base.getFullYear(), base.getMonth(), base.getDate() + amount));
 }
 
-function buildPeriodDates(cycle: CycleRecord | null) {
+function buildPeriodDates(cycle: CycleRecord | null, insights?: CycleInsights | null) {
   if (!cycle) return [];
-  const periodLength = Math.max(1, Math.min(cycle.periodLength || 5, 30));
+  const hasEndDate = !!cycle.endDate;
+  const periodLen = hasEndDate
+    ? (cycle.periodLength || 5)
+    : Math.round(insights?.averagePeriodLength || cycle.periodLength || 5);
+  const periodLength = Math.max(1, Math.min(periodLen, 30));
   return Array.from({ length: periodLength }, (_, index) => addIsoDays(cycle.startDate, index));
 }
 
@@ -125,7 +129,7 @@ export default function CyclesPage() {
     enabled: !!activeCycle?._id,
   });
   const symptomLogsByDate = new Map((symptomHistoryQuery.data?.dailyLogs ?? []).map((log) => [log.logDate.slice(0, 10), log]));
-  const activePeriodDates = buildPeriodDates(activeCycle);
+  const activePeriodDates = buildPeriodDates(activeCycle, insights);
   const openDailyLogForDate = (date: string) => {
     setLogModalDate(date);
     setLogModalOpen(true);
@@ -361,7 +365,10 @@ export default function CyclesPage() {
                           <div className="space-y-2.5">
                             {PHASES.map((phase, index) => {
                               const cycleLen = activeCycle.cycleLength || 28;
-                              const periodLen = activeCycle.periodLength || 5;
+                              const hasEndDate = !!activeCycle.endDate;
+                              const periodLen = hasEndDate
+                                ? (activeCycle.periodLength || 5)
+                                : Math.round(insights?.averagePeriodLength || activeCycle.periodLength || 5);
                               const ovulationDay = Math.max(periodLen + 1, cycleLen - 14);
                               const ranges = [
                                 { days: `Ngày 1 - ${periodLen}`, pct: (periodLen / cycleLen) * 100 },
@@ -392,7 +399,11 @@ export default function CyclesPage() {
                           </div>
                           <div className="p-3.5 rounded-2xl" style={{ background: '#fff5f5' }}>
                             <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wide mb-0.5">Kinh nguyệt</p>
-                            <p className="text-2xl font-extrabold text-slate-900">{activeCycle.periodLength || 5} <span className="text-sm font-bold text-slate-400">ngày</span></p>
+                            <p className="text-2xl font-extrabold text-slate-900">
+                              {activeCycle.endDate
+                                ? `${activeCycle.periodLength || 5} ngày`
+                                : `Dự kiến: ${Math.round(insights?.averagePeriodLength || activeCycle.periodLength || 5)} ngày`}
+                            </p>
                           </div>
                           <div className="p-3.5 rounded-2xl" style={{ background: '#f0f9ff' }}>
                             <p className="text-[10px] font-bold text-sky-500 uppercase tracking-wide mb-0.5">Kỳ kinh tiếp</p>

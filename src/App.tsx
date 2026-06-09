@@ -25,6 +25,7 @@ import { HelpPage, PrivacyPage, TermsPage } from './pages/LegalPages';
 import PaymentSuccessPage from './pages/payment/PaymentSuccessPage';
 import PaymentCancelPage from './pages/payment/PaymentCancelPage';
 import { getSafeOAuthState } from './lib/googleAuth';
+import { getOrCreateSessionId, trackEvent } from './utils/analytics';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, token } = useAuthStore();
@@ -83,6 +84,29 @@ export default function App() {
   const { socialLogin } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ── ANALYTICS TRACKING ──
+  useEffect(() => {
+    getOrCreateSessionId();
+    trackEvent('PAGE_VIEW', location.pathname);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const clickable = target.closest('button, a, [role="button"], [data-track]');
+      if (clickable) {
+        const trackId = clickable.getAttribute('data-track') || clickable.id;
+        const text = clickable.textContent?.trim() || '';
+        if (trackId || clickable.tagName === 'BUTTON' || clickable.tagName === 'A' || clickable.getAttribute('role') === 'button') {
+          const identifier = trackId || `tag:${clickable.tagName.toLowerCase()}`;
+          trackEvent('CLICK', identifier, text.substring(0, 50));
+        }
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   useEffect(() => {
     const hash = window.location.hash;

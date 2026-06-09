@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import HiLogo from '../components/ui/HiLogo';
+import { trackEvent } from '../utils/analytics';
 
 const schema = z.object({
   name: z.string().min(2, 'Tên tối thiểu 2 ký tự'),
@@ -151,6 +152,7 @@ export default function RegisterPage() {
         setShowOtpScreen(true);
         toast.success('Đăng ký thành công! Vui lòng nhập mã OTP để kích hoạt tài khoản.');
       } else {
+        trackEvent('REGISTER', 'register_page');
         toast.success('Đăng ký thành công!');
         navigate('/onboarding');
       }
@@ -166,6 +168,7 @@ export default function RegisterPage() {
     }
     try {
       await verifyActivation(pendingEmail, otp);
+      trackEvent('REGISTER', 'register_page');
       toast.success('Kích hoạt tài khoản thành công!');
       navigate('/onboarding');
     } catch (err: any) {

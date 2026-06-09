@@ -75,11 +75,21 @@ function getProjectedWindow(
 
 export function getCycleDayKind(date: Date, cycles: CycleRecord[], insights?: CycleInsights | null): CycleDayKind | null {
   const dateIso = toIsoDate(date);
+  const todayIso = toIsoDate(new Date());
 
   for (const cycle of cycles) {
     const start = cycle.startDate.slice(0, 10);
-    const end = cycle.endDate?.slice(0, 10) ?? addDays(start, (cycle.periodLength || 5) - 1);
-    if (isWithinIso(dateIso, start, end)) return 'recorded';
+    const hasEndDate = !!cycle.endDate;
+    const periodLen = hasEndDate
+      ? (cycle.periodLength || 5)
+      : Math.round(insights?.averagePeriodLength || cycle.periodLength || 5);
+    const end = cycle.endDate?.slice(0, 10) ?? addDays(start, periodLen - 1);
+    if (isWithinIso(dateIso, start, end)) {
+      if (!hasEndDate && dateIso > todayIso) {
+        return 'predicted';
+      }
+      return 'recorded';
+    }
   }
 
   const cycleLength = insights?.averageCycleLength ?? cycles[0]?.cycleLength ?? 28;
