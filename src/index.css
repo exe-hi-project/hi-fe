@@ -52,11 +52,11 @@
   }
   .hi-page-title {
     @apply font-black tracking-tight;
-    line-height: 1.35;
-    padding-top: 0.05em;
-    padding-bottom: 0.15em;
-    margin-top: -0.05em;
-    margin-bottom: -0.15em;
+    line-height: 1.35 !important;
+    padding-top: 0.05em !important;
+    padding-bottom: 0.15em !important;
+    margin-top: -0.05em !important;
+    margin-bottom: -0.15em !important;
     background: linear-gradient(135deg, #0f172a 0%, #4f83f1 35%, #9b6ee8 65%, #eb477e 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -101,11 +101,11 @@
 
 /* ── Global gradient heading ── */
 .hi-heading {
-  line-height: 1.35;
-  padding-top: 0.05em;
-  padding-bottom: 0.15em;
-  margin-top: -0.05em;
-  margin-bottom: -0.15em;
+  line-height: 1.35 !important;
+  padding-top: 0.05em !important;
+  padding-bottom: 0.15em !important;
+  margin-top: -0.05em !important;
+  margin-bottom: -0.15em !important;
   background: linear-gradient(135deg, #1a1a2e 0%, #7b5ea7 50%, #eb477e 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
