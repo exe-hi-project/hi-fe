@@ -9,6 +9,17 @@ import DailyLogModal from '../components/health/DailyLogModal';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
 import type { CycleInsights, CycleRecord, DailyLog } from '../types/shared';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  CartesianGrid
+} from 'recharts';
 
 const PHASES = [
   { label: 'Kinh nguyệt', bg: '#fecdd3', light: '#fff1f2' },
@@ -486,23 +497,82 @@ export default function CyclesPage() {
                           </div>
                         ))}
                       </div>
-                      <div className="flex h-44 items-end gap-2 rounded-3xl border border-slate-100 bg-slate-50/60 p-4">
-                        {(insights?.cycleTrendPoints ?? []).slice(-8).map((point) => {
-                          const len = point.cycleLength ?? avgLen ?? 28;
-                          const height = Math.max(18, Math.min(100, ((len - 15) / 35) * 100));
-                          return (
-                            <div key={`${point.cycleId}-${point.startDate}`} className="flex flex-1 flex-col items-center gap-2">
-                              <span className="text-[10px] font-black text-slate-500">{len}</span>
-                              <div
-                                className={`w-full rounded-t-2xl ${point.outlier ? 'bg-slate-300' : 'bg-gradient-to-t from-pink-400 to-sky-300'}`}
-                                style={{ height: `${height}%` }}
-                              />
-                              <span className="text-[10px] font-bold text-slate-400">{new Date(`${point.startDate}T00:00:00`).toLocaleDateString('vi-VN', { month: 'short' })}</span>
-                            </div>
-                          );
-                        })}
-                        {(insights?.cycleTrendPoints ?? []).length === 0 && (
+                      <div className="w-full h-44 rounded-3xl border border-slate-100 bg-slate-50/60 p-4">
+                        {(insights?.cycleTrendPoints ?? []).length === 0 ? (
                           <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">Chưa có dữ liệu biểu đồ.</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart
+                              data={(insights?.cycleTrendPoints ?? []).slice(-8).map((point) => {
+                                const dateObj = new Date(`${point.startDate.slice(0, 10)}T00:00:00`);
+                                const label = dateObj.toLocaleDateString('vi-VN', { month: 'short' });
+                                const full = dateObj.toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' });
+                                return {
+                                  name: label,
+                                  'Chu kỳ': point.cycleLength ?? avgLen ?? 28,
+                                  'Kinh nguyệt': point.periodLength ?? avgPeriod ?? 5,
+                                  fullDate: full,
+                                  isOutlier: point.outlier,
+                                };
+                              })}
+                              margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                            >
+                              <defs>
+                                <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#f472b6" stopOpacity={0.4}/>
+                                  <stop offset="95%" stopColor="#a78bfa" stopOpacity={0.0}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                              <XAxis
+                                dataKey="name"
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
+                              />
+                              <YAxis
+                                domain={['auto', 'auto']}
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
+                              />
+                              <RechartsTooltip
+                                content={({ active, payload }) => {
+                                  if (active && payload && payload.length) {
+                                    const data = payload[0].payload;
+                                    return (
+                                      <div className="bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg border border-pink-100 text-xs font-bold text-slate-700">
+                                        <p className="text-slate-400 mb-1">{data.fullDate}</p>
+                                        <p className="flex items-center gap-1.5 text-pink-500">
+                                          <span className="w-2 h-2 rounded-full bg-pink-400" />
+                                          Chu kỳ: {data['Chu kỳ']} ngày
+                                        </p>
+                                        <p className="flex items-center gap-1.5 text-violet-500">
+                                          <span className="w-2 h-2 rounded-full bg-violet-400" />
+                                          Kinh nguyệt: {data['Kinh nguyệt']} ngày
+                                        </p>
+                                        {data.isOutlier && (
+                                          <p className="text-[10px] text-amber-500 mt-1 font-extrabold flex items-center gap-1">
+                                            <span className="material-symbols-outlined text-xs">warning</span>
+                                            Chu kỳ bất thường
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                }}
+                              />
+                              <Area
+                                type="monotone"
+                                dataKey="Chu kỳ"
+                                stroke="#f472b6"
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#trendGradient)"
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
                         )}
                       </div>
                     </div>
@@ -512,19 +582,72 @@ export default function CyclesPage() {
                       <span className="material-symbols-outlined text-pink-400 text-[22px]">bar_chart</span>
                       Độ dài chu kỳ theo tháng
                     </h3>
-                    <div className="flex items-end gap-3 h-40 px-2">
-                      {[...cycles].reverse().map((cycle) => {
-                        const cycleLen = cycle.cycleLength || 28;
-                        const pct = Math.max(((cycleLen - 20) / 20) * 100, 10);
-                        const label = new Date(cycle.startDate).toLocaleDateString('vi-VN', { month: 'short' });
-                        return (
-                          <div key={cycle._id} className="flex flex-col items-center gap-2 flex-1">
-                            <span className="text-[9px] font-bold text-slate-500">{cycleLen}</span>
-                            <div className="w-full rounded-t-xl relative overflow-hidden" style={{ height: `${pct}%`, minHeight: 20, maxHeight: '100%', background: 'linear-gradient(180deg,#f472b6,#a78bfa)' }} />
-                            <span className="text-[10px] font-bold text-slate-400">{label}</span>
-                          </div>
-                        );
-                      })}
+                    <div className="w-full h-40">
+                      {cycles.length === 0 ? (
+                        <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">Chưa có dữ liệu biểu đồ.</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={[...cycles].reverse().slice(-6).map((cycle) => {
+                              const dateObj = new Date(cycle.startDate);
+                              return {
+                                name: dateObj.toLocaleDateString('vi-VN', { month: 'short' }),
+                                'Chu kỳ': cycle.cycleLength || 28,
+                                'Kinh nguyệt': cycle.periodLength || 5,
+                                fullDate: dateObj.toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' }),
+                              };
+                            })}
+                            margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                            barGap={4}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                            <XAxis
+                              dataKey="name"
+                              tickLine={false}
+                              axisLine={false}
+                              tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
+                            />
+                            <YAxis
+                              tickLine={false}
+                              axisLine={false}
+                              tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
+                            />
+                            <RechartsTooltip
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload;
+                                  return (
+                                    <div className="bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg border border-pink-100 text-xs font-bold text-slate-700">
+                                      <p className="text-slate-400 mb-1">Bắt đầu: {data.fullDate}</p>
+                                      <p className="flex items-center gap-1.5 text-pink-500">
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-pink-400" />
+                                        Chu kỳ: {data['Chu kỳ']} ngày
+                                      </p>
+                                      <p className="flex items-center gap-1.5 text-rose-500">
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-rose-400" />
+                                        Kinh nguyệt: {data['Kinh nguyệt']} ngày
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            <Bar
+                              dataKey="Chu kỳ"
+                              fill="#f472b6"
+                              radius={[4, 4, 0, 0]}
+                              maxBarSize={20}
+                            />
+                            <Bar
+                              dataKey="Kinh nguyệt"
+                              fill="#f87171"
+                              radius={[4, 4, 0, 0]}
+                              maxBarSize={20}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
                     </div>
                     <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-slate-500">
                       <span>Ngắn nhất: <b className="text-slate-800">{minLen} ngày</b></span>
