@@ -4,8 +4,10 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  body {
+  html, body, button, input, select, textarea {
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  body {
     background-color: #fdf2f8;
     color: #1f2937;
   }
