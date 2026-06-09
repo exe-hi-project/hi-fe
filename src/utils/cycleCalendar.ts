@@ -80,7 +80,10 @@ export function getCycleDayKind(date: Date, cycles: CycleRecord[], insights?: Cy
   for (const cycle of cycles) {
     const start = cycle.startDate.slice(0, 10);
     const hasEndDate = !!cycle.endDate;
-    const end = cycle.endDate?.slice(0, 10) ?? addDays(start, (cycle.periodLength || 5) - 1);
+    const periodLen = hasEndDate
+      ? (cycle.periodLength || 5)
+      : Math.round(insights?.averagePeriodLength || cycle.periodLength || 5);
+    const end = cycle.endDate?.slice(0, 10) ?? addDays(start, periodLen - 1);
     if (isWithinIso(dateIso, start, end)) {
       if (!hasEndDate && dateIso > todayIso) {
         return 'predicted';
