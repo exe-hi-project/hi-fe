@@ -38,19 +38,28 @@ function addMonths(date: Date, amount: number) {
 
 function formatRange(range: DateRange) {
   const format = (value: string) => fromIsoDate(value).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  if (!range.endDate) {
+    return `${format(range.startDate)} - Chưa kết thúc`;
+  }
   return `${format(range.startDate)} - ${format(range.endDate)}`;
 }
 
 function includesDate(range: DateRange, date: string) {
+  if (!range.endDate) {
+    return date === range.startDate;
+  }
   return date >= range.startDate && date <= range.endDate;
 }
 
 function rangesOverlap(left: DateRange, right: DateRange) {
-  return left.startDate <= right.endDate && right.startDate <= left.endDate;
+  const leftEnd = left.endDate || toIsoDate(new Date(fromIsoDate(left.startDate).getTime() + 4 * 86_400_000));
+  const rightEnd = right.endDate || toIsoDate(new Date(fromIsoDate(right.startDate).getTime() + 4 * 86_400_000));
+  return left.startDate <= rightEnd && right.startDate <= leftEnd;
 }
 
 function rangeLength(range: DateRange) {
-  return Math.round((fromIsoDate(range.endDate).getTime() - fromIsoDate(range.startDate).getTime()) / 86_400_000) + 1;
+  const end = range.endDate || toIsoDate(new Date(fromIsoDate(range.startDate).getTime() + 4 * 86_400_000));
+  return Math.round((fromIsoDate(end).getTime() - fromIsoDate(range.startDate).getTime()) / 86_400_000) + 1;
 }
 
 function getMonthGrid(month: Date) {
@@ -68,11 +77,9 @@ function getMonthGrid(month: Date) {
 }
 
 function recordToRange(record: CycleRecord): DateRange {
-  const periodLength = Math.max(record.periodLength ?? 1, 1);
-  const fallbackEndDate = toIsoDate(new Date(fromIsoDate(record.startDate.slice(0, 10)).getTime() + (periodLength - 1) * 86_400_000));
   return {
     startDate: record.startDate.slice(0, 10),
-    endDate: record.endDate?.slice(0, 10) ?? fallbackEndDate,
+    endDate: record.endDate?.slice(0, 10) ?? '',
   };
 }
 
@@ -128,12 +135,25 @@ export default function CycleHistoryDrawer({
     () => cycles.filter((record) => record._id !== editingRecord?._id).map(recordToRange),
     [cycles, editingRecord?._id],
   );
+
+  const isOngoing = useMemo(() => {
+    return editingRecord?._id === cycles[0]?._id;
+  }, [editingRecord, cycles]);
+
+  const predictedPeriodLength = useMemo(() => {
+    return Math.round(insights?.averagePeriodLength || editingRecord?.periodLength || 5);
+  }, [insights, editingRecord]);
+
+  const predictedEndDate = useMemo(() => {
+    if (!draftStart) return '';
+    return toIsoDate(new Date(fromIsoDate(draftStart).getTime() + (predictedPeriodLength - 1) * 86_400_000));
+  }, [draftStart, predictedPeriodLength]);
   const historyCount = cycles.length + pendingRanges.length;
   const hasRecommendedHistory = historyCount >= 3;
 
   const validateRange = (range: DateRange) => {
-    if (range.endDate > todayIso) return 'Không thể chọn ngày tương lai.';
-    if (rangeLength(range) > 30) return 'Một kỳ kinh không thể dài hơn 30 ngày.';
+    if (range.endDate && range.endDate > todayIso) return 'Không thể chọn ngày tương lai.';
+    if (range.endDate && rangeLength(range) > 30) return 'Một kỳ kinh không thể dài hơn 30 ngày.';
     if ([...comparableStoredRanges, ...pendingRanges].some((item) => rangesOverlap(item, range))) {
       return 'Khoảng ngày này đang trùng với một kỳ đã ghi nhận.';
     }
@@ -172,10 +192,16 @@ export default function CycleHistoryDrawer({
     setSaving(true);
     try {
       if (editingRecord) {
-        if (!draftStart || !draftEnd) throw new Error('Hãy chọn đủ ngày bắt đầu và ngày kết thúc.');
-        const range = { startDate: draftStart, endDate: draftEnd };
-        const validationError = validateRange(range);
-        if (validationError) throw new Error(validationError);
+        if (!draftStart) throw new Error('Hãy chọn ngày bắt đầu.');
+        if (!isOngoing && !draftEnd) throw new Error('Hãy chọn đủ ngày bắt đầu và ngày kết thúc.');
+        const range: any = { startDate: draftStart };
+        if (draftEnd) {
+          range.endDate = draftEnd;
+          const validationError = validateRange({ startDate: draftStart, endDate: draftEnd });
+          if (validationError) throw new Error(validationError);
+        } else {
+          range.endDate = null;
+        }
         await api.put(`/cycle-records/${editingRecord._id}`, range);
       } else {
         if (pendingRanges.length === 0) throw new Error('Hãy chọn ít nhất một kỳ kinh đã diễn ra.');
@@ -209,7 +235,7 @@ export default function CycleHistoryDrawer({
   const footer = (
     <div className="grid grid-cols-2 gap-3">
       <button onClick={onClose} className="hi-btn-secondary rounded-xl px-4 py-3 text-sm font-bold">Hủy</button>
-      <button onClick={save} disabled={saving || (editingRecord ? !draftStart || !draftEnd : pendingRanges.length === 0)} className="hi-btn-primary rounded-xl px-4 py-3 text-sm font-bold">
+      <button onClick={save} disabled={saving || (editingRecord ? !draftStart || (!isOngoing && !draftEnd) : pendingRanges.length === 0)} className="hi-btn-primary rounded-xl px-4 py-3 text-sm font-bold">
         {saving ? 'Đang lưu...' : editingRecord ? 'Lưu thay đổi' : 'Lưu lịch sử'}
       </button>
     </div>
@@ -279,6 +305,7 @@ export default function CycleHistoryDrawer({
                 const isPending = pendingRanges.some((range) => includesDate(range, date));
                 const isStored = storedRanges.some((range) => includesDate(range, date));
                 const isPredicted = !!predictedRange && includesDate(predictedRange, date);
+                const isDraftOngoingPredicted = isOngoing && draftStart && !draftEnd && date > draftStart && date <= predictedEndDate;
                 const isToday = date === todayIso;
                 return (
                   <button
@@ -288,8 +315,8 @@ export default function CycleHistoryDrawer({
                     className={`relative flex h-10 items-center justify-center rounded-xl text-xs font-bold transition-colors
                       ${isSelected || isPending ? 'bg-rose-200 text-rose-800 ring-1 ring-rose-300' : ''}
                       ${!isSelected && !isPending && isStored ? 'bg-rose-500 text-white' : ''}
-                      ${!isSelected && !isPending && !isStored && isPredicted ? 'border border-dashed border-rose-400 bg-rose-50 text-rose-500' : ''}
-                      ${!isSelected && !isPending && !isStored && !isPredicted ? 'text-slate-600 hover:bg-rose-50' : ''}
+                      ${!isSelected && !isPending && !isStored && (isPredicted || isDraftOngoingPredicted) ? 'border border-dashed border-rose-400 bg-rose-50 text-rose-500' : ''}
+                      ${!isSelected && !isPending && !isStored && !isPredicted && !isDraftOngoingPredicted ? 'text-slate-600 hover:bg-rose-50' : ''}
                       ${isDisabled ? 'cursor-not-allowed opacity-30' : ''}
                       ${isToday ? 'ring-2 ring-slate-800 ring-offset-1' : ''}
                     `}
@@ -341,8 +368,18 @@ export default function CycleHistoryDrawer({
           {editingRecord && draftStart && (
             <section className="rounded-2xl border border-rose-100 bg-rose-50/60 p-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-rose-500">Khoảng ngày đang sửa</p>
-              <p className="mt-1 text-sm font-extrabold text-slate-800">{formatRange({ startDate: draftStart, endDate: draftEnd || draftStart })}</p>
-              <p className="mt-1 text-xs text-slate-500">Chọn lại ngày đầu tiên rồi ngày kết thúc nếu cần thay đổi.</p>
+              <p className="mt-1 text-sm font-extrabold text-slate-800">
+                {isOngoing && !draftEnd
+                  ? `${fromIsoDate(draftStart).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} - Chưa kết thúc (Dự kiến: ${predictedPeriodLength} ngày)`
+                  : formatRange({ startDate: draftStart, endDate: draftEnd })
+                }
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {isOngoing
+                  ? 'Chọn ngày đầu tiên để đặt ngày bắt đầu. Chọn tiếp ngày thứ hai nếu muốn xác định ngày kết thúc.'
+                  : 'Chọn lại ngày đầu tiên rồi ngày kết thúc nếu cần thay đổi.'
+                }
+              </p>
             </section>
           )}
 

@@ -49,6 +49,7 @@ import {
 import api from '../lib/api';
 import HealthVideoAdminPanel from '../components/admin/HealthVideoAdminPanel';
 import AffiliateAdminPanel from '../components/admin/AffiliateAdminPanel';
+import AdminAnalyticsPanel from '../components/admin/AdminAnalyticsPanel';
 
 interface MoodItem {
   name: string;
@@ -159,7 +160,7 @@ export default function AdminPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
-  const [activeTab, setActiveTab] = useState<'overview' | 'payos' | 'affiliate' | 'users' | 'videos' | 'system'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'payos' | 'affiliate' | 'users' | 'videos' | 'system'>('overview');
   const [q, setQ] = useState('');
   const [searchText, setSearchText] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
@@ -470,6 +471,7 @@ export default function AdminPage() {
 
   const currentTabName = useMemo(() => {
     if (activeTab === 'overview') return 'Tổng quan hệ thống';
+    if (activeTab === 'analytics') return 'Báo cáo Analytics';
     if (activeTab === 'payos') return 'Doanh thu PayOS';
     if (activeTab === 'affiliate') return 'Affiliate TikTok/Shopee';
     if (activeTab === 'users') return 'Quản lý tài khoản';
@@ -503,6 +505,7 @@ export default function AdminPage() {
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-3">Điều hướng</p>
           {[
             { id: 'overview', label: 'Tổng quan', Icon: ChartPieSlice, desc: 'Thống kê tổng hợp' },
+            { id: 'analytics', label: 'Analytics', Icon: Pulse, desc: 'Truy cập & Chuyển đổi' },
             { id: 'payos', label: 'Doanh thu', Icon: CurrencyCircleDollar, desc: 'PayOS & giao dịch' },
             { id: 'users', label: 'Người dùng', Icon: Users, desc: 'Tài khoản & phân quyền' },
             { id: 'videos', label: 'Video sức khỏe', Icon: VideoCamera, desc: 'Nguồn nội dung duyệt' },
@@ -608,6 +611,10 @@ export default function AdminPage() {
         <main className="flex-1 p-6 lg:p-8">
         <div className="space-y-0">
 
+            {/* ── TAB: ANALYTICS ── */}
+            {activeTab === 'analytics' && (
+              <AdminAnalyticsPanel />
+            )}
 
             {/* ── TAB 1: TỔNG QUAN ── */}
             {activeTab === 'overview' && (
