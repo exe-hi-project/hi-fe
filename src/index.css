@@ -4,8 +4,10 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  body {
+  html, body, button, input, select, textarea {
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  body {
     background-color: #fdf2f8;
     color: #1f2937;
   }
@@ -75,6 +77,17 @@
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
+  .bento-card-hover {
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+  }
+  .bento-card-hover:hover {
+    transform: translateY(-4px) scale(1.015);
+    box-shadow: 0 20px 40px -15px rgba(244, 114, 182, 0.15), 0 10px 20px -10px rgba(167, 139, 250, 0.12);
+    border-color: rgba(244, 114, 182, 0.4) !important;
+  }
+  .bento-card-hover:active {
+    transform: translateY(-1px) scale(0.99);
+  }
 }
 
 ::-webkit-scrollbar { width: 6px; }
@@ -141,12 +154,16 @@
   box-shadow: 0 14px 36px rgba(212, 168, 232, 0.52), 0 7px 18px rgba(126, 202, 232, 0.24);
   animation-duration: 2s;
 }
+.lp-btn-gradient:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: 0 4px 12px rgba(212, 168, 232, 0.3);
+}
 .lp-btn-gradient:disabled {
   opacity: 0.65;
   cursor: not-allowed;
   transform: none;
 }
-
+ 
 /* Ghost / white button with animated colour-mix hover */
 .lp-btn-white {
   background: rgba(255, 255, 255, 0.92);
@@ -163,8 +180,41 @@
   box-shadow: 0 8px 24px rgba(212, 168, 232, 0.30);
   transform: translateY(-1px);
 }
+.lp-btn-white:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: 0 4px 12px rgba(212, 168, 232, 0.2);
+}
 @keyframes lp-gradient-flow {
   0%   { background-position: 0%   50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0%   50%; }
 }
+
+/* ── Entry fadeInUp Animations ── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  opacity: 0;
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-800 { animation-delay: 800ms; }
+.delay-900 { animation-delay: 900ms; }
+.delay-1000 { animation-delay: 1000ms; }
+

@@ -38,7 +38,7 @@ export default function SettingsPage() {
   const { data: subscription } = useSubscription();
   const { data: transactions } = usePaymentHistory();
   const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
-  const planLabel = subscription?.plan && subscription.plan.includes('yearly') ? 'Hi Premium Năm' : subscription?.plan && subscription.plan.includes('monthly') ? 'Hi Premium Tháng' : 'Free Plan';
+  const planLabel = subscription?.plan && subscription.plan.includes('yearly') ? 'Đồng Hành Premium Năm' : subscription?.plan && subscription.plan.includes('monthly') ? 'Đồng Hành Premium Tháng' : 'Đồng Hành Cơ Bản';
   const isMale = user?.gender === 'male';
   const accent = useMemo(() => (
     isMale
@@ -144,7 +144,7 @@ export default function SettingsPage() {
 
             {/* Premium details block */}
             <div className="mt-6 w-full border-t border-slate-200/50 pt-5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2.5">Gói dịch vụ</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2.5">Gói đồng hành</p>
               {isPremium ? (
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/10 to-pink-500/10 border border-amber-200/40 p-4 text-left shadow-sm">
                   <div className="flex items-center gap-2.5">
@@ -170,7 +170,7 @@ export default function SettingsPage() {
                       <span className="material-symbols-outlined text-[20px]">face</span>
                     </div>
                     <div>
-                      <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Gói Free</p>
+                      <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Cơ Bản</p>
                       <p className="text-[11px] text-slate-400 mt-0.5">Trải nghiệm cơ bản</p>
                     </div>
                   </div>

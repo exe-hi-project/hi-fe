@@ -39,7 +39,7 @@ export default function PricingCard() {
   const plans: PricingPlan[] = [
     {
       id: 'free',
-      label: 'Free',
+      label: 'Đồng Hành Cơ Bản',
       price: '0đ',
       period: '/mãi mãi',
       description: 'Đủ để bắt đầu theo dõi sức khỏe sinh sản mỗi ngày.',
@@ -53,13 +53,13 @@ export default function PricingCard() {
     },
     {
       id: 'monthly',
-      label: 'Premium tháng',
+      label: 'Đồng Hành Premium Tháng',
       price: monthlyPrice,
       period: '/30 ngày',
       description: 'Linh hoạt mở khóa phân tích nâng cao và AI Premium.',
       priceId: 'monthly',
       features: [
-        'Tất cả quyền lợi của gói Free',
+        'Tất cả quyền lợi của gói Cơ Bản',
         'Phân tích chu kỳ và triệu chứng nâng cao',
         'Phân tích xu hướng từ toàn bộ lịch sử',
         'AI hỗ trợ tham khảo với hạn mức Premium',
@@ -68,7 +68,7 @@ export default function PricingCard() {
     },
     {
       id: 'yearly',
-      label: 'Premium năm',
+      label: 'Đồng Hành Premium Năm',
       price: yearlyPrice,
       period: '/365 ngày',
       description: 'Đồng hành dài hạn với mức giá tốt nhất.',
@@ -76,7 +76,7 @@ export default function PricingCard() {
       highlight: true,
       badge: 'Tiết kiệm 32%',
       features: [
-        'Tất cả quyền lợi của Premium tháng',
+        'Tất cả quyền lợi của Premium Tháng',
         'Báo cáo sức khỏe định kỳ',
         'Trọn 365 ngày quyền lợi Premium',
         'Tiết kiệm 32% so với mua theo tháng',
@@ -126,7 +126,7 @@ export default function PricingCard() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mx-auto mb-10 max-w-2xl text-center">
         <h2 className="hi-page-title text-3xl sm:text-4xl">
-          Chọn gói <span className="bg-gradient-to-r from-sky-500 via-violet-500 to-pink-500 bg-clip-text text-transparent">Hi</span> phù hợp
+          Lựa chọn Gói <span className="bg-gradient-to-r from-sky-500 via-violet-500 to-pink-500 bg-clip-text text-transparent">Đồng Hành</span> cùng Hi
         </h2>
         <p className="mt-4 text-base font-semibold leading-relaxed text-slate-500">
           Bắt đầu miễn phí hoặc mở khóa thêm phân tích sức khỏe, AI hỗ trợ tham khảo và trải nghiệm Người ấy nâng cao.
@@ -186,7 +186,7 @@ export default function PricingCard() {
                     : 'hi-btn-primary'
                 }`}
               >
-                {isFreePlan ? 'Gói hiện tại' : checkout.isPending ? 'Đang xử lý...' : `Chọn gói ${plan.id === 'monthly' ? 'tháng' : 'năm'}`}
+                {isFreePlan ? 'Đồng Hành Cơ Bản' : checkout.isPending ? 'Đang xử lý...' : `Đăng ký gói ${plan.id === 'monthly' ? 'Tháng' : 'Năm'}`}
               </button>
             </div>
           );

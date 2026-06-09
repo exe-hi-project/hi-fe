@@ -125,7 +125,7 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
         ) : showAnchors ? (
           <div className="hidden flex-1 justify-center gap-8 md:flex">
             <a href="#features" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Tính năng</a>
-            <a href="#pricing" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Gói Hi</a>
+            <a href="#pricing" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Gói Đồng Hành</a>
             <a href="#about" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Về chúng tôi</a>
             <a href="#reviews" className="text-sm font-medium text-slate-500 transition-colors hover:text-purple-400">Blog</a>
           </div>

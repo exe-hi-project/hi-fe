@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import type { DailyLog, FlowIntensity, SymptomCategory, SymptomDictionary, UpsertDailyLogDto } from '../../types/shared';
+import type { DailyLog, FlowIntensity, SymptomCategory, SymptomDictionary, UpsertDailyLogDto, CycleRecord } from '../../types/shared';
 import api from '../../lib/api';
 import ResponsiveModal from '../ui/ResponsiveModal';
 
@@ -91,6 +91,26 @@ export default function DailyLogModal({ open, mode, initialDate, onClose, onSave
   const [notes, setNotes] = useState('');
   const [search, setSearch] = useState('');
 
+  const [confirmPeriodStart, setConfirmPeriodStart] = useState(false);
+
+  const { data: cyclesData } = useQuery<{ cycleRecords: CycleRecord[] }>({
+    queryKey: ['cycles-for-log-check', selectedDate],
+    queryFn: () => api.get('/cycle-records', { params: { from: selectedDate, to: selectedDate } }).then(({ data }) => data),
+    enabled: open,
+  });
+
+  const isExistingPeriodStart = useMemo(() => {
+    return !!cyclesData?.cycleRecords?.some(c => c.startDate.slice(0, 10) === selectedDate);
+  }, [cyclesData, selectedDate]);
+
+  useEffect(() => {
+    if (mode === 'periodStart') {
+      setConfirmPeriodStart(true);
+    } else {
+      setConfirmPeriodStart(isExistingPeriodStart);
+    }
+  }, [selectedDate, isExistingPeriodStart, mode]);
+
   useEffect(() => {
     if (open) {
       setSelectedDate(initialDate ?? today);
@@ -159,16 +179,16 @@ export default function DailyLogModal({ open, mode, initialDate, onClose, onSave
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (mode === 'periodStart' && flowIntensity === 'NONE') {
-        throw new Error('Hãy chọn lượng kinh để xác nhận kỳ kinh bắt đầu hôm nay.');
+      if (confirmPeriodStart && flowIntensity === 'NONE') {
+        throw new Error('Hãy chọn lượng kinh để xác nhận kỳ kinh bắt đầu.');
       }
-      if (flowIntensity === 'NONE' && !hasClots && selectedSymptoms.size === 0 && !notes.trim()) {
+      if (!confirmPeriodStart && flowIntensity === 'NONE' && !hasClots && selectedSymptoms.size === 0 && !notes.trim()) {
         throw new Error('Hãy chọn ít nhất một thông tin trước khi lưu nhật ký.');
       }
       const payload: UpsertDailyLogDto = {
         flowIntensity,
         hasClots,
-        confirmPeriodStart: mode === 'periodStart',
+        confirmPeriodStart,
         notes: notes.trim(),
         symptoms: Array.from(selectedSymptoms).map((symptomId) => ({ symptomId, severity: 'MILD' })),
       };
@@ -196,10 +216,10 @@ export default function DailyLogModal({ open, mode, initialDate, onClose, onSave
       <button
         type="button"
         onClick={() => saveMutation.mutate()}
-        disabled={saveMutation.isPending || (mode === 'periodStart' && flowIntensity === 'NONE')}
+        disabled={saveMutation.isPending || (confirmPeriodStart && flowIntensity === 'NONE')}
         className="hi-btn-primary rounded-xl px-6 py-3 text-sm font-bold"
       >
-        {saveMutation.isPending ? 'Đang lưu...' : mode === 'periodStart' ? 'Xác nhận bắt đầu kỳ' : 'Lưu nhật ký'}
+        {saveMutation.isPending ? 'Đang lưu...' : confirmPeriodStart ? 'Xác nhận bắt đầu kỳ' : 'Lưu nhật ký'}
       </button>
     </div>
   );
@@ -208,8 +228,8 @@ export default function DailyLogModal({ open, mode, initialDate, onClose, onSave
     <ResponsiveModal
       open={open}
       onClose={onClose}
-      title={mode === 'periodStart' ? 'Bắt đầu kỳ hôm nay' : 'Nhật ký sức khỏe'}
-      description={mode === 'periodStart' ? 'Ghi lượng kinh thực tế để xác nhận Ngày 1 của kỳ mới.' : 'Chọn những thay đổi bạn ghi nhận trong ngày.'}
+      title={confirmPeriodStart ? 'Xác nhận bắt đầu kỳ' : 'Nhật ký sức khỏe'}
+      description={confirmPeriodStart ? 'Ghi lượng kinh thực tế để xác nhận Ngày 1 của kỳ kinh mới.' : 'Chọn những thay đổi bạn ghi nhận trong ngày.'}
       icon="monitor_heart"
       maxWidthClassName="sm:max-w-5xl"
       bodyClassName="bg-slate-50/80"
@@ -220,38 +240,37 @@ export default function DailyLogModal({ open, mode, initialDate, onClose, onSave
           <button
             type="button"
             onClick={() => setSelectedDate(addDays(selectedDate, -1))}
-            disabled={mode === 'periodStart'}
-            className="flex size-10 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-rose-50 disabled:opacity-25"
+            className="flex size-10 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-rose-50"
             aria-label="Ngày trước"
           >
             <span className="material-symbols-outlined">chevron_left</span>
           </button>
           <div className="text-center">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-500">{selectedDate === today ? 'Hôm nay' : 'Nhật ký ngày'}</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-500">
+              {confirmPeriodStart ? 'Bắt đầu kỳ kinh' : selectedDate === today ? 'Hôm nay' : 'Nhật ký ngày'}
+            </p>
             <p className="mt-1 text-sm font-extrabold capitalize text-slate-800">{formatDate(selectedDate)}</p>
           </div>
           <button
             type="button"
             onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-            disabled={mode === 'periodStart' || selectedDate >= today}
+            disabled={selectedDate >= today}
             className="flex size-10 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-rose-50 disabled:opacity-25"
             aria-label="Ngày sau"
           >
             <span className="material-symbols-outlined">chevron_right</span>
           </button>
         </div>
-        {mode === 'default' && (
-          <div className="mt-3 flex justify-center">
-            <input
-              type="date"
-              value={selectedDate}
-              max={today}
-              onChange={(event) => setSelectedDate(event.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 outline-none transition-colors focus:border-rose-300"
-              aria-label="Chọn ngày nhật ký"
-            />
-          </div>
-        )}
+        <div className="mt-3 flex justify-center">
+          <input
+            type="date"
+            value={selectedDate}
+            max={today}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 outline-none transition-colors focus:border-rose-300"
+            aria-label="Chọn ngày nhật ký"
+          />
+        </div>
         <label className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2.5">
           <span className="material-symbols-outlined text-[20px] text-slate-400">search</span>
           <input
@@ -310,6 +329,33 @@ export default function DailyLogModal({ open, mode, initialDate, onClose, onSave
                   <span className="material-symbols-outlined text-[17px]">bloodtype</span>
                   Cục máu đông
                 </button>
+              </div>
+
+              {/* Toggle switch for confirmPeriodStart */}
+              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex flex-col gap-0.5 pr-4 text-left">
+                  <span className="text-xs font-black uppercase tracking-wide text-rose-500">Kích hoạt kỳ kinh mới</span>
+                  <span className="text-sm font-extrabold text-slate-800">Đánh dấu ngày này là ngày bắt đầu kỳ kinh mới</span>
+                  <span className="text-[11px] font-semibold text-slate-400 leading-snug">
+                    Hi sẽ tự động tạo một chu kỳ kinh nguyệt mới bắt đầu từ ngày này.
+                  </span>
+                  {isExistingPeriodStart && (
+                    <span className="mt-1 inline-flex items-center gap-1 w-fit rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                      <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                      Đã ghi nhận trong lịch sử chu kỳ
+                    </span>
+                  )}
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={confirmPeriodStart}
+                    disabled={isExistingPeriodStart}
+                    onChange={(e) => setConfirmPeriodStart(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500 ${isExistingPeriodStart ? 'opacity-60 cursor-not-allowed' : ''}`}></div>
+                </label>
               </div>
             </section>
 

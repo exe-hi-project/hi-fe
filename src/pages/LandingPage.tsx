@@ -19,7 +19,7 @@ const HERO_AVATARS = [
 
 const LANDING_PLANS = [
   {
-    name: 'Free',
+    name: 'Đồng Hành Cơ Bản',
     price: '0đ',
     description: 'Bắt đầu theo dõi sức khỏe sinh sản cá nhân.',
     features: ['Theo dõi chu kỳ cơ bản', 'Lịch sử cá nhân không giới hạn', 'Nhắc lịch cơ bản', 'AI hỏi đáp giới hạn'],
@@ -28,24 +28,24 @@ const LANDING_PLANS = [
     highlight: false,
   },
   {
-    name: 'Premium tháng',
+    name: 'Đồng Hành Premium Tháng',
     price: '49.000đ',
     suffix: '/tháng',
     description: 'Mở khóa phân tích nâng cao và AI chăm sóc sâu hơn.',
     features: ['Analytics chu kỳ và triệu chứng', 'AI Premium ưu tiên', 'Chia sẻ với Người ấy nâng cao', 'Video sức khỏe được duyệt'],
     to: '/register?plan=monthly',
-    cta: 'Chọn gói tháng',
+    cta: 'Chọn Đồng Hành Tháng',
     highlight: true,
   },
   {
-    name: 'Premium năm',
+    name: 'Đồng Hành Premium Năm',
     price: '399.000đ',
     suffix: '/năm',
     badge: 'Tiết kiệm 32%',
     description: 'Tối ưu cho người dùng muốn theo dõi dài hạn.',
     features: ['Tất cả Premium tháng', 'Báo cáo định kỳ', 'Ưu tiên tính năng mới', 'Giá tốt nhất trong năm'],
     to: '/register?plan=yearly',
-    cta: 'Chọn gói năm',
+    cta: 'Chọn Đồng Hành Năm',
     highlight: false,
   },
 ];
@@ -75,25 +75,25 @@ export default function LandingPage() {
               <div className="flex flex-col gap-6 flex-1 text-center md:text-left z-10">
                 <div className="flex flex-col gap-4">
                   {/* Badge */}
-                  <div className="inline-flex self-center md:self-start items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-100 shadow-sm w-fit">
+                  <div className="inline-flex self-center md:self-start items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-100 shadow-sm w-fit animate-fade-in-up">
                     <span className="material-symbols-outlined text-pink-400 text-sm" style={{ fontSize: '16px' }}>favorite</span>
                     <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Yêu thương trọn vẹn</span>
                   </div>
 
-                  <h1 className="hi-page-title text-3xl md:text-4xl lg:text-5xl">
+                  <h1 className="hi-page-title text-3xl md:text-4xl lg:text-5xl animate-fade-in-up delay-100">
                     Hiểu mình, Hiểu người,{' '}
                     <span className="bg-gradient-to-r from-blue-500 to-pink-400 bg-clip-text text-transparent">
                       Yêu thương trọn vẹn
                     </span>
                   </h1>
 
-                  <p className="text-slate-500 text-lg font-medium leading-relaxed max-w-[500px] mx-auto md:mx-0">
+                  <p className="text-slate-500 text-lg font-medium leading-relaxed max-w-[500px] mx-auto md:mx-0 animate-fade-in-up delay-200">
                     Ứng dụng theo dõi sức khỏe và kết nối tình cảm thông minh. Cùng nhau thấu hiểu chu kỳ, chia sẻ cảm xúc và xây dựng mối quan hệ bền vững.
                   </p>
                 </div>
 
                 {/* Buttons */}
-                <div className="flex flex-wrap gap-4 justify-center md:justify-start pt-2">
+                <div className="flex flex-wrap gap-4 justify-center md:justify-start pt-2 animate-fade-in-up delay-300">
                   <Link
                     to="/register"
                     className="lp-btn-gradient flex min-w-[140px] cursor-pointer items-center justify-center rounded-full h-12 px-6 text-white text-base font-bold tracking-wide"
@@ -173,7 +173,7 @@ export default function LandingPage() {
               {/* Row 1 — 3 cols */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full">
                 {/* Theo dõi chu kỳ */}
-                <div className="group flex flex-col gap-5 rounded-2xl border border-pink-100 bg-pink-50/50 p-7 lp-hover-lift hover:bg-pink-50 transition-all duration-300">
+                <div className="group flex flex-col gap-5 rounded-2xl border border-pink-100 bg-pink-50/50 p-7 bento-card-hover hover:bg-pink-50 transition-all duration-300 animate-fade-in-up delay-100">
                   <div className="w-12 h-12 rounded-2xl bg-white text-pink-500 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[28px]">calendar_month</span>
                   </div>
@@ -184,7 +184,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Nhắc nhở */}
-                <div className="group flex flex-col gap-5 rounded-2xl border border-purple-100 bg-purple-50/50 p-7 lp-hover-lift hover:bg-purple-50 transition-all duration-300">
+                <div className="group flex flex-col gap-5 rounded-2xl border border-purple-100 bg-purple-50/50 p-7 bento-card-hover hover:bg-purple-50 transition-all duration-300 animate-fade-in-up delay-200">
                   <div className="w-12 h-12 rounded-2xl bg-white text-purple-500 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[28px]">notifications_active</span>
                   </div>
@@ -195,7 +195,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* AI Phân tích */}
-                <div className="group flex flex-col gap-5 rounded-2xl border border-sky-100 bg-sky-50/50 p-7 lp-hover-lift hover:bg-sky-50 transition-all duration-300">
+                <div className="group flex flex-col gap-5 rounded-2xl border border-sky-100 bg-sky-50/50 p-7 bento-card-hover hover:bg-sky-50 transition-all duration-300 animate-fade-in-up delay-300">
                   <div className="w-12 h-12 rounded-2xl bg-white text-sky-500 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[28px]">psychology</span>
                   </div>
@@ -209,7 +209,7 @@ export default function LandingPage() {
               {/* Row 2 — 4 cols */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 w-full">
                 {/* Love Translator */}
-                <div className="group flex flex-col gap-5 rounded-2xl border border-rose-100 bg-rose-50/50 p-7 lp-hover-lift hover:bg-rose-50 transition-all duration-300">
+                <div className="group flex flex-col gap-5 rounded-2xl border border-rose-100 bg-rose-50/50 p-7 bento-card-hover hover:bg-rose-50 transition-all duration-300 animate-fade-in-up delay-100">
                   <div className="w-12 h-12 rounded-2xl bg-white text-rose-500 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[28px]">translate</span>
                   </div>
@@ -220,7 +220,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Kết nối yêu thương */}
-                <div className="group flex flex-col gap-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-7 lp-hover-lift hover:bg-blue-50 transition-all duration-300">
+                <div className="group flex flex-col gap-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-7 bento-card-hover hover:bg-blue-50 transition-all duration-300 animate-fade-in-up delay-200">
                   <div className="w-12 h-12 rounded-2xl bg-white text-blue-500 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[28px]">favorite</span>
                   </div>
@@ -231,7 +231,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Lời khuyên mỗi ngày */}
-                <div className="group flex flex-col gap-5 rounded-2xl border border-yellow-100 bg-yellow-50/50 p-7 lp-hover-lift hover:bg-yellow-50 transition-all duration-300">
+                <div className="group flex flex-col gap-5 rounded-2xl border border-yellow-100 bg-yellow-50/50 p-7 bento-card-hover hover:bg-yellow-50 transition-all duration-300 animate-fade-in-up delay-300">
                   <div className="w-12 h-12 rounded-2xl bg-white text-yellow-500 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[28px]">tips_and_updates</span>
                   </div>
@@ -243,7 +243,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Gợi ý sản phẩm */}
-                <div className="group flex flex-col gap-5 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-7 lp-hover-lift hover:bg-emerald-50 transition-all duration-300">
+                <div className="group flex flex-col gap-5 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-7 bento-card-hover hover:bg-emerald-50 transition-all duration-300 animate-fade-in-up delay-400">
                   <div className="w-12 h-12 rounded-2xl bg-white text-emerald-500 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[28px]">shopping_bag</span>
                   </div>
@@ -268,7 +268,7 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Review 1 */}
-              <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm bento-card-hover transition-all animate-fade-in-up delay-100">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-full bg-cover bg-center bg-no-repeat shadow-inner"
@@ -289,7 +289,7 @@ export default function LandingPage() {
               </div>
 
               {/* Review 2 */}
-              <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm bento-card-hover transition-all animate-fade-in-up delay-200">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-full bg-cover bg-center bg-no-repeat shadow-inner"
@@ -310,7 +310,7 @@ export default function LandingPage() {
               </div>
 
               {/* Review 3 */}
-              <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm bento-card-hover transition-all animate-fade-in-up delay-300">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-full bg-cover bg-center bg-no-repeat shadow-inner"
@@ -339,7 +339,7 @@ export default function LandingPage() {
           <div className="flex w-full max-w-[1100px] flex-col gap-10">
             <div className="mx-auto flex max-w-[720px] flex-col gap-3 text-center">
               <span className="mx-auto w-fit rounded-full border border-pink-100 bg-white px-4 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-pink-500 shadow-sm">
-                Gói Hi
+                Gói Đồng Hành
               </span>
               <h2 className="hi-page-title text-3xl md:text-4xl">
                 Chọn nhịp chăm sóc phù hợp với bạn
@@ -350,51 +350,54 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-5 md:grid-cols-3">
-              {LANDING_PLANS.map((plan) => (
-                <div
-                  key={plan.name}
-                  className={`relative flex min-h-[420px] flex-col rounded-[2rem] border p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
-                    plan.highlight
-                      ? 'border-pink-200 bg-gradient-to-br from-white via-pink-50 to-purple-50'
-                      : 'border-slate-100 bg-white/90'
-                  }`}
-                >
-                  {plan.badge && (
-                    <span className="absolute right-5 top-5 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
-                      {plan.badge}
-                    </span>
-                  )}
-                  <div className="mb-6">
-                    <h3 className="text-xl font-black text-slate-900">{plan.name}</h3>
-                    <p className="mt-2 min-h-[48px] text-sm font-medium leading-relaxed text-slate-500">{plan.description}</p>
-                  </div>
-
-                  <div className="mb-6 flex items-end gap-1">
-                    <span className="text-4xl font-black tracking-tight text-slate-900">{plan.price}</span>
-                    {plan.suffix && <span className="pb-1 text-sm font-bold text-slate-400">{plan.suffix}</span>}
-                  </div>
-
-                  <ul className="mb-8 flex flex-1 flex-col gap-3">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm font-semibold leading-relaxed text-slate-600">
-                        <span className="material-symbols-outlined mt-0.5 text-[16px] text-pink-400">check_circle</span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Link
-                    to={plan.to}
-                    className={`flex h-12 items-center justify-center rounded-full px-5 text-sm font-extrabold transition-all active:scale-[0.98] ${
-                      plan.name === 'Free'
-                        ? 'border border-pink-100 bg-white text-pink-500 shadow-sm hover:-translate-y-0.5 hover:bg-pink-50'
-                        : 'lp-btn-gradient text-white shadow-lg'
+              {LANDING_PLANS.map((plan, index) => {
+                const delays = ['delay-100', 'delay-200', 'delay-300'];
+                return (
+                  <div
+                    key={plan.name}
+                    className={`relative flex min-h-[420px] flex-col rounded-[2rem] border p-6 shadow-sm bento-card-hover animate-fade-in-up ${delays[index] || ''} ${
+                      plan.highlight
+                        ? 'border-pink-200 bg-gradient-to-br from-white via-pink-50 to-purple-50'
+                        : 'border-slate-100 bg-white/90'
                     }`}
                   >
-                    {plan.cta}
-                  </Link>
-                </div>
-              ))}
+                    {plan.badge && (
+                      <span className="absolute right-5 top-5 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
+                        {plan.badge}
+                      </span>
+                    )}
+                    <div className="mb-6">
+                      <h3 className="text-xl font-black text-slate-900">{plan.name}</h3>
+                      <p className="mt-2 min-h-[48px] text-sm font-medium leading-relaxed text-slate-500">{plan.description}</p>
+                    </div>
+
+                    <div className="mb-6 flex items-end gap-1">
+                      <span className="text-4xl font-black tracking-tight text-slate-900">{plan.price}</span>
+                      {plan.suffix && <span className="pb-1 text-sm font-bold text-slate-400">{plan.suffix}</span>}
+                    </div>
+
+                    <ul className="mb-8 flex flex-1 flex-col gap-3">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-2 text-sm font-semibold leading-relaxed text-slate-600">
+                          <span className="material-symbols-outlined mt-0.5 text-[16px] text-pink-400">check_circle</span>
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Link
+                      to={plan.to}
+                      className={`flex h-12 items-center justify-center rounded-full px-5 text-sm font-extrabold transition-all active:scale-[0.98] ${
+                        plan.name === 'Free'
+                          ? 'border border-pink-100 bg-white text-pink-500 shadow-sm hover:-translate-y-0.5 hover:bg-pink-50'
+                          : 'lp-btn-gradient text-white shadow-lg'
+                      }`}
+                    >
+                      {plan.cta}
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -448,7 +451,7 @@ export default function LandingPage() {
               <h4 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-900">Sản phẩm</h4>
               <div className="flex flex-col gap-3 text-sm font-semibold text-slate-500">
                 <a href="#features" className="hover:text-pink-500">Tính năng</a>
-                <a href="#pricing" className="hover:text-pink-500">Gói Hi</a>
+                <a href="#pricing" className="hover:text-pink-500">Gói Đồng Hành</a>
                 <a href="#reviews" className="hover:text-pink-500">Đánh giá</a>
               </div>
             </div>
