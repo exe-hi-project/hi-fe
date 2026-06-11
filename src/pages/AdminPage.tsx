@@ -1,1415 +1,187 @@
- import { useMemo, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  BellRinging,
+  ChartPieSlice,
+  Cpu,
+  CurrencyCircleDollar,
+  List,
+  Pulse,
+  Storefront,
+  Users,
+  VideoCamera,
+  X,
+} from '@phosphor-icons/react';
 import HiLogo from '../components/ui/HiLogo';
 import PageBackdrop from '../components/layout/PageBackdrop';
 import { useAuthStore } from '../store/authStore';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import {
-  Users,
-  ShieldCheck,
-  Heart,
-  Bell,
-  Robot,
-  DownloadSimple,
-  BellRinging,
-  MagnifyingGlass,
-  CaretLeft,
-  CaretRight,
-  Crown,
-  CurrencyCircleDollar,
-  CreditCard,
-  PaperPlaneRight,
-  Cpu,
-  Database,
-  ChartPieSlice,
-  TrendUp,
-  Pulse,
-  VideoCamera,
-} from '@phosphor-icons/react';
+import type { AdminTab } from '../components/admin/adminTypes';
+import AdminPanelSkeleton from '../components/admin/AdminPanelSkeleton';
 
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import Spinner from '../components/ui/Spinner';
-import {
-  Area,
-  AreaChart,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  BarChart,
-  Bar,
-} from 'recharts';
-import api from '../lib/api';
-import HealthVideoAdminPanel from '../components/admin/HealthVideoAdminPanel';
-import AffiliateAdminPanel from '../components/admin/AffiliateAdminPanel';
-import AdminAnalyticsPanel from '../components/admin/AdminAnalyticsPanel';
+const AdminOverviewPanel = lazy(() => import('../components/admin/AdminOverviewPanel'));
+const AdminAnalyticsPanel = lazy(() => import('../components/admin/AdminAnalyticsPanel'));
+const AdminRevenuePanel = lazy(() => import('../components/admin/AdminRevenuePanel'));
+const AdminUsersPanel = lazy(() => import('../components/admin/AdminUsersPanel'));
+const HealthVideoAdminPanel = lazy(() => import('../components/admin/HealthVideoAdminPanel'));
+const AffiliateAdminPanel = lazy(() => import('../components/admin/AffiliateAdminPanel'));
+const AdminNotificationsPanel = lazy(() => import('../components/admin/AdminNotificationsPanel'));
+const AdminSystemPanel = lazy(() => import('../components/admin/AdminSystemPanel'));
 
-interface MoodItem {
-  name: string;
-  value: number;
-  color: string;
-}
-
-interface ChatHourItem {
-  hour: string;
-  queries: number;
-}
-
-interface AdminOverview {
-  usersTotal: number;
-  usersFemale: number;
-  usersMale: number;
-  adminsTotal: number;
-  cyclesTotal: number;
-  symptomsTotal: number;
-  notificationsTotal: number;
-  unreadNotifications: number;
-  chatMessagesTotal: number;
-}
-
-interface AdminFinancialReport {
-  estimatedPaidUsers: number;
-  estimatedMrrUsd: number;
-  estimatedAiCostMonthlyUsd: number;
-  infraCostUsd: number;
-  estimatedGrossProfitUsd: number;
-  estimatedGrossMarginPct: number;
-  arpuUsd: number;
-  monthlyChurnRatePct: number;
-  estimatedLtvUsd: number;
-  assumptions: {
-    paidUserRate: number;
-    avgMessagesPerConversation: number;
-    avgTokensPerConversation: number;
-    aiCostPer1kTokens: number;
-  };
-}
-
-interface AffiliateReport {
-  orders: number;
-  totalCommissionVnd: number;
-  settledCommissionVnd: number;
-  totalRevenueVnd: number;
-}
-
-interface MonthlyFinancialItem {
-  month: string;
-  newUsers: number;
-  chatMessages: number;
-  revenueUsd: number;
-  aiCostUsd: number;
-  netUsd: number;
-}
-
-interface AdminUser {
-  _id: string;
-  name: string;
-  email: string;
-  gender: 'female' | 'male' | 'other';
-  role: 'user' | 'admin';
-  accountStatus?: 'ACTIVE' | 'LOCKED' | 'DELETED';
-  accountStatusReason?: string | null;
-  onboardingCompleted?: boolean;
-  createdAt: string;
-}
-
-interface PayOSTransaction {
-  _id: string;
-  userId: string;
-  userEmail: string;
-  orderCode: number;
-  amount: number;
-  plan: string;
-  status: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface PayOSReport {
-  totalRevenueVnd: number;
-  completedOrdersCount: number;
-  totalOrdersCount: number;
-  statusBreakdown: {
-    completed: number;
-    pending: number;
-    canceled: number;
-  };
-  transactions: PayOSTransaction[];
-}
-
-const PAGE_SIZE = 10;
-
-// Pastel colors theme for Hi app
-const STAT_CARDS = [
-  { key: 'users', label: 'Tổng người dùng', Icon: Users, iconColor: 'text-[#e9638f]', bgCls: 'bg-rose-50/60 border-rose-100/50' },
-  { key: 'admins', label: 'Quản trị viên', Icon: ShieldCheck, iconColor: 'text-amber-500', bgCls: 'bg-amber-50/60 border-amber-100/50' },
-  { key: 'health', label: 'Dữ liệu sức khỏe', Icon: Heart, iconColor: 'text-emerald-500', bgCls: 'bg-emerald-50/60 border-emerald-100/50' },
-  { key: 'notifs', label: 'Thông báo đã gửi', Icon: Bell, iconColor: 'text-purple-500', bgCls: 'bg-purple-50/60 border-purple-100/50' },
-  { key: 'chat', label: 'Lịch sử AI Chat', Icon: Robot, iconColor: 'text-sky-500', bgCls: 'bg-sky-50/60 border-sky-100/50' },
+const NAV_ITEMS = [
+  { id: 'overview', label: 'Tổng quan', description: 'KPI và cảnh báo', Icon: ChartPieSlice },
+  { id: 'analytics', label: 'Analytics', description: 'Traffic và chuyển đổi', Icon: Pulse },
+  { id: 'revenue', label: 'Doanh thu', description: 'PayOS và dự phóng', Icon: CurrencyCircleDollar },
+  { id: 'users', label: 'Người dùng', description: 'Tài khoản và quyền', Icon: Users },
+  { id: 'videos', label: 'Video sức khỏe', description: 'Nội dung đã duyệt', Icon: VideoCamera },
+  { id: 'affiliate', label: 'Affiliate', description: 'TikTok và Shopee', Icon: Storefront },
+  { id: 'notifications', label: 'Thông báo', description: 'Chiến dịch vận hành', Icon: BellRinging },
+  { id: 'system', label: 'Hệ thống', description: 'Health và cấu hình', Icon: Cpu },
 ] as const;
 
+const VALID_TABS = new Set<AdminTab>(NAV_ITEMS.map((item) => item.id));
+
+function ActivePanel({ tab }: { tab: AdminTab }) {
+  switch (tab) {
+    case 'analytics':
+      return <AdminAnalyticsPanel />;
+    case 'revenue':
+      return <AdminRevenuePanel />;
+    case 'users':
+      return <AdminUsersPanel />;
+    case 'videos':
+      return <HealthVideoAdminPanel />;
+    case 'affiliate':
+      return <AffiliateAdminPanel />;
+    case 'notifications':
+      return <AdminNotificationsPanel />;
+    case 'system':
+      return <AdminSystemPanel />;
+    default:
+      return <AdminOverviewPanel />;
+  }
+}
+
 export default function AdminPage() {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'payos' | 'affiliate' | 'users' | 'videos' | 'system'>('overview');
-  const [q, setQ] = useState('');
-  const [searchText, setSearchText] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
-  const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male' | 'other'>('all');
-  const [page, setPage] = useState(1);
-  const [chartRange, setChartRange] = useState<3 | 6>(6);
-
-  // Time filter for PayOS Revenue
-  const [payosPeriod, setPayosPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('year');
-
-  // Sliders for Financial Simulator
-  const [simPaidRate, setSimPaidRate] = useState<number>(15);
-  const [simArpu, setSimArpu] = useState<number>(4.99);
-
-  // Notification Campaign State
-  const [campaignTarget, setCampaignTarget] = useState<string>('all');
-  const [campaignTitle, setCampaignTitle] = useState<string>('');
-  const [campaignBody, setCampaignBody] = useState<string>('');
-  const [isSendingCampaign, setIsSendingCampaign] = useState<boolean>(false);
-  const [notificationTarget, setNotificationTarget] = useState<AdminUser | null>(null);
-  const [notificationTitle, setNotificationTitle] = useState('');
-  const [notificationMessage, setNotificationMessage] = useState('');
-
-
-
-  const usersQueryKey = useMemo(
-    () => ['admin-users', { q, roleFilter, genderFilter, page }],
-    [q, roleFilter, genderFilter, page]
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const requestedTab = searchParams.get('tab') as AdminTab | null;
+  const activeTab = requestedTab && VALID_TABS.has(requestedTab) ? requestedTab : 'overview';
+  const activeItem = useMemo(
+    () => NAV_ITEMS.find((item) => item.id === activeTab) ?? NAV_ITEMS[0],
+    [activeTab]
   );
 
-  const overviewQuery = useQuery({
-    queryKey: ['admin-overview'],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/overview');
-      return data as {
-        success: boolean;
-        overview: AdminOverview;
-        financialReport: AdminFinancialReport;
-        monthlyFinancials: MonthlyFinancialItem[];
-        recentUsers: AdminUser[];
-        payosReport: PayOSReport;
-        affiliateReport?: AffiliateReport;
-        moodDistribution?: MoodItem[];
-        hourlyChatTraffic?: ChatHourItem[];
-      };
-    },
-  });
-
-  const usersQuery = useQuery({
-    queryKey: usersQueryKey,
-    queryFn: async () => {
-      const { data } = await api.get('/admin/users', {
-        params: {
-          q: q || undefined,
-          role: roleFilter === 'all' ? undefined : roleFilter,
-          gender: genderFilter === 'all' ? undefined : genderFilter,
-          page,
-          limit: PAGE_SIZE,
-        },
-      });
-      return data as {
-        success: boolean;
-        items: AdminUser[];
-        pagination: { page: number; limit: number; total: number; totalPages: number };
-      };
-    },
-  });
-
-  // Set default slider values once assumptions loaded
-  useEffect(() => {
-    if (overviewQuery.data?.financialReport) {
-      setSimPaidRate(overviewQuery.data.financialReport.assumptions.paidUserRate);
-      setSimArpu(overviewQuery.data.financialReport.arpuUsd);
-    }
-  }, [overviewQuery.data?.financialReport]);
-
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: 'user' | 'admin' }) => {
-      const { data } = await api.patch(`/admin/users/${userId}/role`, { role });
-      return data;
-    },
-    onSuccess: () => {
-      toast.success('Đã cập nhật vai trò người dùng thành công');
-      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Không thể cập nhật vai trò');
-    },
-  });
-
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ userId, status, reason }: { userId: string; status: 'ACTIVE' | 'LOCKED'; reason?: string }) => {
-      const { data } = await api.patch(`/admin/users/${userId}/status`, { status, reason });
-      return data;
-    },
-    onSuccess: () => {
-      toast.success('Đã cập nhật trạng thái tài khoản');
-      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Không thể cập nhật trạng thái tài khoản');
-    },
-  });
-
-  const deleteUserMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const { data } = await api.delete(`/admin/users/${userId}`);
-      return data;
-    },
-    onSuccess: () => {
-      toast.success('Đã xóa mềm tài khoản');
-      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Không thể xóa tài khoản');
-    },
-  });
-
-  const sendUserNotificationMutation = useMutation({
-    mutationFn: async ({ userId, title, message }: { userId: string; title: string; message: string }) => {
-      const { data } = await api.post(`/admin/users/${userId}/notifications`, {
-        title,
-        message,
-        type: 'ADMIN_MESSAGE',
-      });
-      return data;
-    },
-    onSuccess: () => {
-      toast.success('Đã gửi thông báo cho người dùng');
-      setNotificationTarget(null);
-      setNotificationTitle('');
-      setNotificationMessage('');
-      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Không thể gửi thông báo');
-    },
-  });
-
-  const exportCsvMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.get('/admin/users/export', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(response.data as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `users_report_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    },
-    onSuccess: () => toast.success('Đã xuất và tải xuống danh sách người dùng CSV'),
-    onError: () => toast.error('Xuất CSV thất bại'),
-  });
-
-  const triggerRemindersMutation = useMutation({
-    mutationFn: () => api.post('/admin/trigger-reminders'),
-    onSuccess: () => toast.success('Đã chạy thủ công lệnh gửi thông báo nhắc nhở chu kỳ kinh'),
-    onError: () => toast.error('Gửi nhắc nhở thất bại'),
-  });
-
-  const displayStats = overviewQuery.data?.overview;
-  const displayFinancial = overviewQuery.data?.financialReport;
-  const displayMonthlyFinancials = overviewQuery.data?.monthlyFinancials || [];
-  const displayUsers = usersQuery.data?.items || [];
-  const displayPagination = usersQuery.data?.pagination;
-  const displayPayOSReport = overviewQuery.data?.payosReport;
-  const displayMoodDistribution = overviewQuery.data?.moodDistribution || [];
-  const displayHourlyChatTraffic = overviewQuery.data?.hourlyChatTraffic || [];
-
-  const moodTotal = useMemo(() => displayMoodDistribution.reduce((acc, curr) => acc + (curr.value || 0), 0), [displayMoodDistribution]);
-  const chatTotal = useMemo(() => displayHourlyChatTraffic.reduce((acc, curr) => acc + (curr.queries || 0), 0), [displayHourlyChatTraffic]);
-
-  const onSearch = (event: React.FormEvent) => {
-    event.preventDefault();
-    setPage(1);
-    setQ(searchText.trim());
+  const selectTab = (tab: AdminTab) => {
+    setSearchParams(tab === 'overview' ? {} : { tab });
+    setMobileNavOpen(false);
   };
 
-  const chartData = displayMonthlyFinancials.slice(-chartRange);
-  const genderOther = Math.max(
-    (displayStats?.usersTotal ?? 0) - (displayStats?.usersFemale ?? 0) - (displayStats?.usersMale ?? 0),
-    0,
-  );
-  const genderData = [
-    { name: 'Nữ', value: displayStats?.usersFemale ?? 0, color: '#e9638f' },
-    { name: 'Nam', value: displayStats?.usersMale ?? 0, color: '#a78bfa' },
-    { name: 'Khác', value: genderOther, color: '#94a3b8' },
-  ];
-
-  const statValues = [
-    {
-      value: displayStats?.usersTotal ?? 0,
-      sub: `${displayStats?.usersFemale ?? 0} nữ · ${displayStats?.usersMale ?? 0} nam`,
-    },
-    { value: displayStats?.adminsTotal ?? 0, sub: 'Quyền cao nhất' },
-    {
-      value: (displayStats?.cyclesTotal ?? 0) + (displayStats?.symptomsTotal ?? 0),
-      sub: `${displayStats?.cyclesTotal ?? 0} chu kỳ · ${displayStats?.symptomsTotal ?? 0} triệu chứng`,
-    },
-    { value: displayStats?.notificationsTotal ?? 0, sub: `${displayStats?.unreadNotifications ?? 0} chưa đọc` },
-    { value: displayStats?.chatMessagesTotal ?? 0, sub: 'Lịch sử AI Chat' },
-  ];
-
-  // Dynamic client-side filter for PayOS transactions
-  const filteredPayosMetrics = useMemo(() => {
-    if (!displayPayOSReport) return { totalRevenue: 0, completedCount: 0, statusData: [], list: [] };
-    const txs = displayPayOSReport.transactions || [];
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const weekStart = todayStart - 7 * 24 * 60 * 60 * 1000;
-    const monthStart = todayStart - 30 * 24 * 60 * 60 * 1000;
-    const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
-
-    const filtered = txs.filter((tx) => {
-      if (!tx.createdAt) return false;
-      const txTime = new Date(tx.createdAt).getTime();
-      if (payosPeriod === 'today') return txTime >= todayStart;
-      if (payosPeriod === 'week') return txTime >= weekStart;
-      if (payosPeriod === 'month') return txTime >= monthStart;
-      if (payosPeriod === 'year') return txTime >= yearStart;
-      return true;
-    });
-
-    let totalRevenue = 0;
-    let completedCount = 0;
-    let completed = 0;
-    let pending = 0;
-    let canceled = 0;
-
-    filtered.forEach((tx) => {
-      const status = tx.status?.toLowerCase() || 'pending';
-      if (status === 'completed') {
-        totalRevenue += tx.amount || 0;
-        completedCount++;
-        completed++;
-      } else if (status === 'pending') {
-        pending++;
-      } else {
-        canceled++;
-      }
-    });
-
-    const finalStatusData = [
-      { name: 'Đã thanh toán', value: completed, color: '#e9638f' }, // Hi accent pink
-      { name: 'Chờ thanh toán', value: pending, color: '#a78bfa' },   // Hi accent purple
-      { name: 'Hủy', value: canceled, color: '#cbd5e1' },            // Slate light gray
-    ].filter((item) => item.value > 0);
-
-    return {
-      totalRevenue,
-      completedCount,
-      statusData: finalStatusData,
-      list: filtered,
-    };
-  }, [displayPayOSReport, payosPeriod]);
-
-  // Financial Simulator values based on system variables & sliders
-  const simMetrics = useMemo(() => {
-    const totalUsers = displayStats?.usersTotal ?? 0;
-    const chatQueries = displayStats?.chatMessagesTotal ?? 0;
-
-    const paidUsers = Math.round(totalUsers * (simPaidRate / 100));
-    const mrr = paidUsers * simArpu;
-    const conversations = chatQueries / (displayFinancial?.assumptions.avgMessagesPerConversation || 10.0);
-    const avgTokens = displayFinancial?.assumptions.avgTokensPerConversation || 800.0;
-    const tokenPrice = displayFinancial?.assumptions.aiCostPer1kTokens || 0.005;
-    const aiCostMonthly = (conversations * avgTokens / 1000.0) * tokenPrice;
-
-    const infraCost = displayFinancial?.infraCostUsd || 30.0;
-    const grossProfit = mrr - aiCostMonthly - infraCost;
-    const grossMargin = mrr > 0 ? (grossProfit / mrr) * 100 : 0;
-
-    return {
-      paidUsers,
-      mrr: Math.max(0, mrr),
-      aiCost: Math.max(0, aiCostMonthly),
-      grossProfit,
-      grossMargin: Math.max(0, Math.min(100, grossMargin)),
-    };
-  }, [displayStats?.usersTotal, displayStats?.chatMessagesTotal, displayFinancial, simPaidRate, simArpu]);
-
-  // Handle Notification Campaign sending
-  const handleSendCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!campaignTitle.trim() || !campaignBody.trim()) {
-      toast.error('Vui lòng nhập đầy đủ nội dung chiến dịch');
-      return;
-    }
-
-    setIsSendingCampaign(true);
-    try {
-      await api.post('/admin/send-campaign', {
-        target: campaignTarget,
-        title: campaignTitle.trim(),
-        body: campaignBody.trim(),
-      });
-      toast.success(`Đã phát đi chiến dịch tới đối tượng: ${campaignTarget.toUpperCase()}`);
-      setCampaignTitle('');
-      setCampaignBody('');
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gửi chiến dịch thất bại');
-    } finally {
-      setIsSendingCampaign(false);
-    }
+  const signOut = () => {
+    logout();
+    navigate('/login', { replace: true });
   };
-
-  const currentTabName = useMemo(() => {
-    if (activeTab === 'overview') return 'Tổng quan hệ thống';
-    if (activeTab === 'analytics') return 'Báo cáo Analytics';
-    if (activeTab === 'payos') return 'Doanh thu PayOS';
-    if (activeTab === 'affiliate') return 'Affiliate TikTok/Shopee';
-    if (activeTab === 'users') return 'Quản lý tài khoản';
-    if (activeTab === 'videos') return 'Video sức khỏe';
-    return 'Hệ thống & AI';
-  }, [activeTab]);
 
   return (
-    <div className="min-h-screen text-slate-800 flex font-sans bg-[#f8fbff]">
+    <div className="relative flex min-h-[100dvh] bg-slate-50 font-sans text-slate-800">
       <PageBackdrop variant="admin" />
 
-      {/* ── LIGHT SIDEBAR ── */}
-      <aside className="relative z-10 w-[220px] shrink-0 bg-white/90 backdrop-blur-xl border-r border-slate-100 flex flex-col sticky top-0 h-screen overflow-y-auto">
+      {mobileNavOpen ? (
+        <button
+          type="button"
+          aria-label="Đóng điều hướng"
+          className="fixed inset-0 z-30 bg-slate-950/30 lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      ) : null}
 
-        {/* ── Logo block ── */}
-        <div className="px-5 pt-6 pb-5">
-          <div className="flex items-center gap-2.5">
-            <HiLogo size={34} />
-            <div className="leading-tight">
-              <p className="text-slate-900 font-extrabold text-[15px] tracking-tight">Hi</p>
-              <p className="text-[#eb477e] text-[10px] font-semibold tracking-wide uppercase">Admin</p>
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:sticky lg:top-0 lg:h-[100dvh] lg:translate-x-0 ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex h-20 items-center justify-between border-b border-slate-100 px-5">
+          <div className="flex items-center gap-3">
+            <HiLogo size={36} />
+            <div>
+              <p className="text-sm font-extrabold text-slate-950">Hi Admin</p>
+              <p className="text-xs text-slate-500">Bảng vận hành nội bộ</p>
             </div>
           </div>
+          <button
+            type="button"
+            aria-label="Đóng menu"
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+            onClick={() => setMobileNavOpen(false)}
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        {/* ── Divider ── */}
-        <div className="mx-5 h-px bg-slate-100" />
-
-        {/* ── Nav items ── */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-3">Điều hướng</p>
-          {[
-            { id: 'overview', label: 'Tổng quan', Icon: ChartPieSlice, desc: 'Thống kê tổng hợp' },
-            { id: 'analytics', label: 'Analytics', Icon: Pulse, desc: 'Truy cập & Chuyển đổi' },
-            { id: 'payos', label: 'Doanh thu', Icon: CurrencyCircleDollar, desc: 'PayOS & giao dịch' },
-            { id: 'users', label: 'Người dùng', Icon: Users, desc: 'Tài khoản & phân quyền' },
-            { id: 'videos', label: 'Video sức khỏe', Icon: VideoCamera, desc: 'Nguồn nội dung duyệt' },
-            { id: 'system', label: 'Hệ thống', Icon: Cpu, desc: 'AI & dịch vụ' },
-          ].map((tab) => {
-            const active = activeTab === tab.id;
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Điều hướng quản trị">
+          {NAV_ITEMS.map((item) => {
+            const active = item.id === activeTab;
             return (
               <button
-                key={tab.id}
+                key={item.id}
                 type="button"
-                onClick={() => { setActiveTab(tab.id as any); setPage(1); }}
-                className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all relative overflow-hidden ${
+                onClick={() => selectTab(item.id)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors active:scale-[0.99] ${
                   active
-                    ? 'bg-[#fdf0f4] text-[#eb477e]'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                    ? 'bg-rose-50 text-[#c52d62]'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                 }`}
               >
-                {/* Active left border pill */}
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#eb477e]" />
-                )}
-                <tab.Icon
-                  size={16}
-                  weight={active ? 'fill' : 'regular'}
-                  className={`shrink-0 transition-colors ${
-                    active ? 'text-[#eb477e]' : 'text-slate-400 group-hover:text-slate-600'
-                  }`}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[13px] font-semibold truncate leading-tight ${
-                    active ? 'text-[#eb477e]' : ''
-                  }`}>{tab.label}</p>
-                  <p className={`text-[10px] truncate leading-tight mt-0.5 ${
-                    active ? 'text-[#eb477e]/70' : 'text-slate-400'
-                  }`}>{tab.desc}</p>
-                </div>
+                <item.Icon size={18} weight={active ? 'fill' : 'regular'} className="shrink-0" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold">{item.label}</span>
+                  <span className={`block truncate text-[11px] ${active ? 'text-rose-500' : 'text-slate-400'}`}>
+                    {item.description}
+                  </span>
+                </span>
               </button>
             );
           })}
-          <button
-            type="button"
-            onClick={() => { setActiveTab('affiliate'); setPage(1); }}
-            className={`group mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
-              activeTab === 'affiliate'
-                ? 'bg-[#fdf0f4] text-[#eb477e]'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-            }`}
-          >
-            <TrendUp size={16} weight={activeTab === 'affiliate' ? 'fill' : 'regular'} className="shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold leading-tight">Affiliate</p>
-              <p className="mt-0.5 truncate text-[10px] leading-tight text-slate-400">TikTok & Shopee</p>
-            </div>
-          </button>
         </nav>
 
-        {/* ── Sidebar footer ── */}
-        <div className="px-4 py-4 border-t border-slate-100 space-y-3">
-          {/* Status chip */}
-          <div className="flex items-center gap-2 px-1">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span className="text-[10px] text-slate-400 font-medium">Hệ thống hoạt động</span>
-          </div>
+        <div className="border-t border-slate-100 p-4">
           <button
             type="button"
-            onClick={() => {
-              logout();
-              navigate('/login', { replace: true });
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-extrabold text-rose-600 transition-all hover:-translate-y-0.5 hover:bg-rose-100 active:scale-[0.98]"
+            onClick={signOut}
+            className="w-full rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-50 active:scale-[0.98]"
           >
             Đăng xuất
           </button>
-          {/* App version badge */}
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] text-slate-300 font-medium">Hi Admin v2.5</span>
-            <span className="text-[9px] bg-[#fdf0f4] text-[#eb477e] font-bold px-2 py-0.5 rounded-full">
-              MVP
-            </span>
-          </div>
         </div>
       </aside>
 
-      {/* ── MAIN AREA ── */}
-      <div className="relative z-10 flex-1 flex flex-col min-w-0">
-
-        {/* Top bar */}
-        <header className="sticky top-0 z-10 bg-white border-b border-slate-200/60 px-7 py-3.5 flex items-center justify-between">
-          <div>
-            <h1 className="hi-page-title text-base">{currentTabName}</h1>
-            <p className="text-[11px] text-slate-400 font-medium mt-0.5">Hi App · Bảng quản trị nội bộ</p>
+      <div className="relative z-10 min-w-0 flex-1">
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-7">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              aria-label="Mở điều hướng"
+              className="rounded-xl border border-slate-200 p-2 text-slate-600 lg:hidden"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <List size={20} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-extrabold tracking-tight text-slate-950">{activeItem.label}</h1>
+              <p className="truncate text-xs text-slate-500">{activeItem.description}</p>
+            </div>
           </div>
-          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Hệ thống đang hoạt động
+          <span className="hidden rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 sm:inline-flex">
+            Internal operations
           </span>
         </header>
 
-        {/* ── CONTENT ── */}
-        <main className="flex-1 p-6 lg:p-8">
-        <div className="space-y-0">
-
-            {/* ── TAB: ANALYTICS ── */}
-            {activeTab === 'analytics' && (
-              <AdminAnalyticsPanel />
-            )}
-
-            {/* ── TAB 1: TỔNG QUAN ── */}
-            {activeTab === 'overview' && (
-              <div className="space-y-5">
-
-                {/* 5 stat cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                  {overviewQuery.isLoading
-                    ? Array.from({ length: 5 }).map((_, idx) => (
-                        <div key={idx} className="h-24 rounded-2xl bg-white border border-slate-200/60 animate-pulse" />
-                      ))
-                    : STAT_CARDS.map((stat, i) => (
-                        <div key={stat.key} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm">
-                          <div className="flex items-start justify-between mb-2.5">
-                            <div className={`p-1.5 rounded-lg bg-slate-50 border border-slate-100 ${stat.iconColor}`}>
-                              <stat.Icon size={14} weight="bold" />
-                            </div>
-                          </div>
-                          <p className="text-xl font-extrabold text-slate-900 tracking-tight leading-none">
-                            {(statValues[i]?.value ?? 0).toLocaleString()}
-                          </p>
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mt-1.5">{stat.label}</p>
-                          {statValues[i]?.sub && (
-                            <p className="text-[10px] text-slate-400 mt-0.5 font-medium truncate">{statValues[i]?.sub}</p>
-                          )}
-                        </div>
-                      ))}
-                </div>
-                {overviewQuery.data?.affiliateReport && (
-                  <div className="rounded-2xl border border-pink-100 bg-gradient-to-r from-pink-50 via-white to-sky-50 p-4 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-wider text-pink-500">Affiliate commission</p>
-                        <h3 className="mt-1 text-lg font-black text-slate-900">Doanh thu TikTok/Shopee</h3>
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-xs font-black">
-                        <span className="rounded-full bg-white px-4 py-2 text-slate-600 shadow-sm">Đơn: {overviewQuery.data.affiliateReport.orders}</span>
-                        <span className="rounded-full bg-emerald-50 px-4 py-2 text-emerald-700 shadow-sm">
-                          Hoa hồng đã chốt: {Math.round(overviewQuery.data.affiliateReport.settledCommissionVnd ?? 0).toLocaleString('vi-VN')}đ
-                        </span>
-                        <span className="rounded-full bg-violet-50 px-4 py-2 text-violet-700 shadow-sm">
-                          Tổng doanh thu: {Math.round(overviewQuery.data.affiliateReport.totalRevenueVnd ?? 0).toLocaleString('vi-VN')}đ
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Charts row 1 */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-
-                  {/* Growth area chart */}
-                  <div className="xl:col-span-2 bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                    <div className="flex items-center justify-between mb-5">
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-800">Tăng trưởng & Tương tác AI</h3>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Users mới và chat queries theo tháng</p>
-                      </div>
-                      <div className="inline-flex items-center rounded-lg bg-slate-100 p-0.5">
-                        {([3, 6] as const).map((range) => (
-                          <button
-                            key={range}
-                            type="button"
-                            onClick={() => setChartRange(range)}
-                            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-                              chartRange === range ? 'bg-white text-[#eb477e] shadow-sm' : 'text-slate-500'
-                            }`}
-                          >
-                            {range}T
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {overviewQuery.isLoading ? (
-                      <div className="h-52 flex items-center justify-center"><Spinner /></div>
-                    ) : chartData.length === 0 ? (
-                      <div className="h-52 flex items-center justify-center text-xs text-slate-400">Chưa có dữ liệu</div>
-                    ) : (
-                      <div className="h-52">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#eb477e" stopOpacity={0.18} />
-                                <stop offset="100%" stopColor="#eb477e" stopOpacity={0} />
-                              </linearGradient>
-                              <linearGradient id="chatGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.18} />
-                                <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                            <Tooltip
-                              contentStyle={{ backgroundColor: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, fontSize: 11 }}
-                              formatter={(value, name) => [Number(value ?? 0).toFixed(0), String(name)]}
-                            />
-                            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                            <Area yAxisId="left" type="monotone" dataKey="newUsers" name="Users mới" stroke="#eb477e" fill="url(#userGrad)" strokeWidth={2} />
-                            <Area yAxisId="right" type="monotone" dataKey="chatMessages" name="Chat queries" stroke="#a78bfa" fill="url(#chatGrad)" strokeWidth={2} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Gender donut */}
-                  <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-800 mb-4">Cơ cấu giới tính</h3>
-                    <div className="h-40 w-full relative">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={genderData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={32} outerRadius={50} paddingAngle={2}>
-                            {genderData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip formatter={(value) => [`${value} người`, 'Số lượng']} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                        <p className="text-lg font-black text-slate-800">{displayStats?.usersTotal ?? 0}</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">TỔNG</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1 text-center border-t border-slate-100 pt-3 mt-2">
-                      {genderData.map((d) => (
-                        <div key={d.name}>
-                          <span className="text-[10px] text-slate-400 block font-medium">{d.name}</span>
-                          <div className="flex items-center justify-center gap-1 mt-0.5">
-                            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: d.color }} />
-                            <span className="text-xs font-bold text-slate-800">{d.value}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Charts row 2 */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-
-                  {/* Mood bar chart */}
-                  <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-800 mb-0.5">Chỉ số Tâm trạng Hệ thống</h3>
-                    <p className="text-[11px] text-slate-400 mb-4">Phân tích sức khỏe tinh thần từ nhật ký người dùng.</p>
-                    {overviewQuery.isLoading ? (
-                      <div className="h-52 flex items-center justify-center"><Spinner /></div>
-                    ) : displayMoodDistribution.length === 0 || moodTotal === 0 ? (
-                      <div className="h-52 flex items-center justify-center text-xs text-slate-400">Chưa có dữ liệu tâm trạng</div>
-                    ) : (
-                      <div className="h-52">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={displayMoodDistribution} margin={{ top: 8, right: 8, left: -25, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                            <Tooltip
-                              cursor={{ fill: 'rgba(235,71,126,0.04)' }}
-                              contentStyle={{ backgroundColor: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, fontSize: 11 }}
-                            />
-                            <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                              {displayMoodDistribution.map((entry: any, index: number) => (
-                                <Cell key={`cell-${index}`} fill={entry.color || '#eb477e'} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Hourly traffic chart */}
-                  <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-800 mb-0.5">Tần suất Chat AI theo Giờ</h3>
-                    <p className="text-[11px] text-slate-400 mb-4">Phân bổ tin nhắn AI trong ngày (giờ Việt Nam).</p>
-                    {overviewQuery.isLoading ? (
-                      <div className="h-52 flex items-center justify-center"><Spinner /></div>
-                    ) : displayHourlyChatTraffic.length === 0 || chatTotal === 0 ? (
-                      <div className="h-52 flex items-center justify-center text-xs text-slate-400">Chưa có dữ liệu tần suất</div>
-                    ) : (
-                      <div className="h-52">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={displayHourlyChatTraffic} margin={{ top: 8, right: 8, left: -25, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="trafficGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.18} />
-                                <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="hour" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={2} />
-                            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, fontSize: 11 }} />
-                            <Area type="monotone" dataKey="queries" name="Tin nhắn" stroke="#a78bfa" fill="url(#trafficGrad)" strokeWidth={2.5} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'videos' && <HealthVideoAdminPanel />}
-
-            {activeTab === 'affiliate' && <AffiliateAdminPanel />}
-
-
-            {/* ── TAB 2: PAYOS ── */}
-            {activeTab === 'payos' && (
-              <div className="space-y-5">
-
-                {/* Header row */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-bold text-slate-800">Doanh thu PayOS thực tế</h2>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Dữ liệu từ MongoDB · ghi nhận qua webhook</p>
-                  </div>
-                  <div className="inline-flex items-center rounded-lg bg-white border border-slate-200 p-0.5 shadow-sm">
-                    {([
-                      { key: 'today', label: 'Hôm nay' },
-                      { key: 'week', label: 'Tuần' },
-                      { key: 'month', label: 'Tháng' },
-                      { key: 'year', label: 'Năm' },
-                      { key: 'all', label: 'Tất cả' },
-                    ] as const).map((period) => (
-                      <button
-                        key={period.key}
-                        type="button"
-                        onClick={() => setPayosPeriod(period.key)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                          payosPeriod === period.key
-                            ? 'bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400 text-white shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                      >
-                        {period.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {overviewQuery.isLoading ? (
-                  <div className="h-40 flex items-center justify-center"><Spinner /></div>
-                ) : (
-                  <>
-                    {/* Metric cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tổng doanh thu</p>
-                        <p className="text-3xl font-black text-[#eb477e] tracking-tight">
-                          {filteredPayosMetrics.totalRevenue.toLocaleString('vi-VN')}
-                          <span className="text-sm font-semibold text-slate-400 ml-1.5">VND</span>
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-2">Giao dịch trạng thái COMPLETED</p>
-                      </div>
-                      <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Đơn hàng thành công</p>
-                        <p className="text-3xl font-black text-[#a78bfa] tracking-tight">
-                          {filteredPayosMetrics.completedCount}
-                          <span className="text-sm font-semibold text-slate-400 ml-1.5">đơn</span>
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-2">Người dùng thanh toán thành công</p>
-                      </div>
-                    </div>
-
-                    {/* Donut + Transaction list */}
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-
-                      {/* Status donut */}
-                      <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm flex flex-col">
-                        <p className="text-xs font-bold text-slate-700 mb-4 flex items-center gap-1.5">
-                          <ChartPieSlice size={13} className="text-[#eb477e]" /> Trạng thái đơn
-                        </p>
-                        {filteredPayosMetrics.list.length === 0 ? (
-                          <div className="flex-1 flex items-center justify-center text-xs text-slate-400 py-8">Không có giao dịch</div>
-                        ) : (
-                          <>
-                            <div className="h-40 w-full relative">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                  <Pie data={filteredPayosMetrics.statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={34} outerRadius={52} paddingAngle={2}>
-                                    {filteredPayosMetrics.statusData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                                  </Pie>
-                                  <Tooltip />
-                                </PieChart>
-                              </ResponsiveContainer>
-                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                                <p className="text-base font-black text-slate-800">{filteredPayosMetrics.list.length}</p>
-                                <p className="text-[8px] font-bold text-slate-400 uppercase">ĐƠN</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2 w-full mt-4 border-t border-slate-100 pt-3">
-                              {filteredPayosMetrics.statusData.map((d) => (
-                                <div key={d.name} className="text-center flex-1">
-                                  <span className="text-[9px] font-bold text-slate-400 block truncate">{d.name}</span>
-                                  <div className="flex items-center justify-center gap-1 mt-0.5">
-                                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: d.color }} />
-                                    <span className="text-xs font-extrabold text-slate-700">{d.value}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Transaction list */}
-                      <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm xl:col-span-2">
-                        <p className="text-xs font-bold text-slate-700 flex items-center gap-2 mb-4">
-                          <CreditCard size={13} className="text-[#eb477e]" /> Giao dịch gần đây
-                        </p>
-                        {filteredPayosMetrics.list.length === 0 ? (
-                          <div className="flex items-center justify-center py-12 text-xs text-slate-400">Chưa có giao dịch nào</div>
-                        ) : (
-                          <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                            {filteredPayosMetrics.list.map((tx) => (
-                              <div
-                                key={tx._id}
-                                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/60 transition-colors"
-                              >
-                                <div className="min-w-0 flex-1 pr-2">
-                                  <p className="text-xs font-semibold text-slate-800 truncate">{tx.userEmail}</p>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">
-                                    #{tx.orderCode} · {new Date(tx.createdAt).toLocaleDateString('vi-VN')}
-                                  </p>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <span className="text-xs font-bold text-[#eb477e]">
-                                    +{(tx.amount || 0).toLocaleString('vi-VN')} đ
-                                  </span>
-                                  <div className="mt-0.5">
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
-                                      tx.status === 'completed'
-                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                        : tx.status === 'pending'
-                                        ? 'bg-amber-50 text-amber-600 border-amber-100'
-                                        : 'bg-slate-100 text-slate-500 border-slate-200'
-                                    }`}>
-                                      {tx.status}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* ── TAB 3: USERS ── */}
-            {activeTab === 'users' && (
-              <div className="space-y-5">
-                <div className="bg-white border border-slate-200/60 rounded-2xl shadow-sm">
-                  {/* Card header */}
-                  <div className="flex items-center justify-between gap-3 flex-wrap px-6 pt-6 pb-5 border-b border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-100 text-[#eb477e] rounded-xl">
-                        <Users size={16} weight="bold" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-800">Quản trị người dùng</h3>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Tìm kiếm, lọc giới tính, phân quyền quản trị</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold"
-                        loading={exportCsvMutation.isPending}
-                        onClick={() => exportCsvMutation.mutate()}
-                      >
-                        <DownloadSimple size={13} weight="bold" className="mr-1.5" />
-                        Xuất CSV
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[#eb477e] hover:bg-rose-50 rounded-xl text-xs font-bold border border-rose-100"
-                        loading={triggerRemindersMutation.isPending}
-                        onClick={() => triggerRemindersMutation.mutate()}
-                      >
-                        <BellRinging size={13} weight="bold" className="mr-1.5" />
-                        Gửi nhắc nhở
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Search/filter */}
-                  <form onSubmit={onSearch} className="grid grid-cols-1 md:grid-cols-4 gap-3 px-6 py-4 bg-slate-50/50 border-b border-slate-100">
-                    <div className="relative md:col-span-2">
-                      <MagnifyingGlass size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <Input
-                        placeholder="Tìm theo tên hoặc email..."
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                        className="pl-8 bg-white border-slate-200 text-slate-800 placeholder-slate-400 rounded-xl text-xs"
-                      />
-                    </div>
-                    <select
-                      value={roleFilter}
-                      onChange={(e) => { setPage(1); setRoleFilter(e.target.value as 'all' | 'user' | 'admin'); }}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 focus:outline-none cursor-pointer"
-                    >
-                      <option value="all">Tất cả vai trò</option>
-                      <option value="admin">Quản trị viên</option>
-                      <option value="user">Người dùng</option>
-                    </select>
-                    <div className="flex gap-2">
-                      <select
-                        value={genderFilter}
-                        onChange={(e) => { setPage(1); setGenderFilter(e.target.value as 'all' | 'female' | 'male' | 'other'); }}
-                        className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 focus:outline-none cursor-pointer"
-                      >
-                        <option value="all">Tất cả giới tính</option>
-                        <option value="female">Nữ</option>
-                        <option value="male">Nam</option>
-                        <option value="other">Khác</option>
-                      </select>
-                    <Button type="submit" size="sm" className="rounded-xl font-bold text-xs shrink-0">
-                        Lọc
-                      </Button>
-                    </div>
-                  </form>
-
-                  {/* Table */}
-                  <div className="px-6 py-4">
-                    {usersQuery.isLoading ? (
-                      <div className="flex justify-center py-12"><Spinner size="md" /></div>
-                    ) : displayUsers.length === 0 ? (
-                      <div className="py-12 flex flex-col items-center text-slate-400">
-                        <Users size={28} className="mb-2 opacity-40" />
-                        <p className="text-xs">Không tìm thấy người dùng nào</p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="rounded-xl border border-slate-100 overflow-hidden">
-                          {displayUsers.map((user, idx) => (
-                            <div
-                              key={user._id}
-                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors ${
-                                idx !== displayUsers.length - 1 ? 'border-b border-slate-100' : ''
-                              }`}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                                  user.role === 'admin' ? 'bg-amber-100 text-amber-600' : 'bg-rose-50 text-[#eb477e]'
-                                }`}>
-                                  {user.role === 'admin' ? <Crown size={13} weight="bold" /> : <Users size={13} weight="bold" />}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-sm text-slate-800 truncate">{user.name}</p>
-                                  <p className="text-xs text-slate-400 truncate">{user.email}</p>
-                                  <div className="flex items-center gap-1.5 mt-1">
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase ${
-                                      user.role === 'admin'
-                                        ? 'bg-amber-50 text-amber-600 border-amber-100'
-                                        : 'bg-rose-50 text-[#eb477e] border-rose-100'
-                                    }`}>
-                                      {user.role}
-                                    </span>
-                                    <span className="bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase">
-                                      {user.gender === 'female' ? 'Nữ' : user.gender === 'male' ? 'Nam' : 'Khác'}
-                                    </span>
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase ${
-                                      user.onboardingCompleted
-                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                        : 'bg-slate-100 text-slate-400 border-slate-200'
-                                    }`}>
-                                      {user.onboardingCompleted ? 'Onboarded' : 'Pending'}
-                                    </span>
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase ${
-                                      user.accountStatus === 'LOCKED'
-                                        ? 'bg-amber-50 text-amber-700 border-amber-100'
-                                        : user.accountStatus === 'DELETED'
-                                          ? 'bg-red-50 text-red-600 border-red-100'
-                                          : 'bg-sky-50 text-sky-600 border-sky-100'
-                                    }`}>
-                                      {user.accountStatus === 'LOCKED' ? 'Locked' : user.accountStatus === 'DELETED' ? 'Deleted' : 'Active'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                                <Button
-                                  variant={user.role === 'admin' ? 'ghost' : 'secondary'}
-                                  size="sm"
-                                  className="rounded-xl text-xs font-bold border shrink-0"
-                                  loading={updateRoleMutation.isPending && updateRoleMutation.variables?.userId === user._id}
-                                  disabled={user.accountStatus === 'DELETED'}
-                                  onClick={() => updateRoleMutation.mutate({ userId: user._id, role: user.role === 'admin' ? 'user' : 'admin' })}
-                                >
-                                  {user.role === 'admin' ? 'Hạ quyền' : 'Nâng Admin'}
-                                </Button>
-                                <Button
-                                  variant={user.accountStatus === 'LOCKED' ? 'secondary' : 'outline'}
-                                  size="sm"
-                                  className="rounded-xl text-xs font-bold shrink-0"
-                                  loading={updateStatusMutation.isPending && updateStatusMutation.variables?.userId === user._id}
-                                  disabled={user.accountStatus === 'DELETED'}
-                                  onClick={() => {
-                                    const locking = user.accountStatus !== 'LOCKED';
-                                    const reason = locking ? window.prompt('Lý do khóa tài khoản?', 'Vi phạm chính sách sử dụng') ?? undefined : undefined;
-                                    updateStatusMutation.mutate({ userId: user._id, status: locking ? 'LOCKED' : 'ACTIVE', reason });
-                                  }}
-                                >
-                                  {user.accountStatus === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="rounded-xl text-xs font-bold border border-slate-200 shrink-0"
-                                  disabled={user.accountStatus === 'DELETED'}
-                                  onClick={() => setNotificationTarget(user)}
-                                >
-                                  Gửi TB
-                                </Button>
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  className="rounded-xl text-xs font-bold shrink-0"
-                                  loading={deleteUserMutation.isPending && deleteUserMutation.variables === user._id}
-                                  disabled={user.accountStatus === 'DELETED'}
-                                  onClick={() => {
-                                    if (window.confirm(`Xóa mềm tài khoản ${user.email}? Người dùng sẽ không thể đăng nhập.`)) {
-                                      deleteUserMutation.mutate(user._id);
-                                    }
-                                  }}
-                                >
-                                  Xóa
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Pagination */}
-                        <div className="flex items-center justify-between pt-4">
-                          <p className="text-xs text-slate-400">
-                            Trang {displayPagination?.page ?? 1}/{displayPagination?.totalPages ?? 1} · {displayPagination?.total ?? 0} người dùng
-                          </p>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="border border-slate-200 rounded-xl px-2 py-1.5"
-                              disabled={!displayPagination || displayPagination.page <= 1}
-                              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                            >
-                              <CaretLeft size={13} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="border border-slate-200 rounded-xl px-2 py-1.5"
-                              disabled={!displayPagination || displayPagination.page >= displayPagination.totalPages}
-                              onClick={() => setPage((p) => p + 1)}
-                            >
-                              <CaretRight size={13} />
-                            </Button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── TAB 4: SYSTEM ── */}
-            {activeTab === 'system' && (
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-
-                {/* Left 2/3 */}
-                <div className="xl:col-span-2 space-y-5">
-
-                  {/* Service status cards */}
-                  <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl">
-                        <Pulse size={15} weight="bold" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-800">AI & System Monitor</h3>
-                        <p className="text-[11px] text-slate-400">Trạng thái thời gian thực các dịch vụ</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {[
-                        { Icon: Cpu, title: 'Spring AI Core', sub: 'Model: spring-ai', status: 'Đang hoạt động', dotCls: 'bg-emerald-400', iconBg: 'bg-emerald-50 text-emerald-500' },
-                        { Icon: Database, title: 'Chroma Vector DB', sub: 'Kho tài liệu y khoa', status: 'Đang kết nối', dotCls: 'bg-violet-400', iconBg: 'bg-violet-50 text-[#a78bfa]' },
-                        { Icon: Database, title: 'MongoDB Atlas', sub: 'Atlas Cluster M0', status: 'Đang kết nối', dotCls: 'bg-sky-400', iconBg: 'bg-sky-50 text-sky-500' },
-                      ].map((item) => (
-                        <div key={item.title} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col gap-3">
-                          <div className="flex items-center justify-between">
-                            <div className={`p-2 rounded-xl ${item.iconBg}`}>
-                              <item.Icon size={14} weight="bold" />
-                            </div>
-                            <span className={`w-2 h-2 rounded-full ${item.dotCls}`} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-800">{item.title}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">{item.sub}</p>
-                          </div>
-                          <p className="text-[11px] font-semibold text-emerald-600">{item.status}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Financial simulator */}
-                  <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="p-2 bg-violet-50 text-[#a78bfa] rounded-xl">
-                        <TrendUp size={15} weight="bold" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-800">Giả định Tài chính</h3>
-                        <p className="text-[11px] text-slate-400">Kéo thanh trượt để ước tính doanh thu dựa trên dữ liệu thật</p>
-                      </div>
-                    </div>
-
-                    {overviewQuery.isLoading ? (
-                      <div className="h-32 flex items-center justify-center"><Spinner /></div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs font-semibold">
-                              <span className="text-slate-500">Paid conversion rate</span>
-                              <span className="text-[#eb477e] font-bold">{simPaidRate}%</span>
-                            </div>
-                            <input type="range" min="1" max="100" step="1" value={simPaidRate}
-                              onChange={(e) => setSimPaidRate(Number(e.target.value))}
-                              className="w-full accent-[#eb477e] h-1.5 rounded-lg cursor-pointer" />
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs font-semibold">
-                              <span className="text-slate-500">ARPU (USD/user/month)</span>
-                              <span className="text-[#eb477e] font-bold">${simArpu}</span>
-                            </div>
-                            <input type="range" min="0.99" max="49.99" step="1" value={simArpu}
-                              onChange={(e) => setSimArpu(Number(e.target.value))}
-                              className="w-full accent-[#eb477e] h-1.5 rounded-lg cursor-pointer" />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          {[
-                            { label: 'Thành viên Premium', val: `${simMetrics.paidUsers.toLocaleString()} người`, cls: 'text-slate-800' },
-                            { label: 'MRR ước tính', val: `$${simMetrics.mrr.toLocaleString('en-US', { maximumFractionDigits: 2 })}`, cls: 'text-emerald-600' },
-                            { label: 'AI Cost ước tính', val: `$${simMetrics.aiCost.toLocaleString('en-US', { maximumFractionDigits: 2 })}`, cls: 'text-amber-500' },
-                            { label: 'Lợi nhuận gộp', val: `$${simMetrics.grossProfit.toLocaleString('en-US', { maximumFractionDigits: 2 })}`, cls: 'text-slate-800' },
-                          ].map((row) => (
-                            <div key={row.label} className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-                              <span className="text-slate-500">{row.label}</span>
-                              <span className={`font-bold ${row.cls}`}>{row.val}</span>
-                            </div>
-                          ))}
-                          <div className="pt-1">
-                            <div className="flex justify-between text-[10px] font-semibold text-slate-400 mb-1">
-                              <span>Gross Margin</span>
-                              <span>{simMetrics.grossMargin.toFixed(1)}%</span>
-                            </div>
-                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-[#eb477e] rounded-full transition-all duration-300"
-                                style={{ width: `${simMetrics.grossMargin}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right 1/3 — Notification campaign */}
-                <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm flex flex-col">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="p-2 bg-rose-50 text-[#eb477e] rounded-xl">
-                      <BellRinging size={15} weight="bold" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-800">Chiến dịch Thông báo</h3>
-                      <p className="text-[11px] text-slate-400">Phát tin tới các phân khúc người dùng</p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleSendCampaign} className="flex-1 flex flex-col gap-3.5">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Nhóm đối tượng</label>
-                      <select
-                        value={campaignTarget}
-                        onChange={(e) => setCampaignTarget(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-700 focus:outline-none cursor-pointer"
-                      >
-                        <option value="all">Tất cả người dùng</option>
-                        <option value="female">Người dùng Nữ</option>
-                        <option value="male">Người dùng Nam</option>
-                        <option value="premium">Tài khoản Premium</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Tiêu đề</label>
-                      <Input
-                        placeholder="Tiêu đề thông báo..."
-                        value={campaignTitle}
-                        onChange={(e) => setCampaignTitle(e.target.value)}
-                        className="bg-white border-slate-200 rounded-xl text-xs"
-                      />
-                    </div>
-                    <div className="flex-1 flex flex-col">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Nội dung</label>
-                      <textarea
-                        rows={4}
-                        placeholder="Nội dung tin nhắn..."
-                        value={campaignBody}
-                        onChange={(e) => setCampaignBody(e.target.value)}
-                        className="flex-1 min-h-[90px] w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 resize-none"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      loading={isSendingCampaign}
-                      className="w-full rounded-xl py-2.5 flex items-center justify-center gap-1.5"
-                    >
-                      <PaperPlaneRight size={13} weight="bold" />
-                      Gửi chiến dịch
-                    </Button>
-                  </form>
-
-                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-500 font-medium">
-                    <span>Admin v2.5</span>
-                    <span>Audit logging ✓</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-          </div>
+        <main className="mx-auto w-full max-w-[1500px] p-4 md:p-6 lg:p-8">
+          <Suspense fallback={<AdminPanelSkeleton />}>
+            <ActivePanel tab={activeTab} />
+          </Suspense>
         </main>
-
-        {notificationTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                sendUserNotificationMutation.mutate({
-                  userId: notificationTarget._id,
-                  title: notificationTitle,
-                  message: notificationMessage,
-                });
-              }}
-              className="w-full max-w-lg rounded-3xl border border-white/80 bg-white p-6 shadow-2xl"
-            >
-              <div className="mb-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-rose-500">Thông báo cá nhân</p>
-                <h3 className="mt-1 text-lg font-extrabold text-slate-900">Gửi cho {notificationTarget.name}</h3>
-                <p className="mt-1 text-xs text-slate-400">{notificationTarget.email}</p>
-              </div>
-              <div className="space-y-3">
-                <Input
-                  value={notificationTitle}
-                  onChange={(event) => setNotificationTitle(event.target.value)}
-                  placeholder="Tiêu đề thông báo"
-                  required
-                  className="rounded-xl border-slate-200"
-                />
-                <textarea
-                  value={notificationMessage}
-                  onChange={(event) => setNotificationMessage(event.target.value)}
-                  placeholder="Nội dung gửi tới người dùng..."
-                  required
-                  rows={5}
-                  className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm text-slate-800 outline-none transition-colors focus:border-rose-300"
-                />
-              </div>
-              <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                <Button type="button" variant="secondary" onClick={() => setNotificationTarget(null)}>
-                  Hủy
-                </Button>
-                <Button type="submit" loading={sendUserNotificationMutation.isPending}>
-                  Gửi thông báo
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
       </div>
     </div>
   );

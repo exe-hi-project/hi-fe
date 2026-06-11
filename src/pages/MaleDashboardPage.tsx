@@ -3,9 +3,9 @@ import { Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '../components/layout/Navbar';
 import PageBackdrop from '../components/layout/PageBackdrop';
-import SiteFooter from '../components/layout/SiteFooter';
 import HealthVideoSection from '../components/health/HealthVideoSection';
 import QuickMoodCard from '../components/health/QuickMoodCard';
+import PartnerQuestionPreview from '../components/partner/PartnerQuestionPreview';
 import CyclePreviewCalendar from '../components/cycles/CyclePreviewCalendar';
 import PricingCard from '../components/PricingCard';
 import AffiliateRecommendations from '../components/affiliate/AffiliateRecommendations';
@@ -162,7 +162,7 @@ export default function MaleDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
-            <section className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-sm backdrop-blur-xl">
+            <section className="rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur-xl">
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-black text-blue-500">
@@ -178,7 +178,7 @@ export default function MaleDashboardPage() {
               </div>
 
               {!hasPartner ? (
-                <div className="rounded-[2rem] border border-dashed border-blue-100 bg-blue-50/50 p-10 text-center">
+                <div className="rounded-[2rem] border border-dashed border-blue-200 bg-white p-10 text-center shadow-sm">
                   <span className="material-symbols-outlined text-5xl text-blue-300">person_add</span>
                   <p className="mt-3 text-lg font-black text-slate-900">Chưa kết nối với Người ấy</p>
                   <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-relaxed text-slate-500">
@@ -234,7 +234,7 @@ export default function MaleDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 rounded-3xl border border-blue-100/70 bg-gradient-to-br from-blue-50/80 to-pink-50/70 p-5">
+                  <div className="mt-6 rounded-3xl border border-blue-100 bg-[#f8fcff] p-5 shadow-sm">
                     <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-blue-500">Gợi ý chăm sóc hôm nay</p>
                     <ul className="space-y-2 text-sm font-semibold text-slate-600">
                       <li>• Lắng nghe cảm xúc của Người ấy, nhất là khi kỳ đang tới gần.</li>
@@ -247,7 +247,7 @@ export default function MaleDashboardPage() {
             </section>
 
             <aside className="space-y-6">
-              <div className="rounded-[2rem] border border-blue-100/80 bg-blue-50/80 p-6 text-center shadow-sm backdrop-blur">
+              <div className="rounded-[2rem] border border-blue-100 bg-white/95 p-6 text-center shadow-lg shadow-blue-100/40 backdrop-blur">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="flex items-center gap-2 text-lg font-black text-slate-900">
                     <span className="material-symbols-outlined text-blue-500">favorite</span>
@@ -262,13 +262,14 @@ export default function MaleDashboardPage() {
                     </div>
                     <p className="mt-3 text-xl font-black text-slate-900">{partnerName}</p>
                     <p className="text-sm font-semibold text-slate-400">Đã kết nối</p>
-                    <div className="mt-5 rounded-3xl border border-white bg-white/85 p-4 text-left shadow-sm">
+                    <div className="mt-5 rounded-3xl border border-blue-100 bg-[#f8fcff] p-4 text-left shadow-sm">
                       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Cảm xúc mới nhất</p>
                       <p className="mt-2 text-sm font-black text-slate-800">{latestMood}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-400">
                         {partnerQuery.data?.latestDailyLogDate ? `Cập nhật ${formatShortDate(partnerQuery.data.latestDailyLogDate)}` : 'Chưa có cập nhật cảm xúc'}
                       </p>
                     </div>
+                    <PartnerQuestionPreview enabled={hasPartner} variant="male" />
                     <button
                       type="button"
                       onClick={() => openHiChat(`Gợi ý một lời nhắn quan tâm cho ${partnerName}`)}
@@ -288,7 +289,7 @@ export default function MaleDashboardPage() {
           </div>
 
           {hasPartner && (
-            <section className="mt-6 rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-sm backdrop-blur-xl">
+            <section className="mt-6 rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur-xl">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-sm font-black text-blue-500">Lịch sử chu kỳ của Người ấy</p>
@@ -330,7 +331,7 @@ export default function MaleDashboardPage() {
           )}
 
           {hasPartner && (
-            <section className="mt-6 rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-sm backdrop-blur-xl">
+            <section className="mt-6 rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur-xl">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-sm font-black uppercase tracking-[0.2em] text-blue-500">Báo cáo của Người ấy</p>
@@ -382,12 +383,11 @@ export default function MaleDashboardPage() {
             <HealthVideoSection />
           </div>
 
-          <div className="mt-6 rounded-[2rem] border border-blue-100/50 bg-white/80 p-6 shadow-sm backdrop-blur">
+          <div className="mt-6 rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur">
             <PricingCard />
           </div>
         </main>
 
-        <SiteFooter tone="blue" />
       </div>
       <HiTrustExplainer open={trustOpen} onClose={() => setTrustOpen(false)} accent="blue" />
     </div>

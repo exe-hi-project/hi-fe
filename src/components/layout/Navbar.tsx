@@ -19,6 +19,9 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
   const loggedIn = !!token;
   const isAdmin = user?.role === 'admin';
   const homePath = isAdmin ? '/admin' : user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard';
+  const notificationSettingsPath = user?.gender === 'female'
+    ? '/settings/notifications'
+    : '/male-settings/notifications';
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread-count'],
@@ -50,11 +53,15 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
       ? [
           { to: '/female-dashboard', label: 'Tổng quan', icon: 'dashboard' },
           { to: '/cycles', label: 'Chu kỳ', icon: 'water_drop' },
-          { to: '/settings/notifications', label: 'Người ấy', icon: 'favorite' },
+          { to: '/partner', label: 'Người ấy', icon: 'favorite' },
+          { to: '/products', label: 'Sản phẩm', icon: 'shopping_bag' },
+          { to: notificationSettingsPath, label: 'Cài đặt thông báo', icon: 'tune' },
         ]
       : [
           { to: '/male-dashboard', label: 'Tổng quan', icon: 'dashboard' },
-          { to: '/male-settings/notifications', label: 'Người ấy', icon: 'favorite' },
+          { to: '/partner', label: 'Người ấy', icon: 'favorite' },
+          { to: '/products', label: 'Sản phẩm', icon: 'shopping_bag' },
+          { to: notificationSettingsPath, label: 'Cài đặt thông báo', icon: 'tune' },
         ];
 
   const menuItems = isAdmin
@@ -64,7 +71,9 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
       ]
     : [
         { to: user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard', icon: 'dashboard', label: 'Tổng quan' },
-        { to: user?.gender === 'female' ? '/settings/notifications' : '/male-settings/notifications', icon: 'favorite', label: 'Người ấy' },
+        { to: '/partner', icon: 'favorite', label: 'Người ấy' },
+        { to: '/products', icon: 'shopping_bag', label: 'Sản phẩm chăm sóc' },
+        { to: notificationSettingsPath, icon: 'tune', label: 'Cài đặt thông báo' },
         { to: '/settings', icon: 'manage_accounts', label: 'Hồ sơ cá nhân' },
         { to: user?.gender === 'female' ? '/cycles' : '/calendar', icon: 'water_drop', label: user?.gender === 'female' ? 'Chu kỳ của tôi' : 'Lịch của bạn' },
       ];

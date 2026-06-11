@@ -1,14 +1,29 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
-import SiteFooter from './SiteFooter';
+import { useAuthStore } from '../../store/authStore';
 
 export default function Layout() {
+  const { user } = useAuthStore();
+  const isMale = user?.gender === 'male';
+  const pageBg = isMale ? 'bg-[#f5fbff]' : 'bg-[#fff8fb]';
+  const blobs = isMale
+    ? {
+        first: 'bg-sky-200/45',
+        second: 'bg-indigo-100/40',
+        third: 'bg-blue-100/35',
+      }
+    : {
+        first: 'bg-pink-200/35',
+        second: 'bg-sky-200/30',
+        third: 'bg-violet-200/25',
+      };
+
   return (
-    <div className="min-h-screen bg-[#f8f6f7] relative overflow-x-hidden font-sans">
+    <div className={`relative min-h-screen overflow-x-hidden font-sans ${pageBg}`}>
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute -left-28 -top-28 h-[420px] w-[420px] rounded-full bg-pink-200/35 blur-3xl" />
-        <div className="absolute right-[-120px] top-32 h-[360px] w-[360px] rounded-full bg-sky-200/30 blur-3xl" />
-        <div className="absolute bottom-[-140px] left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-violet-200/25 blur-3xl" />
+        <div className={`absolute -left-28 -top-28 h-[420px] w-[420px] rounded-full blur-3xl ${blobs.first}`} />
+        <div className={`absolute right-[-120px] top-32 h-[360px] w-[360px] rounded-full blur-3xl ${blobs.second}`} />
+        <div className={`absolute bottom-[-140px] left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full blur-3xl ${blobs.third}`} />
       </div>
       <div className="relative z-10 flex min-h-screen flex-col">
         <Navbar />
@@ -17,7 +32,6 @@ export default function Layout() {
             <Outlet />
           </div>
         </main>
-        <SiteFooter />
       </div>
     </div>
   );

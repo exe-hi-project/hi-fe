@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Navbar from '../layout/Navbar';
-import SiteFooter from '../layout/SiteFooter';
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import { usePartnerConnection } from '../../hooks/usePartnerConnection';
@@ -27,6 +26,7 @@ interface NotificationSettings {
   partnerEndOfDayNudgeEnabled: boolean;
   partnerNudgeTime: string;
   aiResponseStyle: AiResponseStyle;
+  dailyQuestionsEnabled: boolean;
 }
 
 interface PartnerCyclesResponse {
@@ -55,6 +55,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   partnerEndOfDayNudgeEnabled: true,
   partnerNudgeTime: '21:00',
   aiResponseStyle: 'FRIENDLY',
+  dailyQuestionsEnabled: true,
 };
 
 const aiStyles: Array<{ value: AiResponseStyle; label: string; desc: string }> = [
@@ -205,6 +206,12 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
       key: 'symptomDailyReminderEnabled' as const,
       title: 'Nhắc ghi triệu chứng trong kỳ',
       desc: 'Gửi web/email theo giờ bạn chọn nếu hôm nay chưa ghi nhật ký.',
+      hot: true,
+    },
+    {
+      key: 'dailyQuestionsEnabled' as const,
+      title: 'Câu hỏi hằng ngày của chúng mình',
+      desc: 'Nhận một câu hỏi chung mỗi ngày và mở câu trả lời khi cả hai đã hoàn thành.',
       hot: true,
     },
     {
@@ -420,7 +427,6 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
             </aside>
           </div>
         </main>
-        <SiteFooter tone={isMale ? 'blue' : 'rose'} />
       </div>
     </div>
   );

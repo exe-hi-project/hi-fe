@@ -16,8 +16,10 @@ import SymptomsPage from './pages/SymptomsPage';
 import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
 import SettingsNotificationsPage from './pages/SettingsNotificationsPage';
+import ProductsPage from './pages/ProductsPage';
 import MaleDashboardPage from './pages/MaleDashboardPage';
 import MaleSettingsNotificationsPage from './pages/MaleSettingsNotificationsPage';
+import PartnerPage from './pages/PartnerPage';
 import AdminPage from './pages/AdminPage';
 import Layout from './components/layout/Layout';
 import FloatingHiChat from './components/chat/FloatingHiChat';
@@ -162,6 +164,7 @@ export default function App() {
       {/* Male dashboard — standalone (no sidebar Layout) */}
       <Route path="/male-dashboard" element={<UserOnlyRoute><ProtectedRoute><MaleDashboardPage /></ProtectedRoute></UserOnlyRoute>} />
       <Route path="/male-settings/notifications" element={<UserOnlyRoute><ProtectedRoute><MaleSettingsNotificationsPage /></ProtectedRoute></UserOnlyRoute>} />
+      <Route path="/partner" element={<UserOnlyRoute><ProtectedRoute><PartnerPage /></ProtectedRoute></UserOnlyRoute>} />
       {/* Standalone payment routes */}
       <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
       <Route path="/payment/cancel" element={<ProtectedRoute><PaymentCancelPage /></ProtectedRoute>} />
@@ -173,6 +176,7 @@ export default function App() {
         <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
         <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+        <Route path="/products" element={<UserOnlyRoute><ProtectedRoute><ProductsPage /></ProtectedRoute></UserOnlyRoute>} />
         <Route path="/symptoms" element={<ProtectedRoute><SymptomsPage /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
