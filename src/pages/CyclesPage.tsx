@@ -4,7 +4,6 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import PageBackdrop from '../components/layout/PageBackdrop';
-import SiteFooter from '../components/layout/SiteFooter';
 import DailyLogModal from '../components/health/DailyLogModal';
 import Spinner from '../components/ui/Spinner';
 import api from '../lib/api';
@@ -776,7 +775,6 @@ export default function CyclesPage() {
           )}
         </main>
 
-        <SiteFooter tone="rose" />
       </div>
       <DailyLogModal
         open={logModalOpen}

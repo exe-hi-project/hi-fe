@@ -6,21 +6,18 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 import {
-  Pulse,
   TrendUp,
   Mouse,
   ChartLineUp,
   Funnel,
   Clock,
   Browser,
-  ArrowRight,
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import Spinner from '../ui/Spinner';

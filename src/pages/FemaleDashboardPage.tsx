@@ -4,12 +4,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import PageBackdrop from '../components/layout/PageBackdrop';
-import SiteFooter from '../components/layout/SiteFooter';
 import CycleHistoryDrawer from '../components/cycles/CycleHistoryDrawer';
 import CyclePreviewCalendar from '../components/cycles/CyclePreviewCalendar';
 import DailyLogModal, { type DailyLogMode } from '../components/health/DailyLogModal';
 import HealthVideoSection from '../components/health/HealthVideoSection';
 import QuickMoodCard from '../components/health/QuickMoodCard';
+import PartnerQuestionPreview from '../components/partner/PartnerQuestionPreview';
 import AffiliateRecommendations from '../components/affiliate/AffiliateRecommendations';
 import HiTrustExplainer from '../components/health/HiTrustExplainer';
 import api from '../lib/api';
@@ -434,6 +434,7 @@ export default function FemaleDashboardPage() {
                         </p>
                       )}
                     </div>
+                    <PartnerQuestionPreview enabled={hasPartner} variant="female" />
                   </div>
                 ) : (
                   <div className="flex flex-col items-center text-center py-6 gap-3">
@@ -691,7 +692,6 @@ export default function FemaleDashboardPage() {
           </div>
         </main>
 
-        <SiteFooter tone="rose" />
       </div>
 
       {/* ═══ Panels ═══ */}

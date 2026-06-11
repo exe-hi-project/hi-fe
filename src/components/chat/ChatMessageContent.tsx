@@ -1,12 +1,33 @@
 import { Fragment } from 'react';
 
+function renderLinks(text: string, keyPrefix: string) {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return parts.map((part, index) => {
+    if (/^https?:\/\//.test(part)) {
+      return (
+        <a
+          key={`${keyPrefix}-link-${index}`}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          referrerPolicy="no-referrer"
+          className="break-all font-bold text-pink-600 underline decoration-pink-200 underline-offset-4 transition hover:text-pink-700"
+        >
+          Mở sản phẩm
+        </a>
+      );
+    }
+    return <Fragment key={`${keyPrefix}-text-${index}`}>{part}</Fragment>;
+  });
+}
+
 function renderInline(text: string) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, index) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;
     }
-    return <Fragment key={index}>{part}</Fragment>;
+    return <Fragment key={index}>{renderLinks(part, `inline-${index}`)}</Fragment>;
   });
 }
 

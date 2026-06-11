@@ -37,12 +37,28 @@ export interface User {
   periodReminder?: boolean;
   reminderDaysBefore?: number;
   partnerNotifications?: boolean;
+  partnerSharingPreferences?: PartnerSharingPreferences;
+  notificationPreferences?: PartnerExperiencePreferences;
   onboardingCompleted?: boolean;
   accountStatus?: AccountStatus;
   accountStatusReason?: string | null;
   subscription?: UserSubscription;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface PartnerSharingPreferences {
+  shareDetailedSymptoms: boolean;
+  shareHealthNotes: boolean;
+  shareMood: boolean;
+  shareCycleData: boolean;
+  consentVersion?: string;
+  consentedAt?: string;
+}
+
+export interface PartnerExperiencePreferences {
+  dailyQuestionsEnabled?: boolean;
+  contextualCareSuggestionsEnabled?: boolean;
 }
 
 export interface UserSubscription {
@@ -243,4 +259,52 @@ export interface UpsertHealthVideoDto {
   priority?: number;
   status?: HealthVideoStatus;
   targetAudience?: HealthVideoTargetAudience;
+}
+
+export type CoupleQuestionStatus = 'UNANSWERED' | 'WAITING_PARTNER' | 'UNLOCKED' | 'SKIPPED';
+
+export interface CoupleAnswer {
+  userId: string;
+  content: string;
+  answeredAt: string;
+  updatedAt: string;
+}
+
+export interface CoupleMessage {
+  id: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CoupleQuestionSession {
+  _id: string;
+  questionDate: string;
+  questionText: string;
+  category: string;
+  status: CoupleQuestionStatus;
+  activePair: boolean;
+  unlocked: boolean;
+  myAnswer?: CoupleAnswer | null;
+  partnerAnswer?: CoupleAnswer | null;
+  partnerAnswered: boolean;
+  messages: CoupleMessage[];
+  skipped: boolean;
+}
+
+export interface CoupleQuestionHistory {
+  items: CoupleQuestionSession[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+}
+
+export interface PartnerCareSuggestion {
+  _id: string;
+  suggestionDate: string;
+  sourceType: 'SYMPTOM' | 'NOTE' | 'MOOD' | 'CYCLE' | 'QUESTION' | 'GENERAL';
+  reason: string;
+  action: string;
+  messageTemplate: string;
 }

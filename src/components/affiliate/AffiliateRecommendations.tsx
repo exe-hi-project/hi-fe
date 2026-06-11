@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 import api from '../../lib/api';
+import { bestProductName, cleanProductTitle } from '../../utils/affiliateDisplay';
 
 interface AffiliateProduct {
   _id: number;
@@ -26,8 +27,8 @@ async function openAffiliateProduct(product: AffiliateProduct) {
   try {
     const { data } = await api.post(`/affiliate-products/${product._id}/click`);
     targetUrl = data.data?.affiliateUrl || targetUrl;
-  } catch (error) {
-    toast.error('Hi chưa ghi được click, vẫn mở link sản phẩm cho bạn nhé.');
+  } catch {
+    // Tracking is best-effort; users should still be able to open the product.
   }
   window.open(targetUrl, '_blank', 'noopener,noreferrer');
 }
@@ -62,9 +63,12 @@ export default function AffiliateRecommendations({
             Gợi ý đồ chăm sóc khi tới kỳ, món nhỏ dịp lễ hoặc quà quan tâm nhẹ nhàng. Không thay thế tư vấn y khoa.
           </p>
         </div>
-        <span className="rounded-full bg-white px-4 py-2 text-xs font-black text-slate-500 shadow-sm">
-          Hi có thể nhận hoa hồng từ link affiliate
-        </span>
+        <Link
+          to="/products"
+          className="rounded-full border border-pink-100 bg-white px-4 py-2 text-xs font-black text-pink-600 shadow-sm transition hover:bg-pink-50"
+        >
+          Xem tất cả sản phẩm
+        </Link>
       </div>
 
       <div className={`mt-5 grid gap-4 ${compact ? 'md:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
@@ -79,11 +83,11 @@ export default function AffiliateRecommendations({
             )}
             <div className="p-4">
               <div className="flex items-center justify-between gap-2">
-                <span className="rounded-full bg-pink-50 px-3 py-1 text-[10px] font-black uppercase text-pink-600">{product.platform ?? 'Affiliate'}</span>
+                <span className="rounded-full bg-pink-50 px-3 py-1 text-[10px] font-black uppercase text-pink-600">{product.platform ?? 'Sản phẩm'}</span>
                 {product.price ? <span className="text-xs font-black text-slate-600">{money(product.price)}</span> : null}
               </div>
-              <h3 className="mt-3 line-clamp-2 text-base font-black text-slate-900">{product.name}</h3>
-              {product.description && <p className="mt-2 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{product.description}</p>}
+              <h3 className="mt-3 line-clamp-2 text-base font-black text-slate-900">{bestProductName(product)}</h3>
+              {product.description && <p className="mt-2 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{cleanProductTitle(product.description, 110)}</p>}
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {[...(product.symptomTags ?? []), ...(product.phaseTags ?? []), ...(product.goalTags ?? [])].slice(0, 4).map((tag) => (
                   <span key={tag} className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">{tag}</span>
@@ -96,7 +100,7 @@ export default function AffiliateRecommendations({
               >
                 Xem sản phẩm
               </button>
-              <p className="mt-2 text-[10px] font-semibold text-slate-400">Nguồn: {product.sourceName || product.platform || 'Nguồn được duyệt'}</p>
+              <p className="mt-2 text-[10px] font-semibold text-slate-400">Cửa hàng: {cleanProductTitle(product.sourceName || product.platform, 40) || 'Đang cập nhật'}</p>
             </div>
           </article>
         ))}

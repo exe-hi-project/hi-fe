@@ -127,7 +127,11 @@ export interface Notification {
     | 'PARTNER_MOOD_UPDATE'
     | 'SYMPTOM_LOG_REMINDER'
     | 'SYMPTOM_LOG_END_OF_DAY'
-    | 'PARTNER_SYMPTOM_LOG_NUDGE';
+    | 'PARTNER_SYMPTOM_LOG_NUDGE'
+    | 'COUPLE_DAILY_QUESTION'
+    | 'PARTNER_ANSWERED_DAILY_QUESTION'
+    | 'COUPLE_QUESTION_UNLOCKED'
+    | 'CONTEXTUAL_CARE_SUGGESTION';
   title: string;
   message: string;
   actionUrl?: string;
