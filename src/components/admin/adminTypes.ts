@@ -97,6 +97,7 @@ export type AdminTab =
   | 'revenue'
   | 'users'
   | 'videos'
+  | 'questions'
   | 'affiliate'
   | 'notifications'
   | 'system';

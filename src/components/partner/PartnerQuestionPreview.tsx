@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api from '../../lib/api';
 import type { CoupleQuestionSession } from '../../types/shared';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface PartnerQuestionPreviewProps {
   enabled: boolean;
@@ -15,10 +16,12 @@ function statusLabel(question: CoupleQuestionSession) {
 }
 
 export default function PartnerQuestionPreview({ enabled, variant }: PartnerQuestionPreviewProps) {
+  const { data: subscription } = useSubscription();
+  const hasCouplePremium = subscription?.couplePremium === true;
   const questionQuery = useQuery({
     queryKey: ['partner-question-today'],
     queryFn: () => api.get('/partner/questions/today').then(({ data }) => data.question as CoupleQuestionSession),
-    enabled,
+    enabled: enabled && hasCouplePremium,
     staleTime: 60_000,
   });
 
@@ -37,7 +40,12 @@ export default function PartnerQuestionPreview({ enabled, variant }: PartnerQues
         <p className="text-[10px] font-black uppercase tracking-[0.16em]">Câu hỏi của chúng mình</p>
         <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
       </div>
-      {questionQuery.isLoading ? (
+      {!hasCouplePremium ? (
+        <>
+          <p className="mt-2 text-sm font-black leading-snug text-slate-800">Mở kết nối sâu hơn mỗi ngày</p>
+          <p className="mt-2 text-[11px] font-bold opacity-75">Premium của một người mở quyền cho cả hai</p>
+        </>
+      ) : questionQuery.isLoading ? (
         <div className="mt-3 space-y-2 animate-pulse">
           <div className="h-3 w-full rounded bg-current opacity-10" />
           <div className="h-3 w-3/4 rounded bg-current opacity-10" />

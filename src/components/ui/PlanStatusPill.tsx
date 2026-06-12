@@ -12,7 +12,7 @@ interface PlanStatusPillProps {
 }
 
 function getPlanMeta(subscription?: SubscriptionLike | null) {
-  const plan = subscription?.plan ?? 'free';
+  const plan = (subscription?.plan ?? 'free').toLowerCase();
   const active = subscription?.status === 'active';
   if (active && plan.includes('yearly')) {
     return {

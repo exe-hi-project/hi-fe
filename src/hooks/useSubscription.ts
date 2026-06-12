@@ -4,11 +4,39 @@ import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 
 export interface SubscriptionInfo {
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  plan: 'free' | 'premium' | 'monthly' | 'yearly' | 'premium_monthly' | 'premium_yearly';
+  plan: 'FREE' | 'PREMIUM_MONTHLY' | 'PREMIUM_YEARLY';
+  tier: 'FREE' | 'PREMIUM';
   status: 'active' | 'canceled' | 'past_due' | 'trialing' | null;
+  activeUntil: string | null;
   currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  couplePremium: boolean;
+  entitlements: SubscriptionEntitlements;
+  aiUsage: AiUsage;
+}
+
+export interface SubscriptionEntitlements {
+  fullHealthHistoryForAi: boolean;
+  aiResponseStyles: boolean;
+  emailReminders: boolean;
+  customReminderSchedule: boolean;
+  fertilityWindowReminders: boolean;
+  healthVideos: boolean;
+  productRecommendations: boolean;
+  advancedCycleAnalytics: boolean;
+  coupleDailyQuestions: boolean;
+  coupleQuestionHistory: boolean;
+  coupleConversation: boolean;
+  contextualPartnerCare: boolean;
+  partnerCareReminders: boolean;
+  priorityAi: boolean;
+}
+
+export interface AiUsage {
+  limit: number;
+  used: number;
+  remaining: number;
+  resetsAt: string;
 }
 
 export interface TransactionInfo {

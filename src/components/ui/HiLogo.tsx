@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 /**
  * Logo "Hi" - rounded square, pastel blue+pink blended gradient, white text
  */
@@ -7,7 +9,7 @@ interface HiLogoProps {
 }
 
 export default function HiLogo({ size = 48, className = '' }: HiLogoProps) {
-  const id = 'hi-logo-gradient';
+  const id = `hi-logo-${useId().replace(/:/g, '')}`;
   return (
     <svg
       width={size}

@@ -35,25 +35,25 @@ const filters: Array<{ key: ProductFilter; label: string; hint: string; icon: st
 
 const themes = {
   female: {
-    page: 'from-[#fff8fb] via-white to-[#f7f1ff]',
-    panel: 'border-pink-100 bg-white/92 shadow-pink-100/60',
-    softPanel: 'border-pink-100 bg-pink-50/70',
+    page: 'from-[#fff1f6] via-white to-[#f7f1ff]',
+    panel: 'border-rose-200 bg-white shadow-lg shadow-rose-200/35',
+    softPanel: 'border-rose-200 bg-white shadow-sm shadow-rose-100/40',
     accent: '#eb477e',
     accentText: 'text-pink-600',
-    accentBg: 'bg-pink-50',
-    accentBorder: 'border-pink-200',
-    cta: 'bg-[#eb477e] shadow-pink-200 hover:bg-pink-600',
-    chipActive: 'border-pink-200 bg-pink-50 text-pink-600',
-    chipHover: 'hover:border-pink-100 hover:text-pink-600',
-    heroIcon: 'from-pink-100 to-violet-100 text-pink-500',
+    accentBg: 'bg-rose-50',
+    accentBorder: 'border-rose-200',
+    cta: 'bg-[#eb477e] shadow-rose-200 hover:bg-pink-600',
+    chipActive: 'border-rose-300 bg-rose-50 text-pink-600 shadow-sm shadow-rose-100',
+    chipHover: 'hover:border-rose-200 hover:bg-white hover:text-pink-600',
+    heroIcon: 'from-rose-50 to-violet-50 text-pink-500',
     title: 'Sản phẩm chăm sóc sức khỏe cho bạn',
     subtitle: 'Gợi ý dịu nhẹ cho kỳ kinh, chăm sóc hằng ngày và những món quà nhỏ khi bạn muốn tự thương mình hơn.',
     statLabel: 'sản phẩm',
   },
   male: {
     page: 'from-[#f5fbff] via-white to-[#eff6ff]',
-    panel: 'border-sky-100 bg-white/95 shadow-sky-100/70',
-    softPanel: 'border-sky-100 bg-[#f8fcff]',
+    panel: 'border-sky-100 bg-white shadow-lg shadow-sky-100/60',
+    softPanel: 'border-sky-100 bg-[#f8fcff] shadow-sm shadow-sky-100/40',
     accent: '#3b82f6',
     accentText: 'text-blue-600',
     accentBg: 'bg-blue-50',
@@ -230,7 +230,7 @@ export default function ProductsPage() {
   const giftCount = useMemo(() => products.filter((product) => matchesFilter(product, 'gifts')).length, [products]);
 
   return (
-    <div className="space-y-6">
+    <div className={`rounded-[2.5rem] border border-white/80 bg-gradient-to-br p-3 shadow-inner md:p-4 ${theme.page}`}>
       <div className="space-y-6">
         <section className={`rounded-[2rem] border p-5 shadow-sm backdrop-blur md:p-6 ${theme.panel}`}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">

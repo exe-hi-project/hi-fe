@@ -6,6 +6,7 @@ import PageBackdrop from '../components/layout/PageBackdrop';
 import HealthVideoSection from '../components/health/HealthVideoSection';
 import QuickMoodCard from '../components/health/QuickMoodCard';
 import PartnerQuestionPreview from '../components/partner/PartnerQuestionPreview';
+import PremiumLockCard from '../components/subscription/PremiumLockCard';
 import CyclePreviewCalendar from '../components/cycles/CyclePreviewCalendar';
 import PricingCard from '../components/PricingCard';
 import AffiliateRecommendations from '../components/affiliate/AffiliateRecommendations';
@@ -79,6 +80,10 @@ function ringCopy(insights?: CycleInsights | null) {
 
 interface PartnerCyclesResponse {
   success: boolean;
+  sharing?: {
+    shareCycleData: boolean;
+    shareMood: boolean;
+  };
   cycles: CycleRecord[];
   history?: {
     items: CycleRecord[];
@@ -122,6 +127,7 @@ export default function MaleDashboardPage() {
   const historyHasMore = Boolean(partnerQuery.data?.history?.hasMore);
   const historyTotal = partnerQuery.data?.history?.total ?? history.length;
   const insights = partnerQuery.data?.insights ?? null;
+  const cycleDataShared = partnerQuery.data?.sharing?.shareCycleData !== false;
   const ring = ringCopy(insights);
   const circumference = 2 * Math.PI * 44;
   const partnerName = partner?.name ?? 'Người ấy';
@@ -187,6 +193,14 @@ export default function MaleDashboardPage() {
                   <Link to="/male-settings/notifications" className="hi-btn-primary mt-5 inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-black">
                     Kết nối ngay
                   </Link>
+                </div>
+              ) : !cycleDataShared ? (
+                <div className="rounded-[2rem] border border-dashed border-blue-200 bg-blue-50/60 p-10 text-center">
+                  <span className="material-symbols-outlined text-5xl text-blue-300">shield_lock</span>
+                  <p className="mt-3 text-lg font-black text-slate-900">Người ấy chưa chia sẻ dữ liệu chu kỳ</p>
+                  <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-relaxed text-slate-500">
+                    User nữ cần bật “Chia sẻ chu kỳ” trong phần Cài đặt thông báo &amp; cặp đôi. Dữ liệu sẽ xuất hiện tại đây ngay sau khi được cho phép.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -288,7 +302,7 @@ export default function MaleDashboardPage() {
             </aside>
           </div>
 
-          {hasPartner && (
+          {hasPartner && cycleDataShared && (
             <section className="mt-6 rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur-xl">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
@@ -330,7 +344,7 @@ export default function MaleDashboardPage() {
             </section>
           )}
 
-          {hasPartner && (
+          {hasPartner && cycleDataShared && (
             <section className="mt-6 rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur-xl">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
@@ -348,15 +362,29 @@ export default function MaleDashboardPage() {
                   Hi tính toán thế nào?
                 </button>
               </div>
+              {!insights?.advancedAnalyticsAvailable && (
+                <div className="mt-5">
+                  <PremiumLockCard
+                    compact
+                    accent="blue"
+                    title="Mở phân tích chuyên sâu của Người ấy"
+                    description="Khi một trong hai có Premium, cả hai xem được điểm ổn định, độ tin cậy và xu hướng chu kỳ. Trạng thái chu kỳ tổng quan và cảm xúc được chia sẻ vẫn miễn phí."
+                  />
+                </div>
+              )}
               <div className="mt-5 grid gap-3 md:grid-cols-4">
-                <div className="rounded-3xl bg-gradient-to-br from-blue-50 to-white p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-blue-500">Tính đều đặn</p>
-                  <p className="mt-2 text-3xl font-black text-slate-900">{insights?.regularityScore ?? 0}%</p>
-                </div>
-                <div className="rounded-3xl bg-gradient-to-br from-sky-50 to-white p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-sky-500">Độ tin cậy</p>
-                  <p className="mt-2 text-xl font-black text-slate-900">{confidenceLabel}</p>
-                </div>
+                {insights?.advancedAnalyticsAvailable && (
+                  <>
+                    <div className="rounded-3xl bg-gradient-to-br from-blue-50 to-white p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-blue-500">Tính đều đặn</p>
+                      <p className="mt-2 text-3xl font-black text-slate-900">{insights.regularityScore ?? 0}%</p>
+                    </div>
+                    <div className="rounded-3xl bg-gradient-to-br from-sky-50 to-white p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-sky-500">Độ tin cậy</p>
+                      <p className="mt-2 text-xl font-black text-slate-900">{confidenceLabel}</p>
+                    </div>
+                  </>
+                )}
                 <div className="rounded-3xl bg-gradient-to-br from-violet-50 to-white p-4">
                   <p className="text-[10px] font-black uppercase tracking-wider text-violet-500">Cảm xúc chia sẻ</p>
                   <p className="mt-2 text-xl font-black text-slate-900">{latestMood}</p>

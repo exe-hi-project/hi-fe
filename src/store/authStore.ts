@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { ApiResponse, AuthPayload, RegisterDto, User } from '../types';
 import api from '../lib/api';
 import { clearAuthSession } from '../lib/session';
@@ -7,9 +6,11 @@ import { clearAuthSession } from '../lib/session';
 type AuthApiResponse = ApiResponse<AuthPayload> & Partial<AuthPayload>;
 type UserApiResponse = ApiResponse<{ user: User }> & { user?: User };
 
+const SESSION_MARKER = 'cookie-session';
+
 function unwrapAuthPayload(response: AuthApiResponse): AuthPayload {
   const payload = response.data ?? { token: response.token, user: response.user };
-  if (!payload.token || !payload.user) {
+  if (!payload.user) {
     throw new Error('Phản hồi đăng nhập không hợp lệ');
   }
   return { token: payload.token, user: payload.user };
@@ -27,6 +28,8 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  isBootstrapping: boolean;
+  bootstrapSession: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterDto) => Promise<any>;
   verifyActivation: (email: string, otp: string) => Promise<void>;
@@ -38,98 +41,100 @@ interface AuthState {
   setUser: (user: User) => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      isLoading: false,
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: null,
+  token: null,
+  isLoading: false,
+  isBootstrapping: true,
 
-      login: async (email, password) => {
-        set({ isLoading: true });
-        try {
-          const { data } = await api.post<AuthApiResponse>('/auth/login', { email, password });
-          const payload = unwrapAuthPayload(data);
-          localStorage.setItem('token', payload.token);
-          set({ user: payload.user, token: payload.token, isLoading: false });
-        } catch (err: any) {
-          set({ isLoading: false });
-          throw new Error(err.response?.data?.message || 'Đăng nhập thất bại');
-        }
-      },
+  bootstrapSession: async () => {
+    try {
+      const { data } = await api.get<UserApiResponse>('/auth/me');
+      set({ user: unwrapUserPayload(data), token: SESSION_MARKER, isBootstrapping: false });
+    } catch {
+      clearAuthSession();
+      set({ user: null, token: null, isBootstrapping: false });
+    }
+  },
 
-      register: async (formData) => {
-        set({ isLoading: true });
-        try {
-          const { data } = await api.post<any>('/auth/register', formData);
-          set({ isLoading: false });
-          if (data.data?.pendingActivation) {
-            return data.data; // { email, pendingActivation: true }
-          }
-          const payload = unwrapAuthPayload(data);
-          localStorage.setItem('token', payload.token);
-          set({ user: payload.user, token: payload.token });
-          return payload.user;
-        } catch (err: any) {
-          set({ isLoading: false });
-          throw new Error(err.response?.data?.message || 'Đăng ký thất bại');
-        }
-      },
+  login: async (email, password) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post<AuthApiResponse>('/auth/login', { email, password });
+      const payload = unwrapAuthPayload(data);
+      set({ user: payload.user, token: SESSION_MARKER, isLoading: false });
+    } catch (err: any) {
+      set({ isLoading: false });
+      throw new Error(err.response?.data?.message || 'Đăng nhập thất bại');
+    }
+  },
 
-      verifyActivation: async (email, otp) => {
-        set({ isLoading: true });
-        try {
-          const { data } = await api.post<AuthApiResponse>('/auth/verify-activation', { email, otp });
-          const payload = unwrapAuthPayload(data);
-          localStorage.setItem('token', payload.token);
-          set({ user: payload.user, token: payload.token, isLoading: false });
-        } catch (err: any) {
-          set({ isLoading: false });
-          throw new Error(err.response?.data?.message || 'Kích hoạt tài khoản thất bại');
-        }
-      },
+  register: async (formData) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post<any>('/auth/register', formData);
+      set({ isLoading: false });
+      if (data.data?.pendingActivation) {
+        return data.data;
+      }
+      const payload = unwrapAuthPayload(data);
+      set({ user: payload.user, token: SESSION_MARKER });
+      return payload.user;
+    } catch (err: any) {
+      set({ isLoading: false });
+      throw new Error(err.response?.data?.message || 'Đăng ký thất bại');
+    }
+  },
 
-      resendActivation: async (email) => {
-        try {
-          await api.post(`/auth/resend-activation?email=${encodeURIComponent(email)}`);
-        } catch (err: any) {
-          throw new Error(err.response?.data?.message || 'Gửi lại mã OTP thất bại');
-        }
-      },
+  verifyActivation: async (email, otp) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post<AuthApiResponse>('/auth/verify-activation', { email, otp });
+      const payload = unwrapAuthPayload(data);
+      set({ user: payload.user, token: SESSION_MARKER, isLoading: false });
+    } catch (err: any) {
+      set({ isLoading: false });
+      throw new Error(err.response?.data?.message || 'Kích hoạt tài khoản thất bại');
+    }
+  },
 
-      socialLogin: async (provider, payload) => {
-        set({ isLoading: true });
-        try {
-          const { data } = await api.post<AuthApiResponse>(`/auth/${provider}`, payload);
-          const authPayload = unwrapAuthPayload(data);
-          localStorage.setItem('token', authPayload.token);
-          set({ user: authPayload.user, token: authPayload.token, isLoading: false });
-          return authPayload.user;
-        } catch (err: any) {
-          set({ isLoading: false });
-          throw new Error(err.response?.data?.message || `Đăng nhập ${provider} thất bại`);
-        }
-      },
+  resendActivation: async (email) => {
+    try {
+      await api.post(`/auth/resend-activation?email=${encodeURIComponent(email)}`);
+    } catch (err: any) {
+      throw new Error(err.response?.data?.message || 'Gửi lại mã OTP thất bại');
+    }
+  },
 
-      refreshSession: async () => {
-        const { data } = await api.post<AuthApiResponse>('/auth/refresh');
-        const payload = unwrapAuthPayload(data);
-        localStorage.setItem('token', payload.token);
-        set({ user: payload.user, token: payload.token });
-      },
+  socialLogin: async (provider, payload) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post<AuthApiResponse>(`/auth/${provider}`, payload);
+      const authPayload = unwrapAuthPayload(data);
+      set({ user: authPayload.user, token: SESSION_MARKER, isLoading: false });
+      return authPayload.user;
+    } catch (err: any) {
+      set({ isLoading: false });
+      throw new Error(err.response?.data?.message || `Đăng nhập ${provider} thất bại`);
+    }
+  },
 
-      logout: () => {
-        clearAuthSession();
-        set({ user: null, token: null });
-      },
+  refreshSession: async () => {
+    const { data } = await api.post<AuthApiResponse>('/auth/refresh');
+    const payload = unwrapAuthPayload(data);
+    set({ user: payload.user, token: SESSION_MARKER });
+  },
 
-      updateUser: async (updates) => {
-        const { data } = await api.put<UserApiResponse>('/users/profile', updates);
-        set({ user: unwrapUserPayload(data) });
-      },
+  logout: () => {
+    api.post('/auth/logout').catch(() => undefined);
+    clearAuthSession();
+    set({ user: null, token: null });
+  },
 
-      setUser: (user) => set({ user }),
-    }),
-    { name: 'hi-auth', partialize: (state) => ({ user: state.user, token: state.token }) }
-  )
-);
+  updateUser: async (updates) => {
+    const { data } = await api.put<UserApiResponse>('/users/profile', updates);
+    set({ user: unwrapUserPayload(data) });
+  },
+
+  setUser: (user) => set({ user }),
+}));

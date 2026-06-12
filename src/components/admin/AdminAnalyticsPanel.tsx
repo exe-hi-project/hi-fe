@@ -73,7 +73,8 @@ export default function AdminAnalyticsPanel() {
   const { data, isLoading, error } = useQuery<AnalyticsStats>({
     queryKey: ['admin-analytics-stats'],
     queryFn: () => api.get('/admin/analytics/stats').then((res) => res.data),
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    refetchInterval: 120000,
+    staleTime: 60000,
   });
 
   if (isLoading) {

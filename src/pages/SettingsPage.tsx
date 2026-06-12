@@ -37,8 +37,12 @@ export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
   const { data: subscription } = useSubscription();
   const { data: transactions } = usePaymentHistory();
-  const isPremium = (subscription?.plan && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)) && subscription?.status === 'active';
-  const planLabel = subscription?.plan && subscription.plan.includes('yearly') ? 'Đồng Hành Premium Năm' : subscription?.plan && subscription.plan.includes('monthly') ? 'Đồng Hành Premium Tháng' : 'Đồng Hành Cơ Bản';
+  const isPremium = subscription?.tier === 'PREMIUM';
+  const planLabel = subscription?.plan === 'PREMIUM_YEARLY'
+    ? 'Đồng Hành Premium Năm'
+    : subscription?.plan === 'PREMIUM_MONTHLY'
+      ? 'Đồng Hành Premium Tháng'
+      : 'Đồng Hành Cơ Bản';
   const isMale = user?.gender === 'male';
   const accent = useMemo(() => (
     isMale
@@ -275,7 +279,8 @@ export default function SettingsPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
                     {transactions.map((tx) => {
-                      const planText = tx.plan?.includes('yearly') ? 'Premium Năm' : tx.plan?.includes('monthly') ? 'Premium Tháng' : 'Nâng cấp';
+                      const normalizedPlan = tx.plan?.toLowerCase();
+                      const planText = normalizedPlan?.includes('yearly') ? 'Premium Năm' : normalizedPlan?.includes('monthly') ? 'Premium Tháng' : 'Nâng cấp';
                       const amountText = (tx.amount || 0).toLocaleString('vi-VN') + 'đ';
                       const dateText = tx.createdAt ? new Date(tx.createdAt).toLocaleString('vi-VN') : '—';
                       
