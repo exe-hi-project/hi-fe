@@ -27,8 +27,8 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
     queryKey: ['notifications-unread-count'],
     queryFn: () => api.get('/notifications/unread-count').then((r) => r.data as { success: boolean; unreadCount: number }),
     enabled: !!token,
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    refetchInterval: 120_000,
+    staleTime: 60_000,
   });
   const unreadCount = unreadData?.unreadCount ?? 0;
 
@@ -43,8 +43,8 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
       return nextUser;
     },
     enabled: loggedIn && !isAdmin,
-    refetchInterval: 30_000,
-    staleTime: 15_000,
+    refetchInterval: 120_000,
+    staleTime: 60_000,
   });
 
   const dashboardLinks = isAdmin

@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
+import type { AxiosError } from 'axios';
+import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
-import Button from '../components/ui/Button';
 import api from '../lib/api';
 import { ChatMessage } from '../types';
+import { useSubscription, type AiUsage } from '../hooks/useSubscription';
+import HiLogo from '../components/ui/HiLogo';
 import {
   ChatMessageContent,
 } from '../components/chat/ChatMessageContent';
@@ -28,11 +31,13 @@ interface SendChatResponse {
   userMessage?: ChatMessage;
   assistantMessage?: ChatMessage;
   message?: ChatMessage;
+  aiUsage?: AiUsage;
 }
 
 export default function ChatPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const subscriptionQuery = useSubscription();
   const userId = user?._id ?? 'anonymous';
   const [input, setInput] = useState('');
   const [sessionDate, setSessionDate] = useState(todaySessionDate());
@@ -41,19 +46,13 @@ export default function ChatPage() {
   const isMale = user?.gender === 'male';
   const accent = isMale
     ? {
-        from: 'from-blue-400',
-        via: 'via-sky-400',
-        to: 'to-violet-400',
-        soft: 'from-blue-50 to-indigo-50',
+        soft: 'bg-blue-50',
         text: 'text-blue-500',
         hoverBorder: 'hover:border-blue-100',
         hoverText: 'hover:text-blue-500',
       }
     : {
-        from: 'from-sky-400',
-        via: 'via-violet-400',
-        to: 'to-pink-400',
-        soft: 'from-pink-50 to-violet-50',
+        soft: 'bg-pink-50',
         text: 'text-pink-500',
         hoverBorder: 'hover:border-pink-100',
         hoverText: 'hover:text-pink-500',
@@ -94,8 +93,13 @@ export default function ChatPage() {
       setOptimisticMessages([]);
       queryClient.invalidateQueries({ queryKey: ['chat', userId, sessionDate] });
       queryClient.invalidateQueries({ queryKey: ['chat-sessions', userId] });
+      queryClient.invalidateQueries({ queryKey: ['subscription', userId] });
     },
-    onError: () => setOptimisticMessages([]),
+    onError: (error: AxiosError<{ message?: string }>) => {
+      setOptimisticMessages([]);
+      toast.error(error.response?.data?.message || 'Hi AI chưa thể trả lời lúc này.');
+      queryClient.invalidateQueries({ queryKey: ['subscription', userId] });
+    },
   });
 
   useEffect(() => {
@@ -133,11 +137,19 @@ export default function ChatPage() {
   return (
     <div className="animate-fade-in grid min-h-[calc(100vh-8rem)] gap-5 lg:grid-cols-[300px_1fr]">
       <aside className="rounded-[2rem] border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur">
-        <div className={clsx('rounded-3xl bg-gradient-to-br p-4', accent.soft)}>
-          <div className={clsx('mb-3 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-sm', accent.from, accent.via, accent.to)}>
-            <span className="material-symbols-outlined">forum</span>
-          </div>
-          <h1 className="text-xl font-black text-slate-900">Hi AI Chat</h1>
+        <div className={clsx('rounded-3xl p-4', accent.soft)}>
+          <HiLogo size={48} className="mb-3" />
+          <h1
+            className="text-xl font-black"
+            style={{
+              background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            Hi AI Chat
+          </h1>
           <p className="mt-1 text-sm leading-relaxed text-slate-500">
             Lịch sử được chia theo ngày và chỉ hiển thị dữ liệu của tài khoản hiện tại.
           </p>
@@ -155,7 +167,7 @@ export default function ChatPage() {
               className={clsx(
                 'w-full rounded-2xl border p-3 text-left text-xs font-bold shadow-sm transition-all hover:-translate-y-0.5',
                 session.sessionDate === sessionDate
-                  ? 'border-sky-100 bg-gradient-to-r from-sky-50 via-violet-50 to-pink-50 text-violet-600'
+                  ? 'border-violet-200 bg-violet-50 text-violet-700'
                   : 'border-slate-100 bg-white text-slate-600',
               )}
             >
@@ -170,15 +182,30 @@ export default function ChatPage() {
 
       <section className="flex min-h-[calc(100vh-8rem)] overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 shadow-sm backdrop-blur">
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 md:flex-row md:items-center md:justify-between" style={{ background: 'linear-gradient(135deg,#eff6ff,#fff1f7)' }}>
+          <div className="flex flex-col gap-4 border-b border-slate-100 bg-white px-5 py-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <div className={clsx('relative flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-sm', accent.from, accent.via, accent.to)}>
-                <span className="material-symbols-outlined text-[22px]">auto_awesome</span>
+              <div className="relative">
+                <HiLogo size={48} />
                 <span className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white bg-emerald-400" />
               </div>
               <div>
-                <p className="text-lg font-black text-slate-900">Hi AI</p>
+                <p
+                  className="text-lg font-black"
+                  style={{
+                    background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  Hi AI
+                </p>
                 <p className="text-xs font-bold text-emerald-500">Sẵn sàng trò chuyện · {formatSessionLabel(sessionDate)}</p>
+                {subscriptionQuery.data?.aiUsage && (
+                  <p className="mt-1 text-[11px] font-bold text-slate-400">
+                    Còn {subscriptionQuery.data.aiUsage.remaining}/{subscriptionQuery.data.aiUsage.limit} câu hôm nay
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex gap-2 overflow-x-auto">
@@ -194,14 +221,12 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6" style={{ background: 'linear-gradient(160deg,#f8fbff 0%,#fff7fb 100%)' }}>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-4 py-5 md:px-6">
             {isLoading ? (
               <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400">Đang tải tin nhắn...</div>
             ) : messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-                <div className={clsx('mb-4 flex size-16 items-center justify-center rounded-3xl bg-gradient-to-br text-white shadow-lg', accent.from, accent.via, accent.to)}>
-                  <span className="material-symbols-outlined text-[30px]">auto_awesome</span>
-                </div>
+                <HiLogo size={64} className="mb-4" />
                 <p className="text-lg font-black text-slate-900">Bắt đầu trò chuyện với Hi AI</p>
                 <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
                   Bạn có thể hỏi về Hi, gói dịch vụ, lịch chu kỳ, dữ liệu đã ghi nhận hoặc cách chăm sóc theo từng giai đoạn.
@@ -212,14 +237,12 @@ export default function ChatPage() {
                 {messages.map((message) => (
                   <div key={message._id} className={clsx('flex items-end gap-2', message.role === 'user' ? 'justify-end' : 'justify-start')}>
                     {message.role === 'assistant' && (
-                      <div className={clsx('flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm', accent.from, accent.via, accent.to)}>
-                        <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-                      </div>
+                      <HiLogo size={36} className="shrink-0" />
                     )}
                     <div className={clsx(
                       'max-w-[78%] rounded-3xl px-4 py-3 text-sm font-semibold leading-relaxed shadow-sm',
                       message.role === 'user'
-                        ? clsx('rounded-br-md bg-gradient-to-br text-white', accent.from, accent.via, accent.to)
+                        ? 'rounded-br-md bg-violet-600 text-white'
                         : 'rounded-bl-md border border-white bg-white text-slate-700',
                     )}>
                       <ChatMessageContent content={message.content} />
@@ -234,9 +257,7 @@ export default function ChatPage() {
 
             {isPending && (
               <div className="mt-4 flex items-end gap-2">
-                <div className={clsx('flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm', accent.from, accent.via, accent.to)}>
-                  <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-                </div>
+                <HiLogo size={36} className="shrink-0" />
                 <div className="rounded-3xl rounded-bl-md border border-white bg-white px-4 py-3 shadow-sm">
                   <div className="flex gap-1.5">
                     {[0, 1, 2].map((index) => (
@@ -259,9 +280,15 @@ export default function ChatPage() {
                 rows={1}
                 className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm font-semibold leading-relaxed text-slate-800 outline-none placeholder:text-slate-300"
               />
-              <Button onClick={() => handleSend()} loading={isPending} disabled={!input.trim()} className="h-11 w-11 rounded-2xl px-0">
+              <button
+                type="button"
+                onClick={() => handleSend()}
+                disabled={!input.trim() || isPending}
+                className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Gửi tin nhắn"
+              >
                 <span className="material-symbols-outlined text-[18px]">send</span>
-              </Button>
+              </button>
             </div>
           </div>
         </div>

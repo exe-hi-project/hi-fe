@@ -6,6 +6,7 @@ import Navbar from '../components/layout/Navbar';
 import PageBackdrop from '../components/layout/PageBackdrop';
 import DailyLogModal from '../components/health/DailyLogModal';
 import Spinner from '../components/ui/Spinner';
+import PremiumLockCard from '../components/subscription/PremiumLockCard';
 import api from '../lib/api';
 import type { CycleInsights, CycleRecord, DailyLog } from '../types/shared';
 import {
@@ -186,7 +187,7 @@ export default function CyclesPage() {
                 {[
                   { icon: 'calendar_month', label: 'Độ dài TB', value: `${avgLen} ngày`, from: '#f9a8d4', to: '#f472b6', iconColor: '#f472b6' },
                   { icon: 'water_drop', label: 'Kinh nguyệt TB', value: `${avgPeriod} ngày`, from: '#fca5a5', to: '#f87171', iconColor: '#ef4444' },
-                  { icon: 'bar_chart', label: 'Tính đều đặn', value: `${regularity}%`, from: '#93c5fd', to: '#38bdf8', iconColor: '#0284c7' },
+                  { icon: 'bar_chart', label: 'Tính đều đặn', value: insights?.advancedAnalyticsAvailable ? `${regularity}%` : 'Premium', from: '#93c5fd', to: '#38bdf8', iconColor: '#0284c7' },
                   { icon: 'history', label: 'Chu kỳ đã ghi', value: `${cyclesTotal} chu kỳ`, from: '#c4b5fd', to: '#a78bfa', iconColor: '#7c3aed' },
                 ].map((stat) => (
                   <div key={stat.label} className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-white/80 flex items-center gap-4">
@@ -482,7 +483,7 @@ export default function CyclesPage() {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : insights?.advancedAnalyticsAvailable ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2 rounded-3xl border border-white/80 bg-white/90 p-6 shadow-sm backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -765,6 +766,11 @@ export default function CyclesPage() {
                     )}
                   </div>
                 </div>
+              ) : (
+                <PremiumLockCard
+                  title="Phân tích chu kỳ chuyên sâu thuộc Premium"
+                  description="Mở điểm ổn định, biểu đồ xu hướng dài hạn, phát hiện kỳ ngoại lệ và phân tích tác động triệu chứng theo từng giai đoạn. Lịch sử, dự đoán cơ bản và cảnh báo an toàn vẫn miễn phí."
+                />
               )}
               {insights?.warnings?.length ? (
                 <p className="mt-5 text-xs leading-relaxed text-slate-400">

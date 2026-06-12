@@ -36,7 +36,7 @@ export default function QuickMoodCard({
     queryFn: async () => {
       try {
         const { data } = await api.get(`/daily-logs/${todayIso}`);
-        return data.dailyLog as { moodScore?: number } | null;
+        return (data.dailyLog ?? null) as { moodScore?: number } | null;
       } catch {
         return null;
       }

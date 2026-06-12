@@ -504,86 +504,129 @@ export default function AffiliateAdminPanel() {
         open={productModalOpen}
         onClose={closeProductModal}
         title={editingId ? 'Sửa sản phẩm affiliate' : 'Thêm sản phẩm affiliate'}
+        variant="fullscreen"
         footer={(
-          <div className="flex justify-end gap-2">
+          <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3">
+            <p className="hidden text-xs font-semibold text-slate-500 md:block">
+              Trường bắt buộc: tên sản phẩm và link TikTok/Shopee.
+            </p>
+            <div className="ml-auto flex gap-2">
             <Button variant="ghost" onClick={closeProductModal}>Hủy</Button>
             <Button disabled={!form.name.trim() || !form.affiliateUrl.trim()} loading={saveProduct.isPending} onClick={() => saveProduct.mutate()}>{editingId ? 'Lưu thay đổi' : 'Thêm sản phẩm'}</Button>
+            </div>
           </div>
         )}
       >
-        <form onSubmit={submitProduct} className="space-y-4">
-          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
-            <p className="text-sm font-bold text-slate-900">Dán link trước</p>
-            <p className="mt-1 text-xs text-slate-500">Hi sẽ cố lấy tên, ảnh, mô tả và giá. Hoa hồng từ link công khai chỉ là ước tính hoặc nhập tay.</p>
-            <div className="mt-3 flex gap-2">
-              <Input value={form.affiliateUrl} onChange={(event) => setForm({ ...form, affiliateUrl: event.target.value })} placeholder="Link TikTok/Shopee" />
-              <Button type="button" disabled={!form.affiliateUrl.trim()} loading={previewLink.isPending} onClick={() => previewLink.mutate()}>
-                Lấy thông tin
-              </Button>
-            </div>
-            {preview ? (
-              <div className="mt-3 rounded-xl bg-white p-3 text-xs text-slate-500">
-                Độ tin cậy: <span className="font-bold text-slate-900">{preview.confidence ?? 'LOW'}</span>
-                {(preview.missingFields ?? []).length > 0 ? <span> · Cần bổ sung: {(preview.missingFields ?? []).join(', ')}</span> : null}
-                {preview.errorMessage ? <p className="mt-1 text-amber-700">{preview.errorMessage}</p> : null}
+        <form onSubmit={submitProduct} className="mx-auto grid max-w-[1440px] gap-5 p-4 md:p-6 xl:grid-cols-[380px_minmax(0,1fr)] xl:gap-6">
+          <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="aspect-square bg-slate-100">
+                {previewProductImage ? (
+                  <img src={previewProductImage} alt="" referrerPolicy="no-referrer" onError={imageFallback} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-300">
+                    <ImageSquare size={50} />
+                    <span className="text-sm font-semibold">Chưa có ảnh sản phẩm</span>
+                  </div>
+                )}
               </div>
-            ) : null}
-          </div>
+              <div className="p-4">
+                <p className="line-clamp-2 text-base font-extrabold text-slate-950">
+                  {form.name.trim() || 'Tên sản phẩm sẽ hiển thị tại đây'}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge tone="rose">{form.platform}</Badge>
+                  <Badge>{audienceLabel[form.audience]}</Badge>
+                  <Badge tone={form.status === 'ACTIVE' ? 'emerald' : 'slate'}>{form.status}</Badge>
+                </div>
+                <p className="mt-4 text-2xl font-extrabold text-slate-950">{form.price ? money(Number(form.price)) : 'Chưa có giá'}</p>
+                <p className="mt-1 text-xs text-slate-500">{form.sourceName || 'Chưa xác định shop/nguồn'}</p>
+              </div>
+            </section>
 
-          <div className="grid gap-4 lg:grid-cols-[160px_minmax(0,1fr)]">
-            <div className="flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-              {previewProductImage ? (
-                <img src={previewProductImage} alt="" referrerPolicy="no-referrer" onError={imageFallback} className="h-full w-full object-cover" />
-              ) : (
-                <ImageSquare size={34} className="text-slate-300" />
-              )}
-            </div>
-            <div className="grid gap-3">
-              <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Tên sản phẩm" />
-              <Input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="URL ảnh sản phẩm" />
-              <textarea
-                value={form.description}
-                onChange={(event) => setForm({ ...form, description: event.target.value })}
-                placeholder="Mô tả ngắn"
-                className="min-h-24 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
-              />
-            </div>
-          </div>
+            <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <span className="rounded-xl bg-white p-2 text-blue-600 shadow-sm"><LinkSimple size={19} /></span>
+                <div>
+                  <p className="text-sm font-extrabold text-slate-900">Lấy dữ liệu từ link</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Hi cố gắng đọc tên, ảnh, mô tả và giá công khai.</p>
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                <Input value={form.affiliateUrl} onChange={(event) => setForm({ ...form, affiliateUrl: event.target.value })} placeholder="Link TikTok/Shopee" />
+                <Button type="button" fullWidth disabled={!form.affiliateUrl.trim()} loading={previewLink.isPending} onClick={() => previewLink.mutate()}>
+                  Lấy thông tin sản phẩm
+                </Button>
+              </div>
+              {preview ? (
+                <div className="mt-3 rounded-xl border border-blue-100 bg-white p-3 text-xs leading-5 text-slate-500">
+                  Độ tin cậy: <span className="font-bold text-slate-900">{preview.confidence ?? 'LOW'}</span>
+                  {(preview.missingFields ?? []).length > 0 ? <span> · Cần bổ sung: {(preview.missingFields ?? []).join(', ')}</span> : null}
+                  {preview.errorMessage ? <p className="mt-1 text-amber-700">{preview.errorMessage}</p> : null}
+                </div>
+              ) : null}
+            </section>
+          </aside>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <select value={form.platform} onChange={(event) => setForm({ ...form, platform: event.target.value as AffiliatePlatform })} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">
-              <option value="SHOPEE">Shopee</option>
-              <option value="TIKTOK">TikTok</option>
-              <option value="OTHER">Khác</option>
-            </select>
-            <select value={form.audience} onChange={(event) => setForm({ ...form, audience: event.target.value as AffiliateAudience })} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">
-              <option value="BOTH">Cả hai</option>
-              <option value="FEMALE">User nữ</option>
-              <option value="MALE">User nam</option>
-            </select>
-          </div>
+          <div className="space-y-5">
+            <FormSection title="Thông tin hiển thị" description="Nội dung người dùng nhìn thấy trong danh sách gợi ý.">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Input label="Tên sản phẩm" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Tên sản phẩm" />
+                <Input label="URL ảnh sản phẩm" value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="https://..." />
+              </div>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">Mô tả ngắn</span>
+                <textarea
+                  value={form.description}
+                  onChange={(event) => setForm({ ...form, description: event.target.value })}
+                  placeholder="Mô tả ngắn, rõ công dụng và tránh cam kết y khoa..."
+                  className="min-h-28 w-full resize-y rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+                />
+              </label>
+            </FormSection>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Input value={form.price} onChange={(event) => updatePrice(event.target.value)} placeholder="Giá" />
-            <Input value={form.commissionRate} onChange={(event) => updateCommissionRate(event.target.value)} placeholder="% hoa hồng" />
-            <Input value={form.commissionAmount} onChange={(event) => updateCommissionAmount(event.target.value)} placeholder="Hoa hồng" />
-          </div>
-          <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            Nguồn hoa hồng: {form.commissionSource === 'PLATFORM_SYNC' ? 'Đồng bộ nền tảng' : form.commissionSource === 'MANUAL' ? 'Admin nhập tay' : 'Ước tính từ giá và tỷ lệ'}.
-          </p>
+            <FormSection title="Phân phối" description="Chọn nền tảng, nhóm người dùng và trạng thái xuất bản.">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <SelectField label="Nền tảng" value={form.platform} onChange={(value) => setForm({ ...form, platform: value as AffiliatePlatform })}>
+                  <option value="SHOPEE">Shopee</option>
+                  <option value="TIKTOK">TikTok</option>
+                  <option value="OTHER">Khác</option>
+                </SelectField>
+                <SelectField label="Hiển thị cho" value={form.audience} onChange={(value) => setForm({ ...form, audience: value as AffiliateAudience })}>
+                  <option value="BOTH">Cả hai</option>
+                  <option value="FEMALE">User nữ</option>
+                  <option value="MALE">User nam</option>
+                </SelectField>
+                <SelectField label="Trạng thái" value={form.status} onChange={(value) => setForm({ ...form, status: value as AffiliateStatus })}>
+                  <option value="ACTIVE">Đang hiển thị</option>
+                  <option value="INACTIVE">Tạm khóa</option>
+                  <option value="ARCHIVED">Ẩn</option>
+                </SelectField>
+                <Input label="Độ ưu tiên" type="number" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })} placeholder="0" />
+              </div>
+            </FormSection>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input value={form.sourceName} onChange={(event) => setForm({ ...form, sourceName: event.target.value })} placeholder="Nguồn/shop" />
-            <Input value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })} placeholder="Ưu tiên" />
+            <FormSection title="Giá và hoa hồng" description="Giá lấy từ link là dữ liệu tại thời điểm kiểm tra; có thể điều chỉnh trước khi lưu.">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Input label="Giá sản phẩm (đ)" type="number" min="0" value={form.price} onChange={(event) => updatePrice(event.target.value)} placeholder="0" />
+                <Input label="Tỷ lệ hoa hồng (%)" type="number" min="0" step="0.01" value={form.commissionRate} onChange={(event) => updateCommissionRate(event.target.value)} placeholder="0" />
+                <Input label="Hoa hồng (đ)" type="number" min="0" value={form.commissionAmount} onChange={(event) => updateCommissionAmount(event.target.value)} placeholder="0" />
+              </div>
+              <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800">
+                Nguồn hoa hồng: {form.commissionSource === 'PLATFORM_SYNC' ? 'Đồng bộ nền tảng' : form.commissionSource === 'MANUAL' ? 'Admin nhập tay' : 'Ước tính từ giá và tỷ lệ'}.
+              </p>
+            </FormSection>
+
+            <FormSection title="Phân loại gợi ý" description="Các nhãn giúp AI và trang sản phẩm chọn đúng ngữ cảnh.">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Input label="Nguồn / shop" value={form.sourceName} onChange={(event) => setForm({ ...form, sourceName: event.target.value })} placeholder="Tên shop" />
+                <Input label="Danh mục" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Chăm sóc tại nhà" />
+              </div>
+              <Input label="Tags triệu chứng" value={form.symptomTags} onChange={(event) => setForm({ ...form, symptomTags: event.target.value })} placeholder="Đau bụng, mệt mỏi..." />
+              <Input label="Tags giai đoạn" value={form.phaseTags} onChange={(event) => setForm({ ...form, phaseTags: event.target.value })} placeholder="Kinh nguyệt, hoàng thể..." />
+              <Input label="Tags mục tiêu" value={form.goalTags} onChange={(event) => setForm({ ...form, goalTags: event.target.value })} placeholder="Chăm sóc, thư giãn..." />
+            </FormSection>
           </div>
-          <Input value={form.symptomTags} onChange={(event) => setForm({ ...form, symptomTags: event.target.value })} placeholder="Tags triệu chứng, cách nhau bằng dấu phẩy" />
-          <Input value={form.phaseTags} onChange={(event) => setForm({ ...form, phaseTags: event.target.value })} placeholder="Tags phase: kinh nguyệt, hoàng thể..." />
-          <Input value={form.goalTags} onChange={(event) => setForm({ ...form, goalTags: event.target.value })} placeholder="Tags mục tiêu: chăm sóc, thư giãn..." />
-          <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as AffiliateStatus })} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">
-            <option value="ACTIVE">Đang hiển thị</option>
-            <option value="INACTIVE">Tạm khóa</option>
-            <option value="ARCHIVED">Ẩn</option>
-          </select>
           <button type="submit" className="hidden">Submit</button>
         </form>
       </Modal>
@@ -607,4 +650,49 @@ function Badge({ children, tone = 'slate' }: { children: ReactNode; tone?: 'slat
     rose: 'bg-rose-50 text-rose-700',
   };
   return <span className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase ${classes[tone]}`}>{children}</span>;
+}
+
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+      <div>
+        <h3 className="font-extrabold text-slate-950">{title}</h3>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-slate-700">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+      >
+        {children}
+      </select>
+    </label>
+  );
 }

@@ -1,4 +1,9 @@
 import { useCancelSubscription, useCheckout, useSubscription } from '../hooks/useSubscription';
+import {
+  FREE_PLAN_FEATURES,
+  PREMIUM_PLAN_FEATURES,
+  PREMIUM_YEARLY_FEATURES,
+} from '../config/subscriptionPlans';
 import Spinner from './ui/Spinner';
 
 type PaidPlanId = 'monthly' | 'yearly';
@@ -25,11 +30,7 @@ export default function PricingCard() {
   const checkout = useCheckout();
   const cancelSub = useCancelSubscription();
 
-  const isPremium = Boolean(
-    subscription?.plan
-    && ['premium', 'monthly', 'yearly', 'premium_monthly', 'premium_yearly'].includes(subscription.plan)
-    && subscription?.status === 'active',
-  );
+  const isPremium = subscription?.tier === 'PREMIUM';
   const isCanceled = subscription?.status === 'canceled';
   const currentPeriodEnd = subscription?.currentPeriodEnd;
 
@@ -42,45 +43,28 @@ export default function PricingCard() {
       label: 'Đồng Hành Cơ Bản',
       price: '0đ',
       period: '/mãi mãi',
-      description: 'Đủ để bắt đầu theo dõi sức khỏe sinh sản mỗi ngày.',
-      features: [
-        'Theo dõi chu kỳ và ghi nhận triệu chứng',
-        'Dự đoán kỳ kinh tiếp theo cơ bản',
-        'Xem toàn bộ lịch sử dữ liệu cá nhân',
-        '5 tin nhắn AI hỗ trợ tham khảo mỗi ngày',
-        'Nhắc kỳ kinh cơ bản',
-      ],
+      description: 'Đầy đủ công cụ chăm sóc sức khỏe hằng ngày.',
+      features: [...FREE_PLAN_FEATURES],
     },
     {
       id: 'monthly',
       label: 'Đồng Hành Premium Tháng',
       price: monthlyPrice,
       period: '/30 ngày',
-      description: 'Linh hoạt mở khóa phân tích nâng cao và AI Premium.',
+      description: 'Phân tích sâu hơn và tăng hạn mức Hi AI.',
       priceId: 'monthly',
-      features: [
-        'Tất cả quyền lợi của gói Cơ Bản',
-        'Phân tích chu kỳ và triệu chứng nâng cao',
-        'Phân tích xu hướng từ toàn bộ lịch sử',
-        'AI hỗ trợ tham khảo với hạn mức Premium',
-        'Thông báo và chia sẻ với Người ấy nâng cao',
-      ],
+      features: [...PREMIUM_PLAN_FEATURES],
     },
     {
       id: 'yearly',
       label: 'Đồng Hành Premium Năm',
       price: yearlyPrice,
       period: '/365 ngày',
-      description: 'Đồng hành dài hạn với mức giá tốt nhất.',
+      description: 'Cùng tính năng Premium, tiết kiệm hơn.',
       priceId: 'yearly',
       highlight: true,
       badge: 'Tiết kiệm 32%',
-      features: [
-        'Tất cả quyền lợi của Premium Tháng',
-        'Báo cáo sức khỏe định kỳ',
-        'Trọn 365 ngày quyền lợi Premium',
-        'Tiết kiệm 32% so với mua theo tháng',
-      ],
+      features: [...PREMIUM_YEARLY_FEATURES],
     },
   ];
 
@@ -108,22 +92,28 @@ export default function PricingCard() {
             </div>
           )}
 
-          <button
-            onClick={() => {
-              if (confirm('Bạn có chắc chắn muốn dừng gói Premium?')) cancelSub.mutate();
-            }}
-            disabled={cancelSub.isPending}
-            className="mt-8 text-xs font-bold text-slate-400 underline transition hover:text-red-500 disabled:opacity-60"
-          >
-            {cancelSub.isPending ? 'Đang xử lý...' : 'Dừng gói Premium'}
-          </button>
+          {subscription?.cancelAtPeriodEnd ? (
+            <p className="mt-8 text-xs font-bold text-amber-600">
+              Đã dừng gia hạn. Quyền Premium vẫn giữ đến ngày hết hạn.
+            </p>
+          ) : (
+            <button
+              onClick={() => {
+                if (confirm('Bạn có chắc chắn muốn dừng gia hạn Premium?')) cancelSub.mutate();
+              }}
+              disabled={cancelSub.isPending}
+              className="mt-8 text-xs font-bold text-slate-400 underline transition hover:text-red-500 disabled:opacity-60"
+            >
+              {cancelSub.isPending ? 'Đang xử lý...' : 'Dừng gia hạn Premium'}
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div id="pricing" className="mx-auto max-w-5xl px-4 py-8">
       <div className="mx-auto mb-10 max-w-2xl text-center">
         <h2 className="hi-page-title text-3xl sm:text-4xl">
           Lựa chọn Gói <span className="bg-gradient-to-r from-sky-500 via-violet-500 to-pink-500 bg-clip-text text-transparent">Đồng Hành</span> cùng Hi
@@ -138,13 +128,13 @@ export default function PricingCard() {
         )}
       </div>
 
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3 lg:items-stretch">
+      <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-3 lg:items-stretch">
         {plans.map((plan) => {
           const isFreePlan = plan.id === 'free';
           return (
             <div
               key={plan.id}
-              className={`relative flex flex-col justify-between rounded-[2rem] border bg-white p-8 transition-all duration-300 hover:-translate-y-1 ${
+              className={`relative flex flex-col justify-between rounded-[2rem] border bg-white p-7 transition-all duration-300 hover:-translate-y-1 ${
                 plan.highlight
                   ? 'border-pink-300 shadow-xl shadow-pink-100/60 lg:scale-[1.03] lg:z-10'
                   : 'border-slate-200 hover:border-pink-200 hover:shadow-lg hover:shadow-slate-100'
@@ -164,13 +154,13 @@ export default function PricingCard() {
                 </div>
                 <p className="mt-3 min-h-10 text-sm font-semibold leading-relaxed text-slate-500">{plan.description}</p>
 
-                <ul className="mt-8 space-y-4">
+                <ul className="mt-6 space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start">
                       <span className="mr-3 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-pink-100 bg-pink-50 text-[10px] font-black text-pink-500">
                         ✓
                       </span>
-                      <span className="text-sm font-semibold leading-relaxed text-slate-600">{feature}</span>
+                      <span className="text-sm font-semibold leading-snug text-slate-600">{feature}</span>
                     </li>
                   ))}
                 </ul>

@@ -20,6 +20,8 @@ import Navbar from '../layout/Navbar';
 import Button from '../ui/Button';
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
+import { useSubscription } from '../../hooks/useSubscription';
+import PremiumLockCard from '../subscription/PremiumLockCard';
 import type {
   CoupleQuestionHistory,
   CoupleQuestionSession,
@@ -80,11 +82,13 @@ function QuestionSkeleton() {
 
 export default function PartnerHubPage({ variant }: { variant: Variant }) {
   const user = useAuthStore((state) => state.user);
+  const { data: subscription } = useSubscription();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeView: ViewKey = searchParams.get('view') === 'history' ? 'history' : 'today';
   const isMale = variant === 'male';
   const hasPartner = Boolean(user?.partnerId);
+  const hasCouplePremium = subscription?.couplePremium === true;
   const settingsPath = isMale ? '/male-settings/notifications' : '/settings/notifications';
   const [selectedQuestion, setSelectedQuestion] = useState<CoupleQuestionSession | null>(null);
 
@@ -98,15 +102,16 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
   const todayQuery = useQuery({
     queryKey: ['partner-question-today'],
     queryFn: () => api.get('/partner/questions/today').then(({ data }) => data.question as CoupleQuestionSession),
-    enabled: hasPartner,
-    refetchInterval: (query) => query.state.data?.unlocked ? 15_000 : 30_000,
+    enabled: hasPartner && hasCouplePremium,
+    refetchInterval: (query) => query.state.data?.unlocked ? 60_000 : 120_000,
+    staleTime: 60_000,
   });
 
   const historyQuery = useQuery({
     queryKey: ['partner-question-history'],
     queryFn: () => api.get('/partner/questions/history', { params: { page: 0, limit: 60 } })
       .then(({ data }) => data.history as CoupleQuestionHistory),
-    enabled: hasPartner && activeView === 'history',
+    enabled: hasPartner && hasCouplePremium && activeView === 'history',
   });
 
   const answerForm = useForm<AnswerForm>({
@@ -238,6 +243,14 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
             >
               Mở cài đặt kết nối
             </Link>
+          </section>
+        ) : !hasCouplePremium ? (
+          <section className="mt-8">
+            <PremiumLockCard
+              accent={isMale ? 'blue' : 'pink'}
+              title="Mở trải nghiệm cặp đôi nâng cao"
+              description="Chỉ cần một trong hai tài khoản có Premium để cả hai dùng câu hỏi hằng ngày, lịch sử trả lời, hội thoại theo chủ đề và gợi ý chăm sóc theo ngữ cảnh."
+            />
           </section>
         ) : activeView === 'today' ? (
           <section className="mt-8 overflow-hidden rounded-3xl border border-white bg-white shadow-[0_24px_70px_rgba(148,163,184,0.16)]">

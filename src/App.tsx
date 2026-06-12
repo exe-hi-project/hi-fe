@@ -1,43 +1,48 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import OnboardingPage from './pages/OnboardingPage';
-import FemaleDashboardPage from './pages/FemaleDashboardPage';
-import CalendarPage from './pages/CalendarPage';
-import ChatPage from './pages/ChatPage';
-import CyclesPage from './pages/CyclesPage';
-import SymptomsPage from './pages/SymptomsPage';
-import NotificationsPage from './pages/NotificationsPage';
-import SettingsPage from './pages/SettingsPage';
-import SettingsNotificationsPage from './pages/SettingsNotificationsPage';
-import ProductsPage from './pages/ProductsPage';
-import MaleDashboardPage from './pages/MaleDashboardPage';
-import MaleSettingsNotificationsPage from './pages/MaleSettingsNotificationsPage';
-import PartnerPage from './pages/PartnerPage';
-import AdminPage from './pages/AdminPage';
-import Layout from './components/layout/Layout';
-import FloatingHiChat from './components/chat/FloatingHiChat';
-import { HelpPage, PrivacyPage, TermsPage } from './pages/LegalPages';
-import PaymentSuccessPage from './pages/payment/PaymentSuccessPage';
-import PaymentCancelPage from './pages/payment/PaymentCancelPage';
-import { getSafeOAuthState } from './lib/googleAuth';
+import { consumeGoogleOAuthRedirect } from './lib/googleAuth';
 import { getOrCreateSessionId, trackEvent } from './utils/analytics';
 
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
+const FemaleDashboardPage = lazy(() => import('./pages/FemaleDashboardPage'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const ChatPage = lazy(() => import('./pages/ChatPage'));
+const CyclesPage = lazy(() => import('./pages/CyclesPage'));
+const SymptomsPage = lazy(() => import('./pages/SymptomsPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const SettingsNotificationsPage = lazy(() => import('./pages/SettingsNotificationsPage'));
+const ProductsPage = lazy(() => import('./pages/ProductsPage'));
+const MaleDashboardPage = lazy(() => import('./pages/MaleDashboardPage'));
+const MaleSettingsNotificationsPage = lazy(() => import('./pages/MaleSettingsNotificationsPage'));
+const PartnerPage = lazy(() => import('./pages/PartnerPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const Layout = lazy(() => import('./components/layout/Layout'));
+const FloatingHiChat = lazy(() => import('./components/chat/FloatingHiChat'));
+const PaymentSuccessPage = lazy(() => import('./pages/payment/PaymentSuccessPage'));
+const PaymentCancelPage = lazy(() => import('./pages/payment/PaymentCancelPage'));
+const HelpPage = lazy(() => import('./pages/LegalPages').then((m) => ({ default: m.HelpPage })));
+const PrivacyPage = lazy(() => import('./pages/LegalPages').then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('./pages/LegalPages').then((m) => ({ default: m.TermsPage })));
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, token } = useAuthStore();
+  const { user, token, isBootstrapping } = useAuthStore();
+  if (isBootstrapping) return null;
   if (!token) return <Navigate to="/login" replace />;
   if (user && !user.onboardingCompleted) return <Navigate to="/onboarding" replace />;
   return <>{children}</>;
 }
 
 function UserOnlyRoute({ children }: { children: React.ReactNode }) {
-  const { user, token } = useAuthStore();
+  const { user, token, isBootstrapping } = useAuthStore();
+  if (isBootstrapping) return null;
   if (!token) return <Navigate to="/login" replace />;
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
   return <>{children}</>;
@@ -50,27 +55,31 @@ function authDest(user: ReturnType<typeof useAuthStore.getState>['user']) {
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, token } = useAuthStore();
+  const { user, token, isBootstrapping } = useAuthStore();
+  if (isBootstrapping) return null;
   if (!token) return <Navigate to="/login" replace />;
   if (user?.role !== 'admin') return <Navigate to={authDest(user)} replace />;
   return <>{children}</>;
 }
 
 function AuthRoute({ children }: { children: React.ReactNode }) {
-  const { token, user } = useAuthStore();
+  const { token, user, isBootstrapping } = useAuthStore();
+  if (isBootstrapping) return null;
   if (token) return <Navigate to={authDest(user)} replace />;
   return <>{children}</>;
 }
 
 function OnboardingRoute({ children }: { children: React.ReactNode }) {
-  const { token, user } = useAuthStore();
+  const { token, user, isBootstrapping } = useAuthStore();
+  if (isBootstrapping) return null;
   if (!token) return <Navigate to="/login" replace />;
   if (user?.onboardingCompleted) return <Navigate to={authDest(user)} replace />;
   return <>{children}</>;
 }
 
 function HomeRoute() {
-  const { token, user } = useAuthStore();
+  const { token, user, isBootstrapping } = useAuthStore();
+  if (isBootstrapping) return null;
   if (token) return <Navigate to={authDest(user)} replace />;
   return <LandingPage />;
 }
@@ -83,9 +92,13 @@ function DashboardRedirect() {
 }
 
 export default function App() {
-  const { socialLogin } = useAuthStore();
+  const { bootstrapSession, socialLogin } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    bootstrapSession();
+  }, [bootstrapSession]);
 
   // ── ANALYTICS TRACKING ──
   useEffect(() => {
@@ -112,40 +125,37 @@ export default function App() {
 
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash && hash.includes('access_token=')) {
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
-      const state = params.get('state');
-      if (accessToken) {
-        // Clear hash from URL immediately to keep the URL clean
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (hash && (hash.includes('id_token=') || hash.includes('access_token='))) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
-        const performRedirectLogin = async () => {
-          toast.loading('Đang xử lý đăng nhập Google...', { id: 'google-redirect-login' });
-          try {
-            const user = await socialLogin('google', { accessToken });
-            toast.dismiss('google-redirect-login');
-            toast.success('Đăng nhập Google thành công!');
-            
-            // Navigate to appropriate page
-            let destination = '/male-dashboard';
-            if (user.role === 'admin') destination = '/admin';
-            else if (!user.onboardingCompleted) destination = '/onboarding';
-            else if (user.gender === 'female') destination = '/female-dashboard';
-
-            navigate(getSafeOAuthState(state, destination));
-          } catch (err: any) {
-            toast.dismiss('google-redirect-login');
-            toast.error(err.message || 'Đăng nhập Google thất bại');
+      const performRedirectLogin = async () => {
+        toast.loading('Dang xu ly dang nhap Google...', { id: 'google-redirect-login' });
+        try {
+          const redirect = consumeGoogleOAuthRedirect(hash);
+          if (!redirect) {
+            throw new Error('Google redirect khong hop le');
           }
-        };
-        performRedirectLogin();
-      }
+          const user = await socialLogin('google', { credential: redirect.credential });
+          toast.dismiss('google-redirect-login');
+          toast.success('Dang nhap Google thanh cong!');
+
+          let destination = '/male-dashboard';
+          if (user.role === 'admin') destination = '/admin';
+          else if (!user.onboardingCompleted) destination = '/onboarding';
+          else if (user.gender === 'female') destination = '/female-dashboard';
+
+          navigate(redirect.nextPath ?? destination);
+        } catch (err: any) {
+          toast.dismiss('google-redirect-login');
+          toast.error(err.message || 'Dang nhap Google that bai');
+        }
+      };
+      performRedirectLogin();
     }
   }, [location.hash, socialLogin, navigate]);
 
   return (
-    <>
+    <Suspense fallback={null}>
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
@@ -183,6 +193,6 @@ export default function App() {
       </Route>
     </Routes>
     <FloatingHiChat />
-    </>
+    </Suspense>
   );
 }

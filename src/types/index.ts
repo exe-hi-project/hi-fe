@@ -69,12 +69,13 @@ export interface User {
 }
 
 export interface UserSubscription {
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  plan: 'free' | 'premium' | 'monthly' | 'yearly' | 'premium_monthly' | 'premium_yearly';
-  status: 'active' | 'canceled' | 'past_due' | 'trialing' | null;
-  currentPeriodEnd: string | null;
-}
+    stripeCustomerId: string | null;
+    stripeSubscriptionId: string | null;
+    plan: 'free' | 'premium' | 'monthly' | 'yearly' | 'premium_monthly' | 'premium_yearly' | 'FREE' | 'PREMIUM_MONTHLY' | 'PREMIUM_YEARLY';
+    status: 'active' | 'canceled' | 'past_due' | 'trialing' | null;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd?: boolean;
+  }
 
 export interface RegisterDto {
   name: string;
@@ -84,7 +85,7 @@ export interface RegisterDto {
 }
 
 export interface AuthPayload {
-  token: string;
+  token?: string;
   user: User;
 }
 

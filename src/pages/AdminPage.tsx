@@ -7,6 +7,7 @@ import {
   CurrencyCircleDollar,
   List,
   Pulse,
+  Question,
   Storefront,
   Users,
   VideoCamera,
@@ -23,6 +24,7 @@ const AdminAnalyticsPanel = lazy(() => import('../components/admin/AdminAnalytic
 const AdminRevenuePanel = lazy(() => import('../components/admin/AdminRevenuePanel'));
 const AdminUsersPanel = lazy(() => import('../components/admin/AdminUsersPanel'));
 const HealthVideoAdminPanel = lazy(() => import('../components/admin/HealthVideoAdminPanel'));
+const AdminDailyQuestionsPanel = lazy(() => import('../components/admin/AdminDailyQuestionsPanel'));
 const AffiliateAdminPanel = lazy(() => import('../components/admin/AffiliateAdminPanel'));
 const AdminNotificationsPanel = lazy(() => import('../components/admin/AdminNotificationsPanel'));
 const AdminSystemPanel = lazy(() => import('../components/admin/AdminSystemPanel'));
@@ -33,6 +35,7 @@ const NAV_ITEMS = [
   { id: 'revenue', label: 'Doanh thu', description: 'PayOS và dự phóng', Icon: CurrencyCircleDollar },
   { id: 'users', label: 'Người dùng', description: 'Tài khoản và quyền', Icon: Users },
   { id: 'videos', label: 'Video sức khỏe', description: 'Nội dung đã duyệt', Icon: VideoCamera },
+  { id: 'questions', label: 'Câu hỏi mỗi ngày', description: 'Kho câu hỏi cặp đôi', Icon: Question },
   { id: 'affiliate', label: 'Affiliate', description: 'TikTok và Shopee', Icon: Storefront },
   { id: 'notifications', label: 'Thông báo', description: 'Chiến dịch vận hành', Icon: BellRinging },
   { id: 'system', label: 'Hệ thống', description: 'Health và cấu hình', Icon: Cpu },
@@ -50,6 +53,8 @@ function ActivePanel({ tab }: { tab: AdminTab }) {
       return <AdminUsersPanel />;
     case 'videos':
       return <HealthVideoAdminPanel />;
+    case 'questions':
+      return <AdminDailyQuestionsPanel />;
     case 'affiliate':
       return <AffiliateAdminPanel />;
     case 'notifications':

@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 export default function Layout() {
   const { user } = useAuthStore();
   const isMale = user?.gender === 'male';
-  const pageBg = isMale ? 'bg-[#f5fbff]' : 'bg-[#fff8fb]';
+  const pageBg = isMale ? 'bg-[#f5fbff]' : 'bg-[#fff1f6]';
   const blobs = isMale
     ? {
         first: 'bg-sky-200/45',
@@ -13,9 +13,9 @@ export default function Layout() {
         third: 'bg-blue-100/35',
       }
     : {
-        first: 'bg-pink-200/35',
-        second: 'bg-sky-200/30',
-        third: 'bg-violet-200/25',
+        first: 'bg-pink-200/30',
+        second: 'bg-rose-100/25',
+        third: 'bg-violet-100/20',
       };
 
   return (

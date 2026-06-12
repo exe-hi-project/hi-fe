@@ -1,5 +1,9 @@
 import { useAuthStore } from '../store/authStore';
 
+const MAX_CLICK_EVENTS_PER_10_SECONDS = 20;
+let clickWindowStartedAt = 0;
+let clickEventsInWindow = 0;
+
 // Generate a simple high-entropy UUID-like string
 const generateUUID = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -28,6 +32,9 @@ export const trackEvent = async (
   metadata?: Record<string, any>
 ): Promise<void> => {
   try {
+    if (eventType === 'CLICK' && !allowClickEvent()) {
+      return;
+    }
     const sessionId = getOrCreateSessionId();
     const user = useAuthStore.getState().user;
     const userId = user?._id || '';
@@ -36,16 +43,20 @@ export const trackEvent = async (
       sessionId,
       userId: userId || undefined,
       eventType,
-      target,
-      elementText: elementText || undefined,
-      metadata
+      target: target.substring(0, 160),
+      elementText: elementText ? elementText.substring(0, 120) : undefined,
+      metadata: metadata ? Object.fromEntries(Object.entries(metadata).slice(0, 12)) : undefined
     };
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://api.hilover.space/api' : '/api');
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 3000);
 
     // Use native fetch to avoid axios interceptor side-effects
     fetch(`${apiUrl}/analytics/track`, {
       method: 'POST',
+      credentials: 'include',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json'
       },
@@ -55,6 +66,8 @@ export const trackEvent = async (
       if (import.meta.env.DEV) {
         console.error('Analytics track error:', err);
       }
+    }).finally(() => {
+      window.clearTimeout(timeout);
     });
   } catch (e) {
     if (import.meta.env.DEV) {
@@ -62,3 +75,13 @@ export const trackEvent = async (
     }
   }
 };
+
+function allowClickEvent() {
+  const now = Date.now();
+  if (now - clickWindowStartedAt > 10_000) {
+    clickWindowStartedAt = now;
+    clickEventsInWindow = 0;
+  }
+  clickEventsInWindow += 1;
+  return clickEventsInWindow <= MAX_CLICK_EVENTS_PER_10_SECONDS;
+}

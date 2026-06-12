@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom';
 import HiLogo from '../components/ui/HiLogo';
 import Navbar from '../components/layout/Navbar';
+import {
+  FREE_PLAN_FEATURES,
+  PREMIUM_PLAN_FEATURES,
+  PREMIUM_YEARLY_FEATURES,
+} from '../config/subscriptionPlans';
 
 const REVIEWER_AVATARS = {
   minhAnh:
@@ -22,7 +27,7 @@ const LANDING_PLANS = [
     name: 'Đồng Hành Cơ Bản',
     price: '0đ',
     description: 'Bắt đầu theo dõi sức khỏe sinh sản cá nhân.',
-    features: ['Theo dõi chu kỳ cơ bản', 'Lịch sử cá nhân không giới hạn', 'Nhắc lịch cơ bản', 'AI hỏi đáp giới hạn'],
+    features: [...FREE_PLAN_FEATURES],
     to: '/register',
     cta: 'Bắt đầu miễn phí',
     highlight: false,
@@ -32,7 +37,7 @@ const LANDING_PLANS = [
     price: '49.000đ',
     suffix: '/tháng',
     description: 'Mở khóa phân tích nâng cao và AI chăm sóc sâu hơn.',
-    features: ['Analytics chu kỳ và triệu chứng', 'AI Premium ưu tiên', 'Chia sẻ với Người ấy nâng cao', 'Video sức khỏe được duyệt'],
+    features: [...PREMIUM_YEARLY_FEATURES],
     to: '/register?plan=monthly',
     cta: 'Chọn Đồng Hành Tháng',
     highlight: true,
@@ -43,7 +48,7 @@ const LANDING_PLANS = [
     suffix: '/năm',
     badge: 'Tiết kiệm 32%',
     description: 'Tối ưu cho người dùng muốn theo dõi dài hạn.',
-    features: ['Tất cả Premium tháng', 'Báo cáo định kỳ', 'Ưu tiên tính năng mới', 'Giá tốt nhất trong năm'],
+    features: [...PREMIUM_PLAN_FEATURES],
     to: '/register?plan=yearly',
     cta: 'Chọn Đồng Hành Năm',
     highlight: false,
@@ -345,7 +350,7 @@ export default function LandingPage() {
                 Chọn nhịp chăm sóc phù hợp với bạn
               </h2>
               <p className="text-base font-medium leading-relaxed text-slate-500 md:text-lg">
-                Free mở toàn bộ dữ liệu cá nhân cơ bản. Premium tập trung vào phân tích, báo cáo và AI nâng cao.
+                Free mở toàn bộ công cụ chăm sóc sức khỏe, cá nhân hóa AI và nhắc nhở. Premium tập trung vào hạn mức AI cao hơn, phân tích chuyên sâu và trải nghiệm cặp đôi nâng cao.
               </p>
             </div>
 

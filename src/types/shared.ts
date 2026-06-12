@@ -145,12 +145,13 @@ export interface CycleInsights {
   regularityLabel?: string;
   regularityReasons?: string[];
   cycleTrendPoints?: CycleTrendPoint[];
-  predictionConfidence: 'LOW' | 'MEDIUM' | 'HIGH';
+  predictionConfidence?: 'LOW' | 'MEDIUM' | 'HIGH' | null;
   hasOutliers: boolean;
   warnings: string[];
   symptomImpactScore?: number;
   phaseSymptomImpacts?: PhaseSymptomImpact[];
   topSymptoms?: SymptomImpactItem[];
+  advancedAnalyticsAvailable: boolean;
 }
 
 export type Cycle = CycleRecord;

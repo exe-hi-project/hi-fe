@@ -10,6 +10,7 @@ import DailyLogModal, { type DailyLogMode } from '../components/health/DailyLogM
 import HealthVideoSection from '../components/health/HealthVideoSection';
 import QuickMoodCard from '../components/health/QuickMoodCard';
 import PartnerQuestionPreview from '../components/partner/PartnerQuestionPreview';
+import PremiumLockCard from '../components/subscription/PremiumLockCard';
 import AffiliateRecommendations from '../components/affiliate/AffiliateRecommendations';
 import HiTrustExplainer from '../components/health/HiTrustExplainer';
 import api from '../lib/api';
@@ -583,6 +584,8 @@ export default function FemaleDashboardPage() {
                   Hi tính toán thế nào?
                 </button>
               </div>
+              {insights?.advancedAnalyticsAvailable ? (
+                <>
               <div className="mt-5 grid gap-3 md:grid-cols-4">
                 <div className="rounded-3xl bg-gradient-to-br from-pink-50 to-white p-4">
                   <p className="text-[10px] font-black uppercase tracking-wider text-pink-400">Tính đều đặn</p>
@@ -614,6 +617,20 @@ export default function FemaleDashboardPage() {
                   Xem chi tiết
                 </Link>
               </div>
+                </>
+              ) : (
+                <div className="mt-5 space-y-3">
+                  <PremiumLockCard
+                    compact
+                    title="Mở phân tích chu kỳ chuyên sâu"
+                    description="Premium bổ sung điểm ổn định, độ tin cậy, xu hướng dài hạn và phân tích triệu chứng. Dự đoán kỳ kinh, rụng trứng và cảnh báo an toàn vẫn luôn miễn phí."
+                  />
+                  <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-violet-500">Rụng trứng ước tính</p>
+                    <p className="mt-2 text-xl font-black text-slate-900">{formatShortDate(insights?.estimatedOvulationDate)}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="md:col-span-4 bg-white/90 backdrop-blur-sm rounded-3xl p-7 shadow-sm border border-white/80">

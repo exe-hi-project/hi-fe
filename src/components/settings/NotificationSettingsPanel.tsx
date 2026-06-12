@@ -6,6 +6,7 @@ import Navbar from '../layout/Navbar';
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import { usePartnerConnection } from '../../hooks/usePartnerConnection';
+import { useSubscription } from '../../hooks/useSubscription';
 
 type Variant = 'female' | 'male';
 type AiResponseStyle = 'FRIENDLY' | 'PLAYFUL' | 'SCIENTIFIC' | 'CONCISE' | 'CARE_PARTNER';
@@ -27,6 +28,7 @@ interface NotificationSettings {
   partnerNudgeTime: string;
   aiResponseStyle: AiResponseStyle;
   dailyQuestionsEnabled: boolean;
+  contextualCareSuggestionsEnabled: boolean;
 }
 
 interface PartnerCyclesResponse {
@@ -37,6 +39,13 @@ interface PartnerCyclesResponse {
     avatar?: string;
     gender?: string;
   } | null;
+}
+
+interface PartnerSharingSettings {
+  shareDetailedSymptoms: boolean;
+  shareHealthNotes: boolean;
+  shareMood: boolean;
+  shareCycleData: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -52,10 +61,18 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   reminderDaysBefore: 3,
   symptomDailyReminderEnabled: true,
   symptomReminderTime: '20:00',
-  partnerEndOfDayNudgeEnabled: true,
+  partnerEndOfDayNudgeEnabled: false,
   partnerNudgeTime: '21:00',
   aiResponseStyle: 'FRIENDLY',
-  dailyQuestionsEnabled: true,
+  dailyQuestionsEnabled: false,
+  contextualCareSuggestionsEnabled: false,
+};
+
+const DEFAULT_SHARING: PartnerSharingSettings = {
+  shareDetailedSymptoms: false,
+  shareHealthNotes: false,
+  shareMood: false,
+  shareCycleData: false,
 };
 
 const aiStyles: Array<{ value: AiResponseStyle; label: string; desc: string }> = [
@@ -66,14 +83,14 @@ const aiStyles: Array<{ value: AiResponseStyle; label: string; desc: string }> =
   { value: 'CARE_PARTNER', label: 'Chăm Người ấy', desc: 'Gợi ý quan tâm tinh tế.' },
 ];
 
-function Toggle({ checked, onChange, accent }: { checked: boolean; onChange: (value: boolean) => void; accent: Variant }) {
+function Toggle({ checked, onChange, accent, disabled = false }: { checked: boolean; onChange: (value: boolean) => void; accent: Variant; disabled?: boolean }) {
   const gradient = accent === 'male'
     ? 'peer-checked:[background:linear-gradient(135deg,#60a5fa,#6366f1,#a78bfa)]'
     : 'peer-checked:[background:linear-gradient(135deg,#60a5fa,#c084fc,#f472b6)]';
 
   return (
-    <label className="relative inline-flex cursor-pointer items-center">
-      <input type="checkbox" className="peer sr-only" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    <label className={`relative inline-flex items-center ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+      <input type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
       <span className={`h-8 w-14 rounded-full bg-slate-200 shadow-inner transition-all after:absolute after:left-1 after:top-1 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow-sm after:transition-all peer-checked:after:translate-x-6 ${gradient}`} />
     </label>
   );
@@ -86,6 +103,8 @@ function SettingRow({
   onChange,
   accent,
   hot,
+  premium,
+  disabled,
 }: {
   title: string;
   desc: string;
@@ -93,6 +112,8 @@ function SettingRow({
   onChange: (value: boolean) => void;
   accent: Variant;
   hot?: boolean;
+  premium?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-5 rounded-3xl border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur">
@@ -100,10 +121,11 @@ function SettingRow({
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-black text-slate-900">{title}</p>
           {hot && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">HOT</span>}
+          {premium && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-700">PREMIUM</span>}
         </div>
         <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500">{desc}</p>
       </div>
-      <Toggle checked={checked} onChange={onChange} accent={accent} />
+      <Toggle checked={checked} onChange={onChange} accent={accent} disabled={disabled} />
     </div>
   );
 }
@@ -146,7 +168,9 @@ function ChannelButton({
 export default function NotificationSettingsPanel({ variant }: { variant: Variant }) {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
+  const subscriptionQuery = useSubscription();
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
+  const [sharing, setSharing] = useState<PartnerSharingSettings>(DEFAULT_SHARING);
   const [partnerCode, setPartnerCode] = useState('');
   const { connectPartner, disconnectPartner } = usePartnerConnection();
 
@@ -156,10 +180,18 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
   const accentText = isMale ? 'text-blue-600' : 'text-pink-500';
   const saveGradient = isMale ? 'from-sky-400 via-blue-500 to-violet-500' : 'from-sky-400 via-violet-500 to-pink-500';
   const hasPartner = Boolean(user?.partnerId);
+  const hasCouplePremium = subscriptionQuery.data?.couplePremium === true;
 
   const settingsQuery = useQuery({
     queryKey: ['notification-settings'],
     queryFn: () => api.get('/users/notification-settings').then(({ data }) => data.settings as Partial<NotificationSettings>),
+  });
+
+  const sharingQuery = useQuery({
+    queryKey: ['partner-sharing-preferences'],
+    queryFn: () => api.get('/users/partner-sharing-preferences')
+      .then(({ data }) => data.sharing as Partial<PartnerSharingSettings>),
+    enabled: !isMale,
   });
 
   const partnerQuery = useQuery({
@@ -170,9 +202,22 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
 
   useEffect(() => {
     if (settingsQuery.data) {
-      setSettings({ ...DEFAULT_SETTINGS, ...settingsQuery.data, smsEnabled: false });
+      const next = { ...DEFAULT_SETTINGS, ...settingsQuery.data, smsEnabled: false };
+      if (!hasCouplePremium) {
+        next.dailyQuestionsEnabled = false;
+        next.contextualCareSuggestionsEnabled = false;
+        next.partnerCareTipsEnabled = false;
+        next.partnerEndOfDayNudgeEnabled = false;
+      }
+      setSettings(next);
     }
-  }, [settingsQuery.data]);
+  }, [hasCouplePremium, settingsQuery.data]);
+
+  useEffect(() => {
+    if (sharingQuery.data) {
+      setSharing({ ...DEFAULT_SHARING, ...sharingQuery.data });
+    }
+  }, [sharingQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: () => api.put('/users/notification-settings', { ...settings, smsEnabled: false }),
@@ -184,6 +229,17 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
       toast.success('Đã lưu cài đặt thông báo & AI');
     },
     onError: () => toast.error('Lưu cài đặt thất bại, thử lại sau nhé'),
+  });
+
+  const saveSharingMutation = useMutation({
+    mutationFn: () => api.put('/users/partner-sharing-preferences', sharing),
+    onSuccess: ({ data }) => {
+      setSharing({ ...DEFAULT_SHARING, ...data.sharing });
+      queryClient.invalidateQueries({ queryKey: ['partner-sharing-preferences'] });
+      queryClient.invalidateQueries({ queryKey: ['partner-cycles'] });
+      toast.success('Đã lưu quyền chia sẻ với Người ấy');
+    },
+    onError: () => toast.error('Không thể lưu quyền chia sẻ lúc này'),
   });
 
   const rows = useMemo(() => [
@@ -213,6 +269,13 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
       title: 'Câu hỏi hằng ngày của chúng mình',
       desc: 'Nhận một câu hỏi chung mỗi ngày và mở câu trả lời khi cả hai đã hoàn thành.',
       hot: true,
+      premium: true,
+    },
+    {
+      key: 'contextualCareSuggestionsEnabled' as const,
+      title: 'Gợi ý theo chu kỳ và tâm trạng',
+      desc: 'Dùng dữ liệu được chia sẻ để gợi ý cách quan tâm phù hợp theo ngữ cảnh.',
+      premium: true,
     },
     {
       key: 'partnerPeriodAlertEnabled' as const,
@@ -228,11 +291,13 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
       key: 'partnerCareTipsEnabled' as const,
       title: 'Gợi ý chăm sóc',
       desc: 'Gợi ý những hành động nhẹ nhàng để Người ấy biết cách quan tâm đúng lúc.',
+      premium: true,
     },
     {
       key: 'partnerEndOfDayNudgeEnabled' as const,
       title: 'Nhắc cuối ngày cho cả hai',
       desc: 'Nếu bạn nữ gần/tới kỳ mà chưa cập nhật, Hi nhắc cả hai bằng lời nhẹ nhàng.',
+      premium: true,
     },
   ], []);
 
@@ -344,6 +409,53 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
 
           <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
             <section className="space-y-4">
+              {!isMale && (
+                <div className="mb-6 space-y-4">
+                  <div className="px-1">
+                    <p className="text-sm font-black text-pink-500">Quyền riêng tư với Người ấy</p>
+                    <h2 className="mt-1 text-2xl font-black text-slate-900">Bạn quyết định dữ liệu được chia sẻ</h2>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      Các quyền mặc định đều tắt. Chỉ tài khoản đang kết nối với bạn mới xem được dữ liệu đã cho phép.
+                    </p>
+                  </div>
+                  <SettingRow
+                    title="Chia sẻ chu kỳ"
+                    desc="Cho Người ấy xem lịch sử kỳ đã xác nhận, dự đoán và trạng thái chu kỳ."
+                    checked={sharing.shareCycleData}
+                    onChange={(value) => setSharing((current) => ({ ...current, shareCycleData: value }))}
+                    accent={variant}
+                  />
+                  <SettingRow
+                    title="Chia sẻ cảm xúc"
+                    desc="Cho Người ấy xem cảm xúc gần nhất mà bạn đã ghi."
+                    checked={sharing.shareMood}
+                    onChange={(value) => setSharing((current) => ({ ...current, shareMood: value }))}
+                    accent={variant}
+                  />
+                  <SettingRow
+                    title="Chia sẻ triệu chứng chi tiết"
+                    desc="Cho phép các gợi ý chăm sóc sử dụng triệu chứng bạn đã ghi."
+                    checked={sharing.shareDetailedSymptoms}
+                    onChange={(value) => setSharing((current) => ({ ...current, shareDetailedSymptoms: value }))}
+                    accent={variant}
+                  />
+                  <SettingRow
+                    title="Chia sẻ ghi chú sức khỏe"
+                    desc="Cho phép các gợi ý chăm sóc sử dụng ghi chú sức khỏe của bạn."
+                    checked={sharing.shareHealthNotes}
+                    onChange={(value) => setSharing((current) => ({ ...current, shareHealthNotes: value }))}
+                    accent={variant}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveSharingMutation.mutate()}
+                    disabled={saveSharingMutation.isPending || sharingQuery.isLoading}
+                    className="hi-btn-primary w-full rounded-3xl px-6 py-4 text-base font-black disabled:cursor-wait"
+                  >
+                    {saveSharingMutation.isPending ? 'Đang lưu...' : 'Lưu quyền chia sẻ'}
+                  </button>
+                </div>
+              )}
               {rows.map((row) => (
                 <SettingRow
                   key={row.key}
@@ -353,6 +465,8 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
                   onChange={(value) => update(row.key, value)}
                   accent={variant}
                   hot={row.hot}
+                  premium={row.premium}
+                  disabled={row.premium && !hasCouplePremium}
                 />
               ))}
             </section>
@@ -387,7 +501,7 @@ export default function NotificationSettingsPanel({ variant }: { variant: Varian
                   </label>
                   <label className="block">
                     <span className="text-xs font-black uppercase tracking-wider text-slate-400">Giờ nhắc cuối ngày cho cặp đôi</span>
-                    <input type="time" value={settings.partnerNudgeTime} onChange={(event) => update('partnerNudgeTime', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 outline-none focus:border-pink-300" />
+                    <input type="time" value={settings.partnerNudgeTime} disabled={!hasCouplePremium} onChange={(event) => update('partnerNudgeTime', event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 outline-none focus:border-pink-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" />
                   </label>
                 </div>
               </div>

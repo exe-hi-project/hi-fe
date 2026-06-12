@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
@@ -45,13 +46,15 @@ function formatTime(value?: string) {
 }
 
 function NotificationRow({ notification, onRead }: { notification: Notification; onRead: (id: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLongMessage = notification.message.length > 240;
   const meta = notificationMeta[notification.type] ?? {
     icon: 'notifications',
     label: notification.type,
     tone: 'text-slate-500',
     bg: 'bg-slate-50',
   };
-  const content = (
+  return (
     <div
       onClick={() => !notification.read && onRead(notification._id)}
       className={[
@@ -72,7 +75,21 @@ function NotificationRow({ notification, onRead }: { notification: Notification;
               <p className={`text-sm font-extrabold ${notification.read ? 'text-slate-700' : 'text-slate-950'}`}>
                 {notification.title}
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-slate-500">{notification.message}</p>
+              <p className={`mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-500 ${!expanded && isLongMessage ? 'line-clamp-3' : ''}`}>
+                {notification.message}
+              </p>
+              {isLongMessage && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setExpanded((value) => !value);
+                  }}
+                  className="mt-2 text-xs font-bold text-violet-600 hover:text-violet-700"
+                >
+                  {expanded ? 'Thu gọn' : 'Xem thêm'}
+                </button>
+              )}
             </div>
             {!notification.read && <span className="mt-1 size-2.5 shrink-0 rounded-full bg-pink-500 shadow-sm shadow-pink-300" />}
           </div>
@@ -82,20 +99,19 @@ function NotificationRow({ notification, onRead }: { notification: Notification;
             </span>
             <span className="text-xs font-semibold text-slate-400">{formatTime(notification.createdAt)}</span>
             {notification.actionUrl && (
-              <span className="text-xs font-bold text-blue-500 opacity-0 transition-opacity group-hover:opacity-100">
+              <Link
+                to={notification.actionUrl}
+                onClick={(event) => event.stopPropagation()}
+                className="text-xs font-bold text-blue-500 transition-colors hover:text-blue-600"
+              >
                 Mở chi tiết
-              </span>
+              </Link>
             )}
           </div>
         </div>
       </div>
     </div>
   );
-
-  if (notification.actionUrl) {
-    return <Link to={notification.actionUrl}>{content}</Link>;
-  }
-  return content;
 }
 
 export default function NotificationsPage() {
