@@ -132,7 +132,9 @@ export interface Notification {
     | 'COUPLE_DAILY_QUESTION'
     | 'PARTNER_ANSWERED_DAILY_QUESTION'
     | 'COUPLE_QUESTION_UNLOCKED'
-    | 'CONTEXTUAL_CARE_SUGGESTION';
+    | 'CONTEXTUAL_CARE_SUGGESTION'
+    | 'ADMIN_CAMPAIGN'
+    | 'ADMIN_MESSAGE';
   title: string;
   message: string;
   actionUrl?: string;
