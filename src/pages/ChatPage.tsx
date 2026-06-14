@@ -70,6 +70,12 @@ export default function ChatPage() {
     queryFn: () => api.get('/chat', { params: { sessionDate } }).then((r) => r.data.messages ?? []),
     enabled: !!user?._id && !!sessionDate,
   });
+  const { data: isRealtimeTyping = false } = useQuery<boolean>({
+    queryKey: ['chat-ai-typing', sessionDate],
+    queryFn: async () => false,
+    enabled: false,
+    initialData: false,
+  });
 
   const messages = useMemo(
     () => [...serverMessages, ...optimisticMessages],
@@ -109,7 +115,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPending]);
+  }, [messages, isPending, isRealtimeTyping]);
 
   const handleSend = (message = input.trim()) => {
     const nextMessage = message.trim();
@@ -255,7 +261,7 @@ export default function ChatPage() {
               </div>
             )}
 
-            {isPending && (
+            {(isPending || isRealtimeTyping) && (
               <div className="mt-4 flex items-end gap-2">
                 <HiLogo size={36} className="shrink-0" />
                 <div className="rounded-3xl rounded-bl-md border border-white bg-white px-4 py-3 shadow-sm">

@@ -61,6 +61,12 @@ export default function FloatingHiChat() {
     queryFn: () => api.get('/chat', { params: { sessionDate } }).then((r) => r.data.messages ?? []),
     enabled: !hidden && !!user?._id && !!sessionDate,
   });
+  const { data: isRealtimeTyping = false } = useQuery<boolean>({
+    queryKey: ['chat-ai-typing', sessionDate],
+    queryFn: async () => false,
+    enabled: false,
+    initialData: false,
+  });
 
   const sendMutation = useMutation({
     mutationFn: (content: string) => api.post('/chat', { content, sessionDate }).then((r) => r.data as SendChatResponse),
@@ -139,7 +145,7 @@ export default function FloatingHiChat() {
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [open, messages, sendMutation.isPending]);
+  }, [open, messages, sendMutation.isPending, isRealtimeTyping]);
 
   if (hidden) return null;
 
@@ -255,7 +261,7 @@ export default function FloatingHiChat() {
                   </div>
                 </div>
               ))}
-              {sendMutation.isPending && (
+              {(sendMutation.isPending || isRealtimeTyping) && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-1 rounded-3xl rounded-bl-md border border-white bg-white px-4 py-3 shadow-sm">
                     <span className="size-2 animate-bounce rounded-full bg-sky-300" />
