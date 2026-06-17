@@ -185,7 +185,7 @@ export default function OnboardingPage() {
         <div className="flex items-center gap-2.5">
           <HiLogo size={34} />
           <span className="text-lg font-black tracking-tight" style={{ background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            Hi, Lover
+            Hi Lover
           </span>
         </div>
         {step < 4 && (
@@ -629,7 +629,7 @@ export default function OnboardingPage() {
             <h1 className="hi-page-title text-4xl mb-3">Bạn đã sẵn sàng!</h1>
             <p className="text-gray-500 mb-8 leading-relaxed">
               Chào mừng <span className="font-bold text-gray-800">{user?.name?.split(' ').pop() ?? 'bạn'}</span> đến với{' '}
-              <span className="font-black" style={{ color: '#9b6ee8' }}>Hi, Lover</span>. Hành trình sức khỏe của bạn bắt đầu từ đây. 💕
+              <span className="font-black" style={{ color: '#9b6ee8' }}>Hi Lover</span>. Hành trình sức khỏe của bạn bắt đầu từ đây. 💕
             </p>
 
             {/* Summary card */}

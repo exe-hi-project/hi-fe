@@ -155,7 +155,7 @@ function LegalPage({ kind }: { kind: LegalKind }) {
         <header className="mb-8 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <HiLogo size={40} />
-            <span className="text-xl font-black text-slate-900">Hi, Lover</span>
+            <span className="text-xl font-black text-slate-900">Hi Lover</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link to="/login" className="hi-btn-secondary hidden rounded-full px-5 py-2 text-sm font-bold sm:inline-flex">

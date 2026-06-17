@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
         <section className="px-7 py-7 sm:px-10 lg:px-12">
           <Link to="/" className="mb-10 flex w-fit items-center gap-3">
             <HiLogo size={38} />
-            <span className="hi-page-title text-xl">Hi, Lover</span>
+            <span className="hi-page-title text-xl">Hi Lover</span>
           </Link>
 
           {step === 1 ? (

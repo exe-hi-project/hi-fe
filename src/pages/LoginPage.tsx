@@ -213,7 +213,7 @@ export default function LoginPage() {
             <span
               className="text-xl font-black tracking-tight"
               style={{ background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
-            >Hi, Lover</span>
+            >Hi Lover</span>
           </Link>
 
           {/* Form area */}

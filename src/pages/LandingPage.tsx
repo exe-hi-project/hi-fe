@@ -444,7 +444,7 @@ export default function LandingPage() {
                   className="text-xl font-black tracking-tight"
                   style={{ background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
                 >
-                  Hi, Lover
+                  Hi Lover
                 </span>
               </Link>
               <p className="mt-4 max-w-[320px] text-sm font-medium leading-relaxed text-slate-500">

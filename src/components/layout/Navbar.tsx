@@ -109,7 +109,7 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
               backgroundClip: 'text',
             }}
           >
-            Hi, Lover
+            Hi Lover
           </span>
         </Link>
 

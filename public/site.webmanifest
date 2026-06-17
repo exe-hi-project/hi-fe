@@ -1,0 +1,25 @@
+{
+  "name": "HiLover - Web/app theo dõi sức khỏe kinh nguyệt và kết nối cặp đôi",
+  "short_name": "HiLover",
+  "description": "Web/app theo dõi sức khỏe kinh nguyệt, dự đoán chu kỳ, ghi nhận triệu chứng và kết nối cặp đôi dành cho người dùng Việt Nam.",
+  "lang": "vi-VN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff7fb",
+  "theme_color": "#eb477e",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
