@@ -11,7 +11,7 @@ import HiLogo from '../components/ui/HiLogo';
 import {
   ChatMessageContent,
 } from '../components/chat/ChatMessageContent';
-import { ChatSession, formatChatTime, formatSessionLabel, todaySessionDate } from '../components/chat/chatMessageUtils';
+import { ChatSession, formatChatTime, formatSessionLabel, mergeChatMessages, todaySessionDate } from '../components/chat/chatMessageUtils';
 
 const femaleSuggestedQuestions = [
   'Chu kỳ trước đó của tôi là khi nào?',
@@ -78,7 +78,7 @@ export default function ChatPage() {
   });
 
   const messages = useMemo(
-    () => [...serverMessages, ...optimisticMessages],
+    () => mergeChatMessages(serverMessages, optimisticMessages),
     [serverMessages, optimisticMessages],
   );
 
@@ -93,8 +93,7 @@ export default function ChatPage() {
     onSuccess: (data) => {
       const nextMessages = [data.userMessage, data.assistantMessage ?? data.message].filter(Boolean) as ChatMessage[];
       queryClient.setQueryData<ChatMessage[]>(['chat', userId, sessionDate], (current = []) => {
-        const ids = new Set(current.map((item) => item._id));
-        return [...current, ...nextMessages.filter((item) => !ids.has(item._id))];
+        return mergeChatMessages(current, nextMessages);
       });
       setOptimisticMessages([]);
       queryClient.invalidateQueries({ queryKey: ['chat', userId, sessionDate] });

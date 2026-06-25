@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
@@ -15,7 +15,8 @@ import AffiliateRecommendations from '../components/affiliate/AffiliateRecommend
 import HiTrustExplainer from '../components/health/HiTrustExplainer';
 import api from '../lib/api';
 import PricingCard from '../components/PricingCard';
-import type { CycleInsights, CycleRecord } from '../types/shared';
+import type { CycleInsights, CycleRecord, CoupleAnniversarySummary } from '../types/shared';
+import { normalizeAnniversarySummary } from '../utils/coupleAnniversaryCalendar';
 import { CYCLE_DAY_CLASSES, getCycleDayKind } from '../utils/cycleCalendar';
 
 /* ─── types & helpers ───────────────────────────────── */
@@ -132,6 +133,13 @@ export default function FemaleDashboardPage() {
     },
     enabled: hasPartner,
   });
+
+  const anniversariesQuery = useQuery<CoupleAnniversarySummary>({
+    queryKey: ['partner-anniversaries'],
+    queryFn: () => api.get('/partner/anniversaries').then(({ data }) => normalizeAnniversarySummary(data.anniversaries)),
+    enabled: hasPartner,
+  });
+  const anniversaries = anniversariesQuery.data;
   const partnerName = partnerQuery.data?.partner?.name ?? 'Bạn đời';
   const latestPartnerMood = partnerQuery.data?.latestMood ?? null;
   const partnerMoodLabel = latestPartnerMood?.label
@@ -235,7 +243,7 @@ export default function FemaleDashboardPage() {
   if (user?.gender !== 'female') return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="min-h-screen overflow-x-hidden relative font-sans bg-[#fff8fb]">
+    <div className="min-h-screen overflow-x-hidden relative font-sans bg-[#fdfbf7]">
       <PageBackdrop variant="female" />
 
       <div className="relative z-10 flex flex-col min-h-screen">
@@ -291,14 +299,20 @@ export default function FemaleDashboardPage() {
                   </h3>
                   <p className="text-slate-400 text-sm">Cập nhật lúc 8:00 sáng nay</p>
                 </div>
-                <button
-                  onClick={() => openCycleHistory(latestCycle)}
-                  disabled={!latestCycle}
-                  className="w-8 h-8 rounded-full bg-slate-50 hover:bg-pink-50 flex items-center justify-center text-slate-400 hover:text-pink-500 transition-colors"
-                  aria-label="Sửa kỳ kinh gần nhất"
-                >
-                  <span className="material-symbols-outlined text-lg">edit</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <Link to="/cycles" className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-pink-500 bg-slate-50 hover:bg-pink-50 px-3 py-1.5 rounded-full transition-colors">
+                    <span className="material-symbols-outlined text-[16px]">history</span>
+                    Xem lịch sử
+                  </Link>
+                  <button
+                    onClick={() => openCycleHistory(latestCycle)}
+                    disabled={!latestCycle}
+                    className="w-8 h-8 rounded-full bg-slate-50 hover:bg-pink-50 flex items-center justify-center text-slate-400 hover:text-pink-500 transition-colors"
+                    aria-label="Sửa kỳ kinh gần nhất"
+                  >
+                    <span className="material-symbols-outlined text-lg">edit</span>
+                  </button>
+                </div>
               </div>
 
               <div className="relative z-10 space-y-5">
@@ -375,10 +389,6 @@ export default function FemaleDashboardPage() {
                       Thêm lịch sử
                     </button>
                   </div>
-                  <Link to="/cycles" className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-pink-500">
-                    <span className="material-symbols-outlined text-[16px]">history</span>
-                    Xem lịch sử chu kỳ
-                  </Link>
                   <p className="text-[10px] leading-relaxed text-slate-400">
                     Ngày dự kiến chỉ là ước tính, không thay thế biện pháp tránh thai hoặc tư vấn y khoa.
                   </p>
@@ -415,6 +425,25 @@ export default function FemaleDashboardPage() {
                     </div>
                     <h4 className="font-bold text-lg text-slate-900">{partnerName}</h4>
                     <p className="text-xs text-slate-400">Đã kết nối</p>
+                    {anniversaries?.daysTogether !== undefined && anniversaries?.daysTogether !== null && (
+                      <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-pink-50 text-pink-600 border border-pink-100 text-xs font-black">
+                        <span className="material-symbols-outlined text-sm">favorite</span>
+                        {anniversaries.startDate?.title || 'Đồng hành'}{' '}
+                        <span
+                          className="text-sm font-black px-0.5"
+                          style={{
+                            background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                            display: 'inline-block',
+                          }}
+                        >
+                          {anniversaries.daysTogether}
+                        </span>{' '}
+                        ngày
+                      </div>
+                    )}
                     <div className="mt-4 w-full rounded-2xl border border-white bg-white/80 p-3.5 shadow-sm backdrop-blur-sm">
                       <p className="mb-2 text-[10px] font-bold uppercase text-slate-400">Cảm xúc mới nhất</p>
                       {partnerMoodLabel ? (
@@ -458,112 +487,6 @@ export default function FemaleDashboardPage() {
               </button>
             </div>
             <QuickMoodCard sendToPartner={hasPartner} />
-            </div>
-
-            <div className="md:col-span-4 grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* ── 3. Hi AI advice (dark) ── */}
-            <div className="lg:col-span-3 bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-800 flex flex-col relative overflow-hidden text-white">
-              <div
-                className="absolute top-0 right-0 w-36 h-36 rounded-full blur-[60px] opacity-30 pointer-events-none"
-                style={{ background: 'linear-gradient(135deg,#f9a8c9,#d4a8e8)' }}
-              />
-              <div className="flex items-center gap-2 mb-4 relative z-10">
-                <span className="material-symbols-outlined text-pink-400 text-[22px]">auto_awesome</span>
-                <h3 className="font-bold text-sm text-slate-200">Lời khuyên từ Hi AI</h3>
-              </div>
-              <div className="flex-grow flex flex-col justify-center relative z-10">
-                <p className="text-base font-medium leading-snug mb-4">
-                  {phase === 'Rụng trứng'
-                    ? '"Estrogen đang ở mức cao nhất. Đây là thời điểm tuyệt vời để bắt đầu dự án mới và kết nối sâu hơn với người ấy!"'
-                    : phase === 'Kinh nguyệt'
-                    ? '"Hãy nghỉ ngơi và tự chăm sóc bản thân. Nhiệt và trà gừng sẽ giúp bạn cảm thấy dễ chịu hơn."'
-                    : '"Giai đoạn này rất tốt để học điều mới và giao tiếp xã hội. Năng lượng của bạn đang tăng dần!"'}
-                </p>
-                <button
-                  onClick={() => openHiChat('Hôm nay tôi nên chăm sóc sức khỏe thế nào?')}
-                  className="text-xs font-bold text-pink-400 hover:text-pink-300 flex items-center gap-1 transition-colors"
-                >
-                  Hỏi Hi AI thêm <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                </button>
-              </div>
-            </div>
-
-            {/* ── 5. Emotion chart (md col-span-2) ── */}
-            <div className="lg:col-span-5 bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-white/80">
-              <div className="flex justify-between items-center mb-5">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-purple-500 text-[22px]">bar_chart</span>
-                  Biểu đồ cảm xúc tuần này
-                </h3>
-                <select className="bg-gray-50 border-none text-xs font-bold rounded-lg py-1 px-3 text-slate-600 cursor-pointer hover:bg-gray-100 outline-none">
-                  <option>7 ngày qua</option>
-                  <option>30 ngày qua</option>
-                </select>
-              </div>
-              <div className="h-36 w-full flex items-end justify-between gap-2 px-2">
-                {getWeekBars().map(({ day, h, cls, active }) => (
-                  <div key={day} className="flex flex-col items-center gap-2 w-full group cursor-pointer">
-                    <div
-                      className={`relative w-full bg-gray-100 rounded-t-xl rounded-b-sm h-32 flex items-end overflow-hidden ${
-                        active ? 'ring-2 ring-pink-400 ring-offset-2' : ''
-                      }`}
-                    >
-                      <div className={`w-full ${cls} transition-colors rounded-t-xl`} style={{ height: h }} />
-                    </div>
-                    <span className={`text-[10px] font-bold text-center whitespace-pre ${active ? 'text-slate-900' : 'text-slate-400'}`}>
-                      {day}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── 6. Mini Calendar ── */}
-            <div className="lg:col-span-4 bg-yellow-50/50 rounded-3xl p-6 shadow-sm border border-yellow-100">
-              <div className="flex justify-between items-center mb-5">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-orange-500 text-[22px]">calendar_month</span>
-                  Lịch chu kỳ — {monthLabel}
-                </h3>
-                <Link to="/calendar" className="text-xs font-bold text-slate-500 hover:text-pink-500 transition-colors">
-                  Xem toàn bộ
-                </Link>
-              </div>
-              <div className="flex justify-between items-center gap-2 mb-4">
-                <div className="flex-1 grid grid-cols-7 gap-1 text-center">
-                  {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, i) => (
-                    <div key={i} className="text-[10px] uppercase font-bold text-slate-400 mb-2">{d}</div>
-                  ))}
-                  {currentWeekDates.map((date) => {
-                    const dateIso = toIsoDate(date);
-                    const isToday = dateIso === toIsoDate(today);
-                    const kind = getCycleDayKind(date, cycleQuery.data?.cycles ?? [], insights);
-                    return (
-                      <div
-                        key={dateIso}
-                        className={`h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${kind ? CYCLE_DAY_CLASSES[kind] : 'text-slate-500 bg-white/50'} ${isToday ? 'ring-2 ring-slate-800 ring-offset-1' : ''}`}
-                      >
-                        {date.getDate()}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500 justify-center">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-200 border border-rose-200 inline-block" /> Đã ghi nhận
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-50 border border-dashed border-rose-400 inline-block" /> Dự kiến
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-sky-50 border border-sky-100 inline-block" /> Cửa sổ thụ thai
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-sky-200 border border-sky-300 inline-block" /> Rụng trứng
-                </div>
-              </div>
-            </div>
             </div>
 
             {/* ── 7. Community FAQ (full width) ── */}
@@ -734,3 +657,5 @@ export default function FemaleDashboardPage() {
     </div>
   );
 }
+
+

@@ -3,8 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import api from '../lib/api';
-import type { CycleInsights, CycleRecord } from '../types/shared';
+import type { CycleInsights, CycleRecord, CoupleAnniversarySummary, CoupleAnniversaryEvent } from '../types/shared';
 import { CYCLE_DAY_CLASSES, CYCLE_LEGEND, getCycleDayKind, toIsoDate } from '../utils/cycleCalendar';
+import { getDayAnniversaryOccurrences, anniversaryBackground, anniversaryEffectClass } from '../utils/coupleAnniversaryCalendar';
+import AnniversaryEventModal from '../components/partner/AnniversaryEventModal';
+import { useAuthStore } from '../store/authStore';
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const MONTHS = [
@@ -23,11 +26,16 @@ const MONTHS = [
 ];
 
 export default function CalendarPage() {
+  const user = useAuthStore((state) => state.user);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const queryFrom = toIsoDate(new Date(year, month - 1, 1));
   const queryTo = toIsoDate(new Date(year, month + 2, 0));
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedAnniversary, setSelectedAnniversary] = useState<CoupleAnniversaryEvent | null>(null);
 
   const { data: cycles = [] } = useQuery<CycleRecord[]>({
     queryKey: ['cycles', queryFrom, queryTo],
@@ -36,6 +44,11 @@ export default function CalendarPage() {
   const { data: insights } = useQuery<CycleInsights>({
     queryKey: ['cycle-insights'],
     queryFn: () => api.get('/cycle-records/insights').then(({ data }) => data.insights),
+  });
+  const { data: anniversaries } = useQuery<CoupleAnniversarySummary>({
+    queryKey: ['partner-anniversaries'],
+    queryFn: () => api.get('/partner/anniversaries').then(({ data }) => data.anniversaries),
+    enabled: !!user?.partnerId,
   });
 
   const firstDay = new Date(year, month, 1).getDay();
@@ -138,17 +151,34 @@ export default function CalendarPage() {
                 const date = new Date(year, month, day);
                 const isToday = date.toDateString() === today.toDateString();
                 const type = getCycleDayKind(date, cycles, insights);
+                const iso = toIsoDate(date);
+                const occurrences = getDayAnniversaryOccurrences(anniversaries, iso, year, month);
+                const primary = occurrences[0];
+                const event = primary?.event;
+                const decorated = Boolean(primary && event);
 
                 return (
-                  <div
+                  <button
                     key={day}
-                    className={`flex aspect-square min-h-10 items-center justify-center rounded-2xl text-sm font-bold transition-all sm:min-h-14 ${
+                    onClick={() => {
+                      setSelectedDate(iso);
+                      setSelectedAnniversary(event || null);
+                      setModalOpen(true);
+                    }}
+                    className={`relative flex aspect-square min-h-10 flex-col items-center justify-center rounded-2xl text-sm font-bold transition-all sm:min-h-14 cursor-pointer outline-none ${
                       type ? CYCLE_DAY_CLASSES[type] : 'text-slate-600 hover:bg-slate-50'
-                    } ${isToday ? 'ring-2 ring-slate-800 ring-offset-2' : ''}`}
-                    title={date.toLocaleDateString('vi-VN')}
+                    } ${isToday ? 'ring-2 ring-slate-800 ring-offset-2' : ''} ${
+                      decorated && !type ? `${anniversaryBackground(event.color, event.effect)} ${anniversaryEffectClass(event.effect)}` : ''
+                    }`}
+                    title={decorated ? `${date.toLocaleDateString('vi-VN')} - ${event.title}` : date.toLocaleDateString('vi-VN')}
                   >
-                    {day}
-                  </div>
+                    <span>{day}</span>
+                    {decorated && (
+                      <span className="anniversary-icon absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-white/90 shadow-sm border border-slate-100 ring-1 ring-black/5">
+                        <span className="material-symbols-outlined text-[12px] font-bold text-slate-700">{event.icon}</span>
+                      </span>
+                    )}
+                  </button>
                 );
               })}
             </div>
@@ -200,7 +230,14 @@ export default function CalendarPage() {
             Các ngày dự kiến chỉ là ước tính, không thay thế biện pháp tránh thai hoặc tư vấn y khoa.
           </p>
         </aside>
-      </div>
     </div>
+    <AnniversaryEventModal
+      open={modalOpen}
+      onClose={() => setModalOpen(false)}
+      date={selectedDate}
+      existingEvent={selectedAnniversary}
+      variant={user?.gender === 'male' ? 'male' : 'female'}
+    />
+  </div>
   );
 }

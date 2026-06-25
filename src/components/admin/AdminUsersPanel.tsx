@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { BellRinging, CaretLeft, CaretRight, DownloadSimple, MagnifyingGlass, ShieldCheck, Trash, Users } from '@phosphor-icons/react';
+import { BellRinging, CaretLeft, CaretRight, DownloadSimple, Crown, MagnifyingGlass, ShieldCheck, Trash, Users } from '@phosphor-icons/react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -33,6 +33,10 @@ export default function AdminUsersPanel() {
   const [notificationTarget, setNotificationTarget] = useState<AdminUser | null>(null);
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [subscriptionTarget, setSubscriptionTarget] = useState<AdminUser | null>(null);
+  const [subPlan, setSubPlan] = useState<'free' | 'premium'>('premium');
+  const [subDurationDays, setSubDurationDays] = useState(30);
+  const [subReason, setSubReason] = useState('');
   const overviewQuery = useAdminOverview();
 
   const usersQueryKey = useMemo(
@@ -107,6 +111,23 @@ export default function AdminUsersPanel() {
       queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
     },
     onError: () => toast.error('Không thể gửi thông báo'),
+  });
+
+  const updateSubscriptionMutation = useMutation({
+    mutationFn: ({ userId, plan, durationDays, reason: subReasonText }: { userId: string; plan: string; durationDays: number; reason?: string }) =>
+      api.patch(`/admin/users/${userId}/subscription`, { plan, durationDays, reason: subReasonText }),
+    onSuccess: () => {
+      toast.success('Đã cập nhật gói tài khoản');
+      setSubscriptionTarget(null);
+      setSubReason('');
+      setSubDurationDays(30);
+      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+    onError: (err: any) => {
+      const message = err?.response?.data?.message || 'Không thể cập nhật gói tài khoản';
+      toast.error(message);
+    },
   });
 
   const exportCsvMutation = useMutation({
@@ -230,26 +251,51 @@ export default function AdminUsersPanel() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-slate-100">
-              {users.map((user) => (
-                <article key={user._id} className="flex flex-col gap-3 border-b border-slate-100 p-4 last:border-b-0 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${user.role === 'admin' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
-                      {user.role === 'admin' ? <ShieldCheck size={18} weight="fill" /> : <Users size={18} weight="fill" />}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-950">{user.name}</p>
-                      <p className="truncate text-xs text-slate-500">{user.email}</p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <Badge>{user.role}</Badge>
-                        <Badge>{user.gender === 'female' ? 'Nữ' : user.gender === 'male' ? 'Nam' : 'Khác'}</Badge>
-                        <Badge tone={user.accountStatus === 'LOCKED' ? 'amber' : user.accountStatus === 'DELETED' ? 'rose' : 'emerald'}>
-                          {user.accountStatus ?? 'ACTIVE'}
-                        </Badge>
-                        <Badge tone={user.onboardingCompleted ? 'emerald' : 'slate'}>{user.onboardingCompleted ? 'Onboarded' : 'Pending'}</Badge>
+              {users.map((user) => {
+                const isPremium = !!(user.subscription?.plan && user.subscription.plan.toLowerCase() !== 'free' && user.subscription.status === 'active');
+                return (
+                  <article key={user._id} className="flex flex-col gap-3 border-b border-slate-100 p-4 last:border-b-0 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${user.role === 'admin' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
+                        {user.role === 'admin' ? <ShieldCheck size={18} weight="fill" /> : <Users size={18} weight="fill" />}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-950">{user.name}</p>
+                        <p className="truncate text-xs text-slate-500">{user.email}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                          <Badge tone={user.role === 'admin' ? 'amber' : 'rose'}>{user.role}</Badge>
+                          <Badge>{user.gender === 'female' ? 'Nữ' : user.gender === 'male' ? 'Nam' : 'Khác'}</Badge>
+                          <Badge tone={user.accountStatus === 'LOCKED' ? 'amber' : user.accountStatus === 'DELETED' ? 'rose' : 'emerald'}>
+                            {user.accountStatus ?? 'ACTIVE'}
+                          </Badge>
+                          <Badge tone={user.onboardingCompleted ? 'emerald' : 'slate'}>{user.onboardingCompleted ? 'Onboarded' : 'Pending'}</Badge>
+                          <Badge tone={isPremium ? 'violet' : 'slate'}>
+                            {isPremium ? 'Premium 👑' : 'Free'}
+                          </Badge>
+                          {isPremium && user.subscription?.currentPeriodEnd && (
+                            <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-100">
+                              Hạn: {new Date(user.subscription.currentPeriodEnd).toLocaleDateString('vi-VN')}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                    <div className="flex flex-wrap gap-2 lg:justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={user.accountStatus === 'DELETED'}
+                        onClick={() => {
+                          setSubPlan(isPremium ? 'free' : 'premium');
+                          setSubDurationDays(30);
+                          setSubReason('');
+                          setSubscriptionTarget(user);
+                        }}
+                        className="border-violet-200 text-violet-700 hover:bg-violet-50"
+                      >
+                        <Crown size={15} className="mr-1" />
+                        Gói
+                      </Button>
                     <Button
                       size="sm"
                       variant={user.role === 'admin' ? 'ghost' : 'secondary'}
@@ -279,7 +325,8 @@ export default function AdminUsersPanel() {
                     </Button>
                   </div>
                 </article>
-              ))}
+              );
+            })}
             </div>
           )}
 
@@ -363,6 +410,70 @@ export default function AdminUsersPanel() {
           </label>
         </div>
       </Modal>
+
+      <Modal
+        open={subscriptionTarget !== null}
+        onClose={() => setSubscriptionTarget(null)}
+        title="Cập nhật gói tài khoản"
+        footer={(
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setSubscriptionTarget(null)}>Hủy</Button>
+            <Button
+              loading={updateSubscriptionMutation.isPending}
+              onClick={() => subscriptionTarget && updateSubscriptionMutation.mutate({
+                userId: subscriptionTarget._id,
+                plan: subPlan,
+                durationDays: subDurationDays,
+                reason: subReason,
+              })}
+            >
+              Cập nhật
+            </Button>
+          </div>
+        )}
+      >
+        {subscriptionTarget ? (
+          <div className="space-y-4 text-sm text-slate-600">
+            <p>
+              Cập nhật gói dịch vụ cho <span className="font-bold text-slate-900">{subscriptionTarget.email}</span>.
+            </p>
+            <div>
+              <label className="block mb-1.5 text-sm font-bold text-slate-700">Chọn gói tài khoản</label>
+              <select
+                value={subPlan}
+                onChange={(e) => setSubPlan(e.target.value as 'free' | 'premium')}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-rose-400"
+              >
+                <option value="free">Miễn phí (Free)</option>
+                <option value="premium">Premium 👑</option>
+              </select>
+            </div>
+
+            {subPlan === 'premium' && (
+              <>
+                <div>
+                  <Input
+                    label="Thời hạn kích hoạt (ngày)"
+                    type="number"
+                    min={1}
+                    max={366}
+                    value={subDurationDays}
+                    onChange={(e) => setSubDurationDays(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Input
+                    label="Lý do nâng cấp"
+                    value={subReason}
+                    onChange={(e) => setSubReason(e.target.value)}
+                    placeholder="Kích hoạt thủ công bởi admin..."
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }
@@ -399,12 +510,13 @@ function ChartCard({ title, data }: { title: string; data: Array<{ label: string
   );
 }
 
-function Badge({ children, tone = 'slate' }: { children: ReactNode; tone?: 'slate' | 'emerald' | 'amber' | 'rose' }) {
+function Badge({ children, tone = 'slate' }: { children: ReactNode; tone?: 'slate' | 'emerald' | 'amber' | 'rose' | 'violet' }) {
   const classes = {
     slate: 'bg-slate-100 text-slate-600',
     emerald: 'bg-emerald-50 text-emerald-700',
     amber: 'bg-amber-50 text-amber-700',
     rose: 'bg-rose-50 text-rose-700',
+    violet: 'bg-violet-50 text-violet-700',
   };
   return <span className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase ${classes[tone]}`}>{children}</span>;
 }

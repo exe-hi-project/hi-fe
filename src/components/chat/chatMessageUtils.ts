@@ -1,8 +1,49 @@
+import type { ChatMessage } from '../../types';
+
 export interface ChatSession {
   sessionDate: string;
   title: string;
   messageCount: number;
   lastMessageAt?: string;
+}
+
+function messageTime(value?: string) {
+  return value ? new Date(value).getTime() : 0;
+}
+
+function isTempMessage(message: ChatMessage) {
+  return message._id.startsWith('temp-');
+}
+
+function isSameOptimisticUserMessage(first: ChatMessage, second: ChatMessage) {
+  if (first.role !== 'user' || second.role !== 'user') return false;
+  if (first.content.trim() !== second.content.trim()) return false;
+  if ((first.sessionDate ?? '') !== (second.sessionDate ?? '')) return false;
+
+  const delta = Math.abs(messageTime(first.createdAt) - messageTime(second.createdAt));
+  return delta <= 120_000 && (isTempMessage(first) || isTempMessage(second));
+}
+
+export function mergeChatMessages(...messageGroups: Array<ChatMessage[] | undefined>) {
+  const merged: ChatMessage[] = [];
+
+  messageGroups.flatMap((group) => group ?? []).forEach((message) => {
+    const sameIdIndex = merged.findIndex((item) => item._id === message._id);
+    if (sameIdIndex >= 0) {
+      merged[sameIdIndex] = message;
+      return;
+    }
+
+    const sameOptimisticIndex = merged.findIndex((item) => isSameOptimisticUserMessage(item, message));
+    if (sameOptimisticIndex >= 0) {
+      merged[sameOptimisticIndex] = isTempMessage(message) ? merged[sameOptimisticIndex] : message;
+      return;
+    }
+
+    merged.push(message);
+  });
+
+  return merged.sort((first, second) => messageTime(first.createdAt) - messageTime(second.createdAt));
 }
 
 export function todaySessionDate() {

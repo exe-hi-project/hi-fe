@@ -138,7 +138,7 @@ export default function CyclesPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen font-sans overflow-x-hidden bg-[#fff8fb]">
+    <div className="min-h-screen font-sans overflow-x-hidden bg-[#fdfbf7]">
       <PageBackdrop variant="female" />
 
       <div className="relative z-10 flex flex-col min-h-screen">
