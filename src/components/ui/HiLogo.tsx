@@ -6,9 +6,10 @@ import { useId } from 'react';
 interface HiLogoProps {
   size?: number;
   className?: string;
+  radius?: number;
 }
 
-export default function HiLogo({ size = 48, className = '' }: HiLogoProps) {
+export default function HiLogo({ size = 48, className = '', radius = 13 }: HiLogoProps) {
   const id = `hi-logo-${useId().replace(/:/g, '')}`;
   return (
     <svg
@@ -35,9 +36,9 @@ export default function HiLogo({ size = 48, className = '' }: HiLogoProps) {
       </defs>
 
       {/* Rounded square background */}
-      <rect x="0" y="0" width="48" height="48" rx="13" ry="13" fill={`url(#${id})`} filter={`url(#${id}-shadow)`} />
+      <rect x="0" y="0" width="48" height="48" rx={radius} ry={radius} fill={`url(#${id})`} filter={`url(#${id}-shadow)`} />
       {/* Gloss overlay */}
-      <rect x="0" y="0" width="48" height="48" rx="13" ry="13" fill={`url(#${id}-glow)`} />
+      <rect x="0" y="0" width="48" height="48" rx={radius} ry={radius} fill={`url(#${id}-glow)`} />
 
       {/* "Hi" text — white, bold */}
       <text
