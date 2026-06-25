@@ -448,36 +448,6 @@ export default function CyclesPage() {
                               );
                             })}
                           </div>
-                          {symptomHistoryQuery.isLoading ? (
-                            <div className="py-6"><Spinner /></div>
-                          ) : (symptomHistoryQuery.data?.dailyLogs ?? []).length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-pink-100 bg-pink-50/40 p-4 text-sm font-semibold text-slate-500">
-                              Chưa có triệu chứng nào được ghi trong kỳ này.
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {(symptomHistoryQuery.data?.dailyLogs ?? []).map((log) => (
-                                <div key={log._id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <p className="font-black text-slate-800">{fmt(log.logDate)}</p>
-                                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-pink-500">
-                                      Lượng kinh: {log.flowIntensity === 'NONE' ? 'Không có' : log.flowIntensity === 'LIGHT' ? 'Ít' : log.flowIntensity === 'MEDIUM' ? 'Vừa' : 'Nhiều'}
-                                    </span>
-                                  </div>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {log.hasClots && <span className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-500">Có cục máu đông</span>}
-                                    {typeof log.moodScore === 'number' && <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">Mood: {log.moodScore}/5</span>}
-                                    {(log.symptoms ?? []).map((symptom) => (
-                                      <span key={`${log._id}-${symptom.symptomId}`} className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm">
-                                        {symptom.symptomName ?? `Triệu chứng #${symptom.symptomId}`} · {symptom.severity}
-                                      </span>
-                                    ))}
-                                  </div>
-                                  {log.notes && <p className="mt-3 rounded-xl bg-white p-3 text-xs font-semibold leading-relaxed text-slate-500">{log.notes}</p>}
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
