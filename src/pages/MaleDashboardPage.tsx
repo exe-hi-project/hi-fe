@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '../components/layout/Navbar';
@@ -13,7 +13,8 @@ import AffiliateRecommendations from '../components/affiliate/AffiliateRecommend
 import HiTrustExplainer from '../components/health/HiTrustExplainer';
 import api from '../lib/api';
 import { useAuthStore } from '../store/authStore';
-import type { CycleInsights, CycleRecord } from '../types/shared';
+import type { CycleInsights, CycleRecord, CoupleAnniversarySummary } from '../types/shared';
+import { normalizeAnniversarySummary } from '../utils/coupleAnniversaryCalendar';
 
 function formatShortDate(value?: string | null) {
   if (!value) return '--';
@@ -118,6 +119,13 @@ export default function MaleDashboardPage() {
     enabled: !!user,
   });
 
+  const anniversariesQuery = useQuery<CoupleAnniversarySummary>({
+    queryKey: ['partner-anniversaries'],
+    queryFn: () => api.get('/partner/anniversaries').then(({ data }) => normalizeAnniversarySummary(data.anniversaries)),
+    enabled: !!user,
+  });
+  const anniversaries = anniversariesQuery.data;
+
   if (!user) return <Navigate to="/login" replace />;
 
   const partner = partnerQuery.data?.partner;
@@ -167,8 +175,8 @@ export default function MaleDashboardPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
-            <section className="rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur-xl">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <section className="md:col-span-3 rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur-xl">
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-black text-blue-500">
@@ -245,22 +253,22 @@ export default function MaleDashboardPage() {
                           Khả năng thụ thai ước tính: {fertilityLabel}
                         </span>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="mt-6 rounded-3xl border border-blue-100 bg-[#f8fcff] p-5 shadow-sm">
-                    <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-blue-500">Gợi ý chăm sóc hôm nay</p>
-                    <ul className="space-y-2 text-sm font-semibold text-slate-600">
-                      <li>• Lắng nghe cảm xúc của Người ấy, nhất là khi kỳ đang tới gần.</li>
-                      <li>• Cùng lên lịch sinh hoạt lành mạnh: ngủ đủ, ăn nhẹ, vận động vừa phải.</li>
-                      <li>• Gửi một lời nhắn quan tâm hoặc hỏi xem Người ấy cần gì hôm nay.</li>
-                    </ul>
+                      <div className="mt-6 rounded-3xl border border-blue-100 bg-[#f8fcff] p-5 shadow-sm">
+                        <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-blue-500">Gợi ý chăm sóc hôm nay</p>
+                        <ul className="space-y-2 text-sm font-semibold text-slate-600">
+                          <li>• Lắng nghe cảm xúc của Người ấy, nhất là khi kỳ đang tới gần.</li>
+                          <li>• Cùng lên lịch sinh hoạt lành mạnh: ngủ đủ, ăn nhẹ, vận động vừa phải.</li>
+                          <li>• Gửi một lời nhắn quan tâm hoặc hỏi xem Người ấy cần gì hôm nay.</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
             </section>
 
-            <aside className="space-y-6">
+            <div className="md:col-span-1 space-y-6">
               <div className="rounded-[2rem] border border-blue-100 bg-white/95 p-6 text-center shadow-lg shadow-blue-100/40 backdrop-blur">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="flex items-center gap-2 text-lg font-black text-slate-900">
@@ -276,6 +284,25 @@ export default function MaleDashboardPage() {
                     </div>
                     <p className="mt-3 text-xl font-black text-slate-900">{partnerName}</p>
                     <p className="text-sm font-semibold text-slate-400">Đã kết nối</p>
+                    {anniversaries?.daysTogether !== undefined && anniversaries?.daysTogether !== null && (
+                      <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-xs font-black">
+                        <span className="material-symbols-outlined text-sm">favorite</span>
+                        {anniversaries.startDate?.title || 'Đồng hành'}{' '}
+                        <span
+                          className="text-sm font-black px-0.5"
+                          style={{
+                            background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                            display: 'inline-block',
+                          }}
+                        >
+                          {anniversaries.daysTogether}
+                        </span>{' '}
+                        ngày
+                      </div>
+                    )}
                     <div className="mt-5 rounded-3xl border border-blue-100 bg-[#f8fcff] p-4 text-left shadow-sm">
                       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Cảm xúc mới nhất</p>
                       <p className="mt-2 text-sm font-black text-slate-800">{latestMood}</p>
@@ -297,9 +324,8 @@ export default function MaleDashboardPage() {
                   <p className="py-6 text-sm font-semibold text-slate-500">Chưa kết nối với ai.</p>
                 )}
               </div>
-
-              <QuickMoodCard accent="blue" sendToPartner={hasPartner} className="border-blue-100/80 bg-white/90" />
-            </aside>
+              <QuickMoodCard sendToPartner={hasPartner} accent="blue" />
+            </div>
           </div>
 
           {hasPartner && cycleDataShared && (
@@ -421,3 +447,4 @@ export default function MaleDashboardPage() {
     </div>
   );
 }
+

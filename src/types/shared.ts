@@ -309,3 +309,38 @@ export interface PartnerCareSuggestion {
   action: string;
   messageTemplate: string;
 }
+
+export type CoupleAnniversaryType = 'START_DATE' | 'MEMORY';
+export type CoupleAnniversaryColor = 'pink' | 'rose' | 'violet' | 'sky' | 'emerald' | 'amber';
+export type CoupleAnniversaryEffect = 'none' | 'sparkle' | 'float' | 'glow' | 'confetti';
+
+export interface CoupleAnniversaryEvent {
+  _id: string;
+  pairKey: string;
+  type: CoupleAnniversaryType;
+  eventDate: string;
+  title: string;
+  note?: string;
+  color: CoupleAnniversaryColor;
+  effect: CoupleAnniversaryEffect;
+  icon: string;
+  sticker: string;
+  createdBy: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CoupleAnniversaryOptions {
+  colors: CoupleAnniversaryColor[];
+  effects: CoupleAnniversaryEffect[];
+  icons: string[];
+  stickers: string[];
+}
+
+export interface CoupleAnniversarySummary {
+  startDate?: CoupleAnniversaryEvent | null;
+  daysTogether?: number | null;
+  events: CoupleAnniversaryEvent[];
+  options: CoupleAnniversaryOptions;
+}
+

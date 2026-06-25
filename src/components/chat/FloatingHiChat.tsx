@@ -7,7 +7,7 @@ import api from '../../lib/api';
 import { ChatMessage } from '../../types';
 import { useSubscription, type AiUsage } from '../../hooks/useSubscription';
 import { ChatMessageContent } from './ChatMessageContent';
-import { ChatSession, formatChatTime, formatSessionLabel, todaySessionDate } from './chatMessageUtils';
+import { ChatSession, formatChatTime, formatSessionLabel, mergeChatMessages, todaySessionDate } from './chatMessageUtils';
 import HiLogo from '../ui/HiLogo';
 
 const QUICK_PROMPTS = [
@@ -41,6 +41,7 @@ export default function FloatingHiChat() {
   const [sessionDate, setSessionDate] = useState(todaySessionDate());
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isSending = useRef(false);
   const userId = user?._id ?? 'anonymous';
   const subscriptionQuery = useSubscription();
 
@@ -73,8 +74,7 @@ export default function FloatingHiChat() {
     onSuccess: (data) => {
       const nextMessages = [data.userMessage, data.assistantMessage ?? data.message].filter(Boolean) as ChatMessage[];
       queryClient.setQueryData<ChatMessage[]>(['chat', userId, sessionDate], (current = []) => {
-        const ids = new Set(current.map((item) => item._id));
-        return [...current, ...nextMessages.filter((item) => !ids.has(item._id))];
+        return mergeChatMessages(current, nextMessages);
       });
       setOptimisticMessages([]);
       queryClient.invalidateQueries({ queryKey: ['chat', userId, sessionDate] });
@@ -89,7 +89,8 @@ export default function FloatingHiChat() {
 
   const send = useCallback((rawValue?: string) => {
     const value = (rawValue ?? input).trim();
-    if (!value || sendMutation.isPending) return;
+    if (!value || sendMutation.isPending || isSending.current) return;
+    isSending.current = true;
     const tempMessage: ChatMessage = {
       _id: `temp-${Date.now()}`,
       userId,
@@ -101,12 +102,17 @@ export default function FloatingHiChat() {
     setInput('');
     setOpen(true);
     setOptimisticMessages([tempMessage]);
-    sendMutation.mutate(value);
+    sendMutation.mutate(value, {
+      onSettled: () => {
+        isSending.current = false;
+      }
+    });
   }, [input, sendMutation, sessionDate, userId]);
 
   useEffect(() => {
     setSessionDate(todaySessionDate());
     setOptimisticMessages([]);
+    isSending.current = false;
   }, [userId]);
 
   useEffect(() => {
@@ -123,7 +129,7 @@ export default function FloatingHiChat() {
   }, [send]);
 
   const messages = useMemo(
-    () => [...(chatQuery.data ?? []), ...optimisticMessages],
+    () => mergeChatMessages(chatQuery.data, optimisticMessages),
     [chatQuery.data, optimisticMessages],
   );
 
@@ -254,7 +260,7 @@ export default function FloatingHiChat() {
                     'max-w-[84%] rounded-3xl px-4 py-3 text-sm font-semibold leading-relaxed shadow-sm',
                     message.role === 'user'
                       ? 'rounded-br-md bg-violet-600 text-white shadow-violet-100'
-                      : 'rounded-bl-md border border-slate-100 bg-white text-slate-700',
+                      : 'border border-slate-100 bg-white text-slate-700',
                   ].join(' ')}>
                     <ChatMessageContent content={message.content} />
                     {message.role === 'user' && <p className="mt-1 text-right text-[10px] font-bold opacity-70">{formatChatTime(message.createdAt)}</p>}
@@ -263,7 +269,7 @@ export default function FloatingHiChat() {
               ))}
               {(sendMutation.isPending || isRealtimeTyping) && (
                 <div className="flex justify-start">
-                  <div className="flex items-center gap-1 rounded-3xl rounded-bl-md border border-white bg-white px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-1 rounded-3xl border border-white bg-white px-4 py-3 shadow-sm">
                     <span className="size-2 animate-bounce rounded-full bg-sky-300" />
                     <span className="size-2 animate-bounce rounded-full bg-violet-300 [animation-delay:120ms]" />
                     <span className="size-2 animate-bounce rounded-full bg-pink-300 [animation-delay:240ms]" />
