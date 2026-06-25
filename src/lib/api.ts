@@ -26,6 +26,7 @@ api.interceptors.response.use(
     // Force-logout on 401/403 for protected routes, never for auth endpoints themselves
     const url = err.config?.url ?? '';
     const isAuthEndpoint =
+      url.includes('/auth/me') ||
       url.includes('/auth/login') ||
       url.includes('/auth/register') ||
       url.includes('/auth/google') ||
@@ -34,6 +35,10 @@ api.interceptors.response.use(
       url.includes('/auth/forgot-password') ||
       url.includes('/auth/reset-password');
     if ((err.response?.status === 401 || err.response?.status === 403) && !isAuthEndpoint) {
+      const authPaths = ['/login', '/register', '/forgot-password'];
+      if (authPaths.includes(window.location.pathname)) {
+        return Promise.reject(err);
+      }
       clearAuthSession();
       toast.error('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.');
       window.location.href = buildLoginRedirect();

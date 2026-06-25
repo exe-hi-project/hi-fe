@@ -54,6 +54,11 @@ export interface AdminUser {
   accountStatusReason?: string | null;
   onboardingCompleted?: boolean;
   createdAt: string;
+  subscription?: {
+    plan: 'free' | 'premium';
+    status?: string | null;
+    currentPeriodEnd?: string | null;
+  };
 }
 
 export interface PayOSTransaction {

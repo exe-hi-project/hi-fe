@@ -3,6 +3,7 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { createRealtimeClient, type RealtimeEvent } from '../lib/realtime';
 import { useAuthStore } from '../store/authStore';
 import { useRealtimeConnectionStore } from '../store/realtimeStore';
+import { mergeChatMessages } from '../components/chat/chatMessageUtils';
 import type { ChatMessage, Notification } from '../types';
 
 type EventData = Record<string, unknown>;
@@ -58,7 +59,7 @@ function handleChatEvent(queryClient: QueryClient, event: RealtimeEvent<EventDat
       const querySessionDate = query.queryKey[2];
       if (sessionDate && querySessionDate !== sessionDate) return;
       queryClient.setQueryData<ChatMessage[]>(query.queryKey, (current = []) => (
-        current.some((item) => item._id === message._id) ? current : [...current, message]
+        mergeChatMessages(current, [message])
       ));
     });
     queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
@@ -73,6 +74,7 @@ function handlePartnerEvent(queryClient: QueryClient, event: RealtimeEvent<Event
   queryClient.invalidateQueries({ queryKey: ['partner-cycles'] });
   queryClient.invalidateQueries({ queryKey: ['partner-question-today'] });
   queryClient.invalidateQueries({ queryKey: ['partner-question-history'] });
+  queryClient.invalidateQueries({ queryKey: ['partner-anniversaries'] });
 
   if (event.type === 'partner.connected' || event.type === 'partner.disconnected') {
     queryClient.invalidateQueries({ queryKey: ['profile'] });

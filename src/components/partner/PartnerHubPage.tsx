@@ -10,6 +10,8 @@ import {
   PaperPlaneTilt,
   SlidersHorizontal,
   UserPlus,
+  Gift,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,13 +24,14 @@ import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import { useSubscription } from '../../hooks/useSubscription';
 import PremiumLockCard from '../subscription/PremiumLockCard';
+import CoupleAnniversaryManager from './CoupleAnniversaryManager';
 import type {
   CoupleQuestionHistory,
   CoupleQuestionSession,
 } from '../../types/shared';
 
 type Variant = 'female' | 'male';
-type ViewKey = 'today' | 'history';
+type ViewKey = 'today' | 'history' | 'anniversaries';
 
 interface PartnerResponse {
   partner?: { id?: string; name?: string; avatar?: string; gender?: string } | null;
@@ -85,12 +88,19 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
   const { data: subscription } = useSubscription();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeView: ViewKey = searchParams.get('view') === 'history' ? 'history' : 'today';
+  const activeView: ViewKey =
+    searchParams.get('view') === 'history'
+      ? 'history'
+      : searchParams.get('view') === 'anniversaries'
+      ? 'anniversaries'
+      : 'today';
   const isMale = variant === 'male';
   const hasPartner = Boolean(user?.partnerId);
   const hasCouplePremium = subscription?.couplePremium === true;
   const settingsPath = isMale ? '/male-settings/notifications' : '/settings/notifications';
   const [selectedQuestion, setSelectedQuestion] = useState<CoupleQuestionSession | null>(null);
+  const [isEditingHistory, setIsEditingHistory] = useState(false);
+  const [historyAnswerVal, setHistoryAnswerVal] = useState('');
 
   const partnerQuery = useQuery({
     queryKey: ['partner-cycles', 'questions-page'],
@@ -135,6 +145,11 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
     }
   }, [historyQuery.data?.items, selectedQuestion]);
 
+  useEffect(() => {
+    setIsEditingHistory(false);
+    setHistoryAnswerVal(selectedQuestion?.myAnswer?.content ?? '');
+  }, [selectedQuestion]);
+
   const refreshQuestions = () => {
     queryClient.invalidateQueries({ queryKey: ['partner-question-today'] });
     queryClient.invalidateQueries({ queryKey: ['partner-question-history'] });
@@ -146,6 +161,18 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
     mutationFn: (payload: AnswerForm) => api.post('/partner/questions/today/answer', payload),
     onSuccess: () => {
       refreshQuestions();
+      toast.success('Đã lưu câu trả lời');
+    },
+    onError: () => toast.error('Không thể lưu câu trả lời lúc này'),
+  });
+
+  const historyAnswerMutation = useMutation({
+    mutationFn: (content: string) => api.put(`/partner/questions/${selectedQuestion?._id}/answer`, { content }),
+    onSuccess: (res) => {
+      const updatedQuestion = res.data.question as CoupleQuestionSession;
+      setSelectedQuestion(updatedQuestion);
+      refreshQuestions();
+      setIsEditingHistory(false);
       toast.success('Đã lưu câu trả lời');
     },
     onError: () => toast.error('Không thể lưu câu trả lời lúc này'),
@@ -176,7 +203,7 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
     : 'bg-gradient-to-b from-pink-50 via-white to-white';
 
   const switchView = (view: ViewKey) => {
-    setSearchParams(view === 'today' ? {} : { view: 'history' });
+    setSearchParams(view === 'today' ? {} : { view });
   };
 
   return (
@@ -209,6 +236,7 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
           {([
             { key: 'today' as const, label: 'Hôm nay', icon: Heart },
             { key: 'history' as const, label: 'Lịch sử', icon: CalendarBlank },
+            { key: 'anniversaries' as const, label: 'Kỷ niệm', icon: Gift },
           ]).map((item) => {
             const Icon = item.icon;
             const active = activeView === item.key;
@@ -407,7 +435,7 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
               </>
             )}
           </section>
-        ) : (
+        ) : activeView === 'history' ? (
           <div className="mt-8 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
             <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="px-2 pb-4">
@@ -468,18 +496,60 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
                     {selectedQuestion.questionText}
                   </h2>
                   <div className="mt-7 space-y-3">
-                    {selectedQuestion.myAnswer ? (
+                    {selectedQuestion.myAnswer && !isEditingHistory ? (
                       <article className="rounded-2xl bg-slate-50 p-5">
                         <p className="text-xs font-bold text-slate-400">Bạn</p>
                         <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-700">
                           {selectedQuestion.myAnswer.content}
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingHistory(true)}
+                          className={`mt-2 text-xs font-bold ${accentText} hover:underline flex items-center gap-1`}
+                        >
+                          <PencilSimple size={14} className="inline" /> Chỉnh sửa câu trả lời
+                        </button>
                       </article>
-                    ) : (
-                      <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
-                        Bạn chưa trả lời câu hỏi này.
-                      </p>
-                    )}
+                    ) : (!selectedQuestion.myAnswer || isEditingHistory) ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!historyAnswerVal.trim()) {
+                            toast.error('Hãy viết câu trả lời trước nhé');
+                            return;
+                          }
+                          historyAnswerMutation.mutate(historyAnswerVal);
+                        }}
+                        className="rounded-2xl bg-slate-50 p-5 space-y-3"
+                      >
+                        <label className="text-xs font-bold text-slate-400 block">
+                          {selectedQuestion.myAnswer ? 'Chỉnh sửa câu trả lời của bạn' : 'Bạn chưa trả lời câu hỏi này'}
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={historyAnswerVal}
+                          onChange={(e) => setHistoryAnswerVal(e.target.value)}
+                          placeholder="Viết câu trả lời của bạn..."
+                          className={`w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:ring-4 ${accentBorder}`}
+                        />
+                        <div className="flex gap-2">
+                          <Button type="submit" loading={historyAnswerMutation.isPending} className="text-xs py-1.5 px-3">
+                            Lưu câu trả lời
+                          </Button>
+                          {selectedQuestion.myAnswer && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() => setIsEditingHistory(false)}
+                              className="text-xs py-1.5 px-3"
+                            >
+                              Hủy
+                            </Button>
+                          )}
+                        </div>
+                      </form>
+                    ) : null}
+
                     {selectedQuestion.partnerAnswer && (
                       <article className={`rounded-2xl p-5 ${accentSoft}`}>
                         <p className="text-xs font-bold opacity-70">{partnerName}</p>
@@ -498,6 +568,8 @@ export default function PartnerHubPage({ variant }: { variant: Variant }) {
               )}
             </section>
           </div>
+        ) : (
+          <CoupleAnniversaryManager variant={variant} />
         )}
       </main>
     </div>

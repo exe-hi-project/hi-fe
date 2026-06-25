@@ -5,7 +5,7 @@
 @layer base {
   * { box-sizing: border-box; }
   html, body, button, input, select, textarea {
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
   body {
     background-color: #fdf2f8;
@@ -227,4 +227,55 @@
 .delay-800 { animation-delay: 800ms; }
 .delay-900 { animation-delay: 900ms; }
 .delay-1000 { animation-delay: 1000ms; }
+
+/* ── Anniversary Animations ── */
+@keyframes anniversary-sparkle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.9; filter: brightness(1.1); }
+}
+
+@keyframes anniversary-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes anniversary-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(244, 114, 182, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(244, 114, 182, 0.8), 0 0 24px rgba(244, 114, 182, 0.4); }
+}
+
+@keyframes anniversary-confetti {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-anniversary-sparkle {
+  animation: anniversary-sparkle 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: anniversary-float 3s ease-in-out infinite;
+}
+
+.animate-anniversary-glow {
+  animation: anniversary-glow 2.5s ease-in-out infinite;
+}
+
+.animate-anniversary-confetti {
+  background-size: 200% 200%;
+  animation: anniversary-confetti 6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-anniversary-sparkle,
+  .animate-float,
+  .animate-anniversary-glow,
+  .animate-anniversary-confetti {
+    animation: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
 
