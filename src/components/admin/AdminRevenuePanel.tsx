@@ -1,8 +1,24 @@
 import { useMemo, useState } from 'react';
-import { CurrencyCircleDollar, Receipt, TrendUp, WarningCircle } from '@phosphor-icons/react';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CurrencyCircleDollar, Receipt, TrendUp, WarningCircle, Trash, Plus } from '@phosphor-icons/react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import api from '../../lib/api';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
 import AdminPanelSkeleton from './AdminPanelSkeleton';
 import useAdminOverview from './useAdminOverview';
+
+interface AiCostLog {
+  id?: string;
+  month: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  notes?: string;
+  createdAt?: string;
+}
 
 type Period = 'today' | 'week' | 'month' | 'year' | 'all';
 
@@ -11,10 +27,51 @@ function vnd(value?: number) {
 }
 
 export default function AdminRevenuePanel() {
+  const queryClient = useQueryClient();
   const overviewQuery = useAdminOverview();
   const [period, setPeriod] = useState<Period>('year');
   const [paidRateOverride, setPaidRateOverride] = useState<number | null>(null);
   const [arpuOverride, setArpuOverride] = useState<number | null>(null);
+
+  const [aiForm, setAiForm] = useState({
+    month: new Date().toISOString().substring(0, 7),
+    inputTokens: '',
+    outputTokens: '',
+    costUsd: '',
+    notes: '',
+  });
+
+  const aiCostsQuery = useQuery({
+    queryKey: ['admin-ai-costs'],
+    queryFn: () => api.get('/admin/ai-costs').then(({ data }) => data.data as AiCostLog[]),
+  });
+
+  const saveAiCost = useMutation({
+    mutationFn: (payload: any) => api.post('/admin/ai-costs', payload),
+    onSuccess: () => {
+      toast.success('Đã ghi nhận chi phí AI');
+      setAiForm({
+        month: new Date().toISOString().substring(0, 7),
+        inputTokens: '',
+        outputTokens: '',
+        costUsd: '',
+        notes: '',
+      });
+      queryClient.invalidateQueries({ queryKey: ['admin-ai-costs'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+    },
+    onError: () => toast.error('Không thể lưu ghi nhận chi phí AI'),
+  });
+
+  const deleteAiCost = useMutation({
+    mutationFn: (month: string) => api.delete(`/admin/ai-costs/${month}`),
+    onSuccess: () => {
+      toast.success('Đã xóa ghi nhận chi phí AI');
+      queryClient.invalidateQueries({ queryKey: ['admin-ai-costs'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+    },
+    onError: () => toast.error('Không thể xóa ghi nhận chi phí AI'),
+  });
 
   const report = overviewQuery.data;
   const filteredTransactions = useMemo(() => {
@@ -68,6 +125,8 @@ export default function AdminRevenuePanel() {
     revenue: item.revenueUsd,
     aiCost: item.aiCostUsd,
     net: item.netUsd,
+    isActual: item.isActual,
+    actualTokens: item.actualTokens,
   }));
 
   return (
@@ -147,9 +206,31 @@ export default function AdminRevenuePanel() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12 }}
+                  formatter={(value, name, props) => {
+                    const payload = props.payload;
+                    if (name === 'MRR USD') return [`$${value}`, name];
+                    if (name === 'AI cost USD') {
+                      const suffix = payload.isActual ? ' (Thực tế)' : ' (Dự kiến)';
+                      const tokens = payload.actualTokens ? ` · ${(payload.actualTokens / 1_000_000).toFixed(2)}M tokens` : '';
+                      return [`$${value}${suffix}${tokens}`, name];
+                    }
+                    if (name === 'Net USD') return [`$${value}`, name];
+                    return [value, name];
+                  }}
+                />
                 <Bar dataKey="revenue" name="MRR USD" fill="#eb477e" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="aiCost" name="AI cost USD" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="aiCost" name="AI cost USD" fill="#f59e0b" radius={[8, 8, 0, 0]}>
+                  {projectionData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.isActual ? '#10b981' : '#f59e0b'}
+                      stroke={entry.isActual ? '#047857' : '#d97706'}
+                      strokeWidth={entry.isActual ? 1 : 0}
+                    />
+                  ))}
+                </Bar>
                 <Bar dataKey="net" name="Net USD" fill="#3b82f6" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -231,6 +312,128 @@ export default function AdminRevenuePanel() {
             <div className="flex justify-between"><dt className="text-slate-500">Chi phí AI ước tính</dt><dd className="font-bold">${report.financialReport.estimatedAiCostMonthlyUsd.toFixed(2)}</dd></div>
             <div className="flex justify-between border-t border-slate-100 pt-3"><dt className="text-slate-700">Lợi nhuận gộp ước tính</dt><dd className="font-extrabold">${projectedProfit.toFixed(2)}</dd></div>
           </dl>
+        </section>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm animate-fadeIn">
+          <h3 className="font-bold text-slate-900">Ghi nhận chi phí AI</h3>
+          <p className="mt-1 text-xs text-slate-500">Lưu lượng token tiêu hao và chi phí thanh toán API AI thực tế.</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!aiForm.month || !aiForm.costUsd) {
+                toast.error('Vui lòng chọn tháng và nhập chi phí USD');
+                return;
+              }
+              saveAiCost.mutate({
+                month: aiForm.month,
+                inputTokens: aiForm.inputTokens ? Number(aiForm.inputTokens) : 0,
+                outputTokens: aiForm.outputTokens ? Number(aiForm.outputTokens) : 0,
+                costUsd: Number(aiForm.costUsd),
+                notes: aiForm.notes,
+              });
+            }}
+            className="mt-4 space-y-3.5"
+          >
+            <Input
+              label="Tháng báo cáo"
+              type="month"
+              value={aiForm.month}
+              onChange={(e) => setAiForm({ ...aiForm, month: e.target.value })}
+            />
+            <div className="grid gap-3 grid-cols-2">
+              <Input
+                label="Prompt Tokens"
+                type="number"
+                value={aiForm.inputTokens}
+                onChange={(e) => setAiForm({ ...aiForm, inputTokens: e.target.value })}
+                placeholder="Ví dụ: 120000"
+              />
+              <Input
+                label="Completion Tokens"
+                type="number"
+                value={aiForm.outputTokens}
+                onChange={(e) => setAiForm({ ...aiForm, outputTokens: e.target.value })}
+                placeholder="Ví dụ: 150000"
+              />
+            </div>
+            <Input
+              label="Chi phí thực tế (USD)"
+              type="number"
+              step="0.01"
+              value={aiForm.costUsd}
+              onChange={(e) => setAiForm({ ...aiForm, costUsd: e.target.value })}
+              placeholder="Ví dụ: 4.50"
+            />
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-600">Ghi chú thêm</span>
+              <textarea
+                value={aiForm.notes}
+                onChange={(e) => setAiForm({ ...aiForm, notes: e.target.value })}
+                placeholder="Ghi chú nhà cung cấp, tỷ giá,..."
+                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+                rows={2}
+              />
+            </label>
+            <Button type="submit" fullWidth loading={saveAiCost.isPending}>
+              <Plus size={14} className="mr-1.5" /> Ghi nhận chi phí
+            </Button>
+          </form>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="font-bold text-slate-900">Nhật ký chi phí AI thực tế</h3>
+          <p className="mt-1 text-xs text-slate-500">Các tháng có chi phí thực tế sẽ tự động ghi đè lên các số liệu ước tính.</p>
+          <div className="mt-4 overflow-x-auto">
+            {aiCostsQuery.isLoading ? (
+              <p className="text-sm text-slate-400 py-4">Đang tải nhật ký...</p>
+            ) : !aiCostsQuery.data || aiCostsQuery.data.length === 0 ? (
+              <p className="text-sm text-slate-400 py-8 text-center border border-dashed border-slate-200 rounded-xl">
+                Chưa ghi nhận chi phí AI thực tế nào. Hệ thống đang sử dụng công thức dự phóng.
+              </p>
+            ) : (
+              <table className="w-full border-collapse text-left text-xs font-semibold text-slate-600">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400">
+                    <th className="py-2.5">Tháng</th>
+                    <th className="py-2.5">Prompt Tokens</th>
+                    <th className="py-2.5">Completion Tokens</th>
+                    <th className="py-2.5">Tổng Tiêu Thụ</th>
+                    <th className="py-2.5">Chi phí USD</th>
+                    <th className="py-2.5">Ghi chú</th>
+                    <th className="py-2.5 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {aiCostsQuery.data.map((log) => (
+                    <tr key={log.month} className="hover:bg-slate-50/60">
+                      <td className="py-3 font-extrabold text-slate-950">{log.month}</td>
+                      <td className="py-3">{(log.inputTokens ?? 0).toLocaleString('vi-VN')}</td>
+                      <td className="py-3">{(log.outputTokens ?? 0).toLocaleString('vi-VN')}</td>
+                      <td className="py-3 font-bold text-slate-800">{(log.totalTokens ?? 0).toLocaleString('vi-VN')}</td>
+                      <td className="py-3 font-black text-emerald-600">${log.costUsd?.toFixed(2)}</td>
+                      <td className="py-3 truncate max-w-40 text-slate-500" title={log.notes}>{log.notes || '—'}</td>
+                      <td className="py-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          loading={deleteAiCost.isPending && deleteAiCost.variables === log.month}
+                          onClick={() => {
+                            if (window.confirm(`Bạn muốn xóa ghi nhận chi phí AI cho tháng ${log.month}?`)) {
+                              deleteAiCost.mutate(log.month);
+                            }
+                          }}
+                        >
+                          <Trash size={12} className="mr-1" /> Xóa
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </section>
       </div>
     </div>

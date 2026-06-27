@@ -41,6 +41,8 @@ export interface MonthlyFinancialItem {
   chatMessages: number;
   revenueUsd: number;
   aiCostUsd: number;
+  actualTokens?: number | null;
+  isActual?: boolean;
   netUsd: number;
 }
 

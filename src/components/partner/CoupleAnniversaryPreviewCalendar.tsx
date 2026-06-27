@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../lib/api';
 import type { CoupleAnniversarySummary } from '../../types/shared';
@@ -121,7 +121,7 @@ export default function CoupleAnniversaryPreviewCalendar({
               <div
                 key={iso}
                 className={[
-                  'relative flex aspect-[1.3] min-h-[72px] flex-col items-center justify-between p-2 rounded-2xl text-sm font-extrabold transition-all border',
+                  'relative flex aspect-square sm:aspect-[1.3] min-h-[48px] sm:min-h-[72px] flex-col items-center justify-between p-1 sm:p-2 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-extrabold transition-all border',
                   decorated
                     ? `${anniversaryBackground(event.color, event.effect)} ${anniversaryEffectClass(event.effect)}`
                     : 'border-slate-50/50 bg-slate-50/80 text-slate-500',
@@ -131,12 +131,12 @@ export default function CoupleAnniversaryPreviewCalendar({
               >
                 <span className="self-start text-[10px] font-bold text-slate-400">{date.getDate()}</span>
                 {decorated && (
-                  <div className="w-full text-center flex flex-col items-center gap-0.5 mt-0.5">
-                    <span className="material-symbols-outlined text-[15px]" style={{ color: event.color === 'sky' ? '#0ea5e9' : event.color === 'emerald' ? '#10b981' : event.color === 'amber' ? '#f59e0b' : event.color === 'violet' ? '#8b5cf6' : event.color === 'rose' ? '#f43f5e' : '#ec4899' }}>
+                  <div className="w-full text-center flex flex-col items-center justify-center sm:justify-between gap-0.5 mt-0.5 flex-1 min-h-0">
+                    <span className="material-symbols-outlined text-[13px] sm:text-[15px] flex-shrink-0" style={{ color: event.color === 'sky' ? '#0ea5e9' : event.color === 'emerald' ? '#10b981' : event.color === 'amber' ? '#f59e0b' : event.color === 'violet' ? '#8b5cf6' : event.color === 'rose' ? '#f43f5e' : '#ec4899' }}>
                       {event.icon}
                     </span>
                     <span
-                      className="text-[10px] font-extrabold text-slate-800 truncate max-w-full block px-1"
+                      className="text-[10px] font-extrabold text-slate-800 truncate max-w-full hidden sm:block px-1"
                       style={{ fontFamily: "'Inter', sans-serif" }}
                       title={event.title}
                     >

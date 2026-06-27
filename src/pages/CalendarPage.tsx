@@ -165,7 +165,7 @@ export default function CalendarPage() {
                       setSelectedAnniversary(event || null);
                       setModalOpen(true);
                     }}
-                    className={`relative flex aspect-square min-h-10 flex-col items-center justify-center rounded-2xl text-sm font-bold transition-all sm:min-h-14 cursor-pointer outline-none ${
+                    className={`relative flex aspect-square min-h-[36px] sm:min-h-14 flex-col items-center justify-center rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer outline-none ${
                       type ? CYCLE_DAY_CLASSES[type] : 'text-slate-600 hover:bg-slate-50'
                     } ${isToday ? 'ring-2 ring-slate-800 ring-offset-2' : ''} ${
                       decorated && !type ? `${anniversaryBackground(event.color, event.effect)} ${anniversaryEffectClass(event.effect)}` : ''
@@ -174,8 +174,8 @@ export default function CalendarPage() {
                   >
                     <span>{day}</span>
                     {decorated && (
-                      <span className="anniversary-icon absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-white/90 shadow-sm border border-slate-100 ring-1 ring-black/5">
-                        <span className="material-symbols-outlined text-[12px] font-bold text-slate-700">{event.icon}</span>
+                      <span className="anniversary-icon absolute -right-0.5 -top-0.5 sm:-right-1 sm:-top-1 grid size-3.5 sm:size-5 place-items-center rounded-full bg-white/90 shadow-sm border border-slate-100 ring-1 ring-black/5">
+                        <span className="material-symbols-outlined text-[9px] sm:text-[12px] font-bold text-slate-700">{event.icon}</span>
                       </span>
                     )}
                   </button>

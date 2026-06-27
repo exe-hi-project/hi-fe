@@ -210,7 +210,7 @@ export default function OnboardingPage() {
               <p className="text-gray-500 text-base">Chọn giới tính để chúng tôi tối ưu hóa trải nghiệm theo dõi sức khỏe của bạn.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-5 max-w-md mx-auto mb-10">
+            <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mb-10">
               {([
                 { value: 'female' as const, label: 'Nữ',  sub: 'Theo dõi chu kỳ & sức khỏe', emoji: '👩', bg: 'linear-gradient(145deg, #fce7f3, #f9cfea)' },
                 { value: 'male'   as const, label: 'Nam', sub: 'Đồng hành & Theo dõi',        emoji: '👨', bg: 'linear-gradient(145deg, #dbeafe, #c7d9f8)' },
@@ -218,7 +218,7 @@ export default function OnboardingPage() {
                 <button
                   key={opt.value}
                   onClick={() => setGender(opt.value)}
-                  className="relative flex flex-col items-center rounded-3xl p-6 bg-white transition-all duration-300"
+                  className="relative flex flex-col items-center rounded-3xl p-4 sm:p-6 bg-white transition-all duration-300"
                   style={{
                     boxShadow: gender === opt.value ? '0 0 0 2.5px #9b6ee8, 0 12px 30px rgba(155,110,232,0.20)' : '0 4px 20px rgba(0,0,0,0.07)',
                     transform: gender === opt.value ? 'scale(1.03)' : 'scale(1)',
@@ -229,11 +229,11 @@ export default function OnboardingPage() {
                       <span className="text-white text-xs font-bold">✓</span>
                     </div>
                   )}
-                  <div className="w-32 h-32 rounded-2xl mb-4 flex items-center justify-center text-6xl" style={{ background: opt.bg }}>
+                  <div className="w-20 h-20 sm:w-32 sm:h-32 rounded-2xl mb-4 flex items-center justify-center text-4xl sm:text-6xl flex-shrink-0" style={{ background: opt.bg }}>
                     {opt.emoji}
                   </div>
-                  <span className="text-base font-bold text-gray-900 mb-1">{opt.label}</span>
-                  <span className="text-xs text-gray-500 text-center leading-snug">{opt.sub}</span>
+                  <span className="text-sm sm:text-base font-bold text-gray-900 mb-1">{opt.label}</span>
+                  <span className="text-[10px] sm:text-xs text-gray-500 text-center leading-snug">{opt.sub}</span>
                 </button>
               ))}
             </div>
@@ -254,7 +254,7 @@ export default function OnboardingPage() {
               <p className="text-gray-500 text-sm max-w-sm mx-auto">Chọn những chủ đề bạn quan tâm để chúng tôi cá nhân hóa lời khuyên và bài viết dành riêng cho bạn.</p>
             </div>
 
-            <div className="grid grid-cols-4 gap-3 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8">
               {INTERESTS.map(item => {
                 const sel = selectedInterests.includes(item.id);
                 return (
@@ -295,7 +295,7 @@ export default function OnboardingPage() {
               <p className="text-gray-500 text-sm">Hi sẽ tuỳ chỉnh giao diện và lời khuyên dựa trên lựa chọn này.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
               {(gender === 'male' ? GOALS_MALE : GOALS).map(goal => {
                 const sel = selectedGoals.includes(goal.id);
                 return (
@@ -368,7 +368,7 @@ export default function OnboardingPage() {
               <p className="text-gray-500 text-sm max-w-md">Để AI dự đoán chính xác, hãy cho chúng tôi biết ngày đầu tiên của kỳ kinh gần nhất.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-5 mb-7">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-7">
               {/* ── Calendar ── */}
               <div className="bg-white rounded-3xl p-5" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.07)' }}>
                 {/* Header */}
@@ -401,7 +401,7 @@ export default function OnboardingPage() {
                       && dateStr > selectedDate && dateStr < endDate;
 
                     let cellStyle: React.CSSProperties = {};
-                    let cellClass = 'h-8 w-full flex items-center justify-center text-xs rounded-full transition-all duration-150 ';
+                    let cellClass = 'aspect-square h-auto w-full flex items-center justify-center text-xs rounded-full transition-all duration-150 ';
 
                     if (!day) {
                       // empty

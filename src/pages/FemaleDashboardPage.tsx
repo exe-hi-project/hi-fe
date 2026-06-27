@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
@@ -18,6 +18,7 @@ import PricingCard from '../components/PricingCard';
 import type { CycleInsights, CycleRecord, CoupleAnniversarySummary } from '../types/shared';
 import { normalizeAnniversarySummary } from '../utils/coupleAnniversaryCalendar';
 import { CYCLE_DAY_CLASSES, getCycleDayKind } from '../utils/cycleCalendar';
+import WeatherForecast from '../components/ui/WeatherForecast';
 
 /* ─── types & helpers ───────────────────────────────── */
 interface PartnerCyclesResponse {
@@ -278,11 +279,7 @@ export default function FemaleDashboardPage() {
                 </span>
               </h1>
             </div>
-            <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm px-4 py-2.5 rounded-2xl shadow-sm border border-white/80">
-              <span className="text-sm font-semibold text-slate-500">Dự báo hôm nay:</span>
-              <span className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wide">Năng lượng cao</span>
-              <span className="px-3 py-1 rounded-lg bg-blue-100  text-blue-700  text-xs font-bold uppercase tracking-wide">Da đẹp</span>
-            </div>
+            <WeatherForecast />
           </div>
 
           {/* ── Card grid ── */}

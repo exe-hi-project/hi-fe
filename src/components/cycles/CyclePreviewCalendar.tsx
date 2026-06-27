@@ -127,7 +127,7 @@ export default function CyclePreviewCalendar({ cycles, insights, className = '' 
                   cellClass = 'bg-slate-100 text-slate-500';
                 }
               } else {
-                cellClass = `${CYCLE_DAY_CLASSES[kind]} border-transparent`;
+                cellClass = kind === 'predicted' ? CYCLE_DAY_CLASSES[kind] : `${CYCLE_DAY_CLASSES[kind]} border-transparent`;
               }
             } else {
               if (decorated) {
@@ -145,7 +145,7 @@ export default function CyclePreviewCalendar({ cycles, insights, className = '' 
               <div
                 key={iso}
                 className={[
-                  'relative flex aspect-[1.25] min-h-9 items-center justify-center rounded-2xl text-sm font-extrabold transition-all border',
+                  'relative flex aspect-square sm:aspect-[1.25] min-h-[32px] sm:min-h-9 items-center justify-center rounded-xl sm:rounded-2xl text-xs sm:text-sm font-extrabold transition-all border',
                   cellClass,
                   borderClass,
                   isToday ? 'outline outline-2 outline-slate-800 outline-offset-2' : '',
@@ -154,9 +154,9 @@ export default function CyclePreviewCalendar({ cycles, insights, className = '' 
               >
                 {date.getDate()}
                 {decorated && (
-                  <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-white/90 shadow-sm border border-slate-100 text-[10px] anniversary-icon">
+                  <span className="absolute -right-0.5 -top-0.5 sm:-right-1 sm:-top-1 grid size-3.5 sm:size-5 place-items-center rounded-full bg-white/90 shadow-sm border border-slate-100 text-[8px] sm:text-[10px] anniversary-icon">
                     {STICKER_MAP[event.sticker] ? STICKER_MAP[event.sticker] : (
-                      <span className="material-symbols-outlined text-[10px]" style={{ color: event.color === 'sky' ? '#0ea5e9' : event.color === 'emerald' ? '#10b981' : event.color === 'amber' ? '#f59e0b' : event.color === 'violet' ? '#8b5cf6' : event.color === 'rose' ? '#f43f5e' : '#ec4899' }}>
+                      <span className="material-symbols-outlined text-[8px] sm:text-[10px]" style={{ color: event.color === 'sky' ? '#0ea5e9' : event.color === 'emerald' ? '#10b981' : event.color === 'amber' ? '#f59e0b' : event.color === 'violet' ? '#8b5cf6' : event.color === 'rose' ? '#f43f5e' : '#ec4899' }}>
                         {event.icon || 'favorite'}
                       </span>
                     )}
