@@ -5,6 +5,7 @@ import {
   PREMIUM_YEARLY_FEATURES,
 } from '../config/subscriptionPlans';
 import Spinner from './ui/Spinner';
+import { CalendarBlank, CheckCircle, CrownSimple } from '@phosphor-icons/react';
 
 type PaidPlanId = 'monthly' | 'yearly';
 
@@ -77,38 +78,59 @@ export default function PricingCard() {
   }
 
   if (isPremium) {
+    const planName = subscription?.plan === 'PREMIUM_YEARLY' ? 'Premium năm' : 'Premium tháng';
+
     return (
-      <div className="rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 to-white p-8 shadow-md">
-        <div className="flex flex-col items-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-pink-100 text-3xl text-pink-500">✨</div>
-          <h3 className="mt-4 text-2xl font-black text-slate-900">Gói Premium của bạn đang hoạt động</h3>
-          <p className="mt-2 max-w-sm text-sm font-semibold leading-relaxed text-slate-500">
-            Bạn đã nâng cấp thành công lên Hi Premium. Cảm ơn bạn đã tin tưởng đồng hành cùng Hi.
-          </p>
-
-          {currentPeriodEnd && (
-            <div className="mt-6 rounded-2xl border border-pink-100 bg-white px-5 py-2.5 text-sm font-bold text-pink-700 shadow-sm">
-              Ngày hết hạn: {new Date(currentPeriodEnd).toLocaleDateString('vi-VN')}
+      <section className="rounded-2xl border border-pink-100 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-pink-50 text-pink-600">
+              <CrownSimple size={22} weight="fill" />
             </div>
-          )}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-extrabold text-slate-900">Hi Premium đang hoạt động</h3>
+                <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
+                  <CheckCircle size={13} weight="fill" />
+                  Đã kích hoạt
+                </span>
+              </div>
+              <p className="mt-1 text-sm font-medium text-slate-500">{planName} đang mở khóa toàn bộ quyền lợi trên tài khoản này.</p>
+            </div>
+          </div>
 
-          {subscription?.cancelAtPeriodEnd ? (
-            <p className="mt-8 text-xs font-bold text-amber-600">
-              Đã dừng gia hạn. Quyền Premium vẫn giữ đến ngày hết hạn.
-            </p>
-          ) : (
-            <button
-              onClick={() => {
-                if (confirm('Bạn có chắc chắn muốn dừng gia hạn Premium?')) cancelSub.mutate();
-              }}
-              disabled={cancelSub.isPending}
-              className="mt-8 text-xs font-bold text-slate-400 underline transition hover:text-red-500 disabled:opacity-60"
-            >
-              {cancelSub.isPending ? 'Đang xử lý...' : 'Dừng gia hạn Premium'}
-            </button>
-          )}
+          <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            {currentPeriodEnd && (
+              <div className="flex items-center gap-3 sm:min-w-44">
+                <CalendarBlank size={20} className="shrink-0 text-pink-500" />
+                <div>
+                  <p className="text-[11px] font-bold text-slate-400">Ngày hết hạn</p>
+                  <p className="text-sm font-extrabold text-slate-800">
+                    {new Date(currentPeriodEnd).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {subscription?.cancelAtPeriodEnd ? (
+              <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+                Đã dừng gia hạn
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Bạn có chắc chắn muốn dừng gia hạn Premium?')) cancelSub.mutate();
+                }}
+                disabled={cancelSub.isPending}
+                className="h-10 whitespace-nowrap rounded-xl border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.98] disabled:opacity-60"
+              >
+                {cancelSub.isPending ? 'Đang xử lý...' : 'Dừng gia hạn'}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
     );
   }
 

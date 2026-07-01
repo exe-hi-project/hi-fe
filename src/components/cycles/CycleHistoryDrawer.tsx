@@ -312,7 +312,7 @@ export default function CycleHistoryDrawer({
                     key={date}
                     onClick={() => chooseDate(date)}
                     disabled={isDisabled}
-                    className={`relative flex h-10 items-center justify-center rounded-xl text-xs font-bold transition-colors
+                    className={`relative flex aspect-square h-auto min-h-[34px] sm:h-10 items-center justify-center rounded-lg sm:rounded-xl text-xs font-bold transition-colors
                       ${isSelected || isPending ? 'bg-rose-200 text-rose-800 ring-1 ring-rose-300' : ''}
                       ${!isSelected && !isPending && isStored ? 'bg-rose-500 text-white' : ''}
                       ${!isSelected && !isPending && !isStored && (isPredicted || isDraftOngoingPredicted) ? 'border border-dashed border-rose-400 bg-rose-50 text-rose-500' : ''}

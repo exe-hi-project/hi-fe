@@ -8,18 +8,15 @@ import {
 } from '../config/subscriptionPlans';
 
 const REVIEWER_AVATARS = {
-  minhAnh:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAR6nn9Zmt6nRUd0uocBvkgNtqZYgvR2I4IrzWU2yxfoYKo5qNzMOLWLYMR3zqDwE8SuVfnBOyH6u67gkU61URhXwIsMT67Xn9vt54DhY-rKWZa7zzoXVLVR5unuoPVMChaJaBrUh-YsuNCipUYdHlGFNQ2GUwIZr6Y-cpvi_zRNONkKfht-st-2NRMhlJBs-RiohYnfr9e46ezVPW2rcbW37Z0nGUrp5wo5TztmrpK8-9HuwGiI3Vsx60yxBoM7WZJ8H9I4tqGAA',
-  tuanKiet:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuDiZtEh-VzLz5b4U5h1sLdv5kkW3mxF9C0jrmH9xNMEcOBKIlSeqWDeQhKYQir_Q_XdkWTfpvkIrMVfzJIPWhvzx-lLgnKA2sS2FcKalo07V7W-4RX-DoclqLFAZ2stWmXjat3F6o30mcr2rr33mA_ohn1p6s6lAOih_61VGd7gQI1xWsMNPsvjeOjN6kfRTjG4mRlQUb2PIcmQwoYw0v0sSGGbfqhT3MQjTbv0V8JOIR2wGhQv7zhXu1Dq9D4ZBajjf3bPqsS6dw',
-  lanPhuong:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuBTLdb6hLmr7a5pfqlDkDhLu-qp7y2Nvb-pnbn_ugo-b41dDa0-IKfepGeqZfsWXTUo6AcxUa5pEIcWjqUYNSHLqiyO842T1thHPgjY1nvTJfdltNS3cq1J2gDGvJe_bj4nOOnKKTJQDBZeMZoracxPuMuF5wSMFxfUbDw1oDpunL8Urs1iQs2YDxx4Bhv49xpyTuKCjeGc0T2dAdtejPmhd3TapyLoEVfhs1mVTJgCjcrNkPWxv7NeU-OPetEAHTD6xtzG8uHFBg',
+  minhAnh: { initials: 'MA', className: 'from-pink-100 to-sky-100 text-pink-700' },
+  tuanKiet: { initials: 'TK', className: 'from-sky-100 to-violet-100 text-sky-700' },
+  lanPhuong: { initials: 'LP', className: 'from-violet-100 to-rose-100 text-violet-700' },
 };
 
 const HERO_AVATARS = [
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCju_uSN3rteKuNHWyOVRpau0ElyKBszmOtARuQ3iwLyNeRKajgYEY70iElhVfzxZZQ-TSgdyUpTK8ulvAyNq0RP5qObDtkM5VTcBEcjFq4it2zw-HqDE_xhqvhc-S_wL1ukhsW4JMovEEEydTT6ZoensHwZuNGXThn6a6cRFBTEqw6NOxGMQIy655KZEYW8FeOQ2iCMNswpx0L-uVf_vX7KsRumy7FLpbcvfuzbdu7J_EfJdfASphZ-xJlVJfKKqmYoQ2wx7xVNw',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuBjWKm9JzAowsjM0riJVMo6ATYWbKk7-a39TSHgzSTDv7upOG15fdI6mSCHQkSNTbtjgzSfVrlK7sdpggHyu2RIkSPyt52uPeWZzFQuyXNmOd57r5Rq19qlo4u038lquEMEc0KOAHReJY6fuapoQ3gzLOn6zmhtOItPwQ9-JDuaDjYTDSH8IXF0tGuCr7a1pds6NQc80jHj2_n57qurmhdjrekTOGkdnijdhlBFGhew5xvwXRnw_Kc0iY6AI1nI_Ja0PM_OMBQdBg',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDrHggSBJ7kuTMD-hhbtQvAv77BRutVr5vKS_Pdsei5vMlUlfSlgSnG4Sr9JDQuwRwv50rffloePA103YE8jvdKL0M9PktbgksP0l8DHwodP8dU51DG3ayJ5wNXyiioP1g0dypXJVS5rD3AJDTqtwboP9HLMrkOGma3OJXDfjBsx35DPkdHzMP5N9QfcHtmeneBCZkkoVwKeqCt7N1HD2_hw8TJxtbyFixX8-zg8Vwy1znOGLKn8P49N6kMrwQawCSA_CsmI8IVtA',
+  { initials: 'H', className: 'from-pink-200 to-rose-100 text-pink-700' },
+  { initials: 'L', className: 'from-sky-200 to-blue-100 text-sky-700' },
+  { initials: 'V', className: 'from-violet-200 to-pink-100 text-violet-700' },
 ];
 
 const LANDING_PLANS = [
@@ -74,7 +71,7 @@ export default function LandingPage() {
         {/* ── Hero Section ── */}
         <div className="px-4 md:px-10 flex flex-1 justify-center py-5 md:py-10">
           <div className="flex flex-col max-w-[1100px] flex-1">
-            <div className="flex flex-col-reverse md:flex-row items-center gap-10 md:gap-16 py-8">
+            <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16 py-8">
 
               {/* Text block */}
               <div className="flex flex-col gap-6 flex-1 text-center md:text-left z-10">
@@ -116,12 +113,13 @@ export default function LandingPage() {
                 {/* Social proof */}
                 <div className="flex items-center justify-center md:justify-start gap-4 mt-2">
                   <div className="flex -space-x-3">
-                    {HERO_AVATARS.map((src, i) => (
+                    {HERO_AVATARS.map((avatar, i) => (
                       <div
                         key={i}
-                        className="w-8 h-8 rounded-full border-2 border-white bg-cover bg-center"
-                        style={{ backgroundImage: `url("${src}")` }}
-                      />
+                        className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br text-xs font-black shadow-sm ${avatar.className}`}
+                      >
+                        {avatar.initials}
+                      </div>
                     ))}
                   </div>
                   <p className="text-sm font-medium text-slate-500">
@@ -137,9 +135,15 @@ export default function LandingPage() {
                   <div className="absolute inset-0 bg-gradient-to-tr from-blue-100 to-pink-100 rounded-full opacity-60 blur-2xl animate-pulse" />
 
                   <div className="relative w-full h-full rounded-[2.5rem] overflow-hidden shadow-lg lp-glass p-2 lp-hover-lift">
-                    <div
-                      className="w-full h-full rounded-[2rem] bg-cover bg-center"
-                      style={{ backgroundImage: 'url(/images/landP.png)' }}
+                    <img
+                      src="/images/landP.webp"
+                      width={900}
+                      height={900}
+                      alt="Minh hoa ung dung HiLover"
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
+                      className="h-full w-full rounded-[2rem] object-cover object-center"
                     />
 
                     {/* Floating status card */}
@@ -275,10 +279,9 @@ export default function LandingPage() {
               {/* Review 1 */}
               <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm bento-card-hover transition-all animate-fade-in-up delay-100">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-12 h-12 rounded-full bg-cover bg-center bg-no-repeat shadow-inner"
-                    style={{ backgroundImage: `url("${REVIEWER_AVATARS.minhAnh}")` }}
-                  />
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br text-sm font-black shadow-inner ${REVIEWER_AVATARS.minhAnh.className}`}>
+                    {REVIEWER_AVATARS.minhAnh.initials}
+                  </div>
                   <div>
                     <p className="text-slate-900 font-bold">Minh Anh</p>
                     <div className="flex text-yellow-400">
@@ -296,10 +299,9 @@ export default function LandingPage() {
               {/* Review 2 */}
               <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm bento-card-hover transition-all animate-fade-in-up delay-200">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-12 h-12 rounded-full bg-cover bg-center bg-no-repeat shadow-inner"
-                    style={{ backgroundImage: `url("${REVIEWER_AVATARS.tuanKiet}")` }}
-                  />
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br text-sm font-black shadow-inner ${REVIEWER_AVATARS.tuanKiet.className}`}>
+                    {REVIEWER_AVATARS.tuanKiet.initials}
+                  </div>
                   <div>
                     <p className="text-slate-900 font-bold">Tuấn Kiệt</p>
                     <div className="flex text-yellow-400">
@@ -317,10 +319,9 @@ export default function LandingPage() {
               {/* Review 3 */}
               <div className="lp-glass p-6 rounded-2xl flex flex-col gap-4 shadow-sm bento-card-hover transition-all animate-fade-in-up delay-300">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-12 h-12 rounded-full bg-cover bg-center bg-no-repeat shadow-inner"
-                    style={{ backgroundImage: `url("${REVIEWER_AVATARS.lanPhuong}")` }}
-                  />
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br text-sm font-black shadow-inner ${REVIEWER_AVATARS.lanPhuong.className}`}>
+                    {REVIEWER_AVATARS.lanPhuong.initials}
+                  </div>
                   <div>
                     <p className="text-slate-900 font-bold">Lan Phương</p>
                     <div className="flex text-yellow-400">
@@ -343,7 +344,7 @@ export default function LandingPage() {
         <div id="pricing" className="px-4 md:px-10 flex justify-center py-16 md:py-20 bg-white/50 backdrop-blur-sm">
           <div className="flex w-full max-w-[1100px] flex-col gap-10">
             <div className="mx-auto flex max-w-[720px] flex-col gap-3 text-center">
-              <span className="mx-auto w-fit rounded-full border border-pink-100 bg-white px-4 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-pink-500 shadow-sm">
+              <span className="mx-auto w-fit rounded-full border border-pink-100 bg-white px-4 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-pink-700 shadow-sm">
                 Gói Đồng Hành
               </span>
               <h2 className="hi-page-title text-3xl md:text-4xl">
@@ -378,7 +379,7 @@ export default function LandingPage() {
 
                     <div className="mb-6 flex items-end gap-1">
                       <span className="text-4xl font-black tracking-tight text-slate-900">{plan.price}</span>
-                      {plan.suffix && <span className="pb-1 text-sm font-bold text-slate-400">{plan.suffix}</span>}
+                      {plan.suffix && <span className="pb-1 text-sm font-bold text-slate-600">{plan.suffix}</span>}
                     </div>
 
                     <ul className="mb-8 flex flex-1 flex-col gap-3">
@@ -487,7 +488,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-          <div className="border-t border-slate-100 px-4 py-5 text-center text-xs font-semibold text-slate-400">
+          <div className="border-t border-slate-100 px-4 py-5 text-center text-xs font-semibold text-slate-600">
             © 2026 Hi Lover. All rights reserved. Dự đoán sức khỏe chỉ mang tính tham khảo, không thay thế tư vấn y khoa.
           </div>
         </footer>

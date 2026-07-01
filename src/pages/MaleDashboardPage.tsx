@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '../components/layout/Navbar';
@@ -15,6 +15,7 @@ import api from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import type { CycleInsights, CycleRecord, CoupleAnniversarySummary } from '../types/shared';
 import { normalizeAnniversarySummary } from '../utils/coupleAnniversaryCalendar';
+import WeatherForecast from '../components/ui/WeatherForecast';
 
 function formatShortDate(value?: string | null) {
   if (!value) return '--';
@@ -166,13 +167,16 @@ export default function MaleDashboardPage() {
                 Dashboard nam chỉ xem dữ liệu chu kỳ đã được Người ấy chia sẻ, kèm gợi ý chăm sóc và Hi AI.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => openHiChat('Hôm nay tôi nên chăm sóc Người ấy thế nào?')}
-              className="hi-btn-primary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-black"
-            >
-              Hỏi Hi AI
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <WeatherForecast />
+              <button
+                type="button"
+                onClick={() => openHiChat('Hôm nay tôi nên chăm sóc Người ấy thế nào?')}
+                className="hi-btn-primary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-black whitespace-nowrap"
+              >
+                Hỏi Hi AI
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -437,7 +441,7 @@ export default function MaleDashboardPage() {
             <HealthVideoSection />
           </div>
 
-          <div className="mt-6 rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur">
+          <div className="mt-6">
             <PricingCard />
           </div>
         </main>

@@ -73,6 +73,38 @@ function getProjectedWindow(
   };
 }
 
+function isCloseToRecorded(dateIso: string, cycles: CycleRecord[], insights?: CycleInsights | null) {
+  const date = fromIsoDate(dateIso);
+  if (!date) return false;
+  const dateTime = date.getTime();
+
+  for (const cycle of cycles) {
+    const start = cycle.startDate.slice(0, 10);
+    const hasEndDate = !!cycle.endDate;
+    const periodLen = hasEndDate
+      ? (cycle.periodLength || 5)
+      : Math.round(insights?.averagePeriodLength || cycle.periodLength || 5);
+    const end = cycle.endDate?.slice(0, 10) ?? addDays(start, periodLen - 1);
+
+    const startDate = fromIsoDate(start);
+    const endDate = fromIsoDate(end);
+    if (!startDate || !endDate) continue;
+
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
+    const dayMs = 86_400_000;
+
+    if (dateTime > endMs) {
+      if ((dateTime - endMs) / dayMs < 15) return true;
+    } else if (dateTime < startMs) {
+      if ((startMs - dateTime) / dayMs < 15) return true;
+    } else {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function getCycleDayKind(date: Date, cycles: CycleRecord[], insights?: CycleInsights | null): CycleDayKind | null {
   const dateIso = toIsoDate(date);
   const todayIso = toIsoDate(new Date());
@@ -106,10 +138,19 @@ export function getCycleDayKind(date: Date, cycles: CycleRecord[], insights?: Cy
   if (projectedFertile && isWithinIso(dateIso, projectedFertile.start, projectedFertile.end)) return 'fertile';
 
   if (isWithinIso(dateIso, predictedStart, predictedEnd)) {
-    return insights?.periodStatus === 'DELAYED' ? 'delayed' : 'predicted';
+    const kind = insights?.periodStatus === 'DELAYED' ? 'delayed' : 'predicted';
+    if (isCloseToRecorded(dateIso, cycles, insights)) {
+      return null;
+    }
+    return kind;
   }
   const projectedPeriod = getProjectedWindow(dateIso, predictedStart, predictedEnd, cycleLength);
-  if (projectedPeriod && isWithinIso(dateIso, projectedPeriod.start, projectedPeriod.end)) return 'predicted';
+  if (projectedPeriod && isWithinIso(dateIso, projectedPeriod.start, projectedPeriod.end)) {
+    if (isCloseToRecorded(dateIso, cycles, insights)) {
+      return null;
+    }
+    return 'predicted';
+  }
 
   return null;
 }

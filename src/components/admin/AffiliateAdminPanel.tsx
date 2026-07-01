@@ -101,6 +101,85 @@ const audienceLabel: Record<AffiliateAudience, string> = {
   BOTH: 'Cả hai',
 };
 
+const SYMPTOM_OPTIONS = [
+  'Đau bụng',
+  'Đau đầu',
+  'Mệt mỏi',
+  'Nổi mụn',
+  'Đau lưng',
+  'Ngực đau',
+  'Mất ngủ',
+  'Chóng mặt',
+  'Thèm ăn',
+  'Ngứa âm đạo',
+  'Khô âm đạo',
+  'Buồn nôn',
+  'Đầy hơi',
+  'Táo bón',
+  'Tiêu chảy',
+];
+
+const PHASE_OPTIONS = ['Kinh nguyệt', 'Nang trứng', 'Rụng trứng', 'Hoàng thể'];
+
+const PHASE_INFOS: Record<string, { symptoms: string; analysis: string; suitability: string }> = {
+  'Kinh nguyệt': {
+    symptoms: 'Đau bụng dưới, mệt mỏi, đau lưng, cáu gắt, nhạy cảm.',
+    analysis: 'Niêm mạc tử cung bong ra, estrogen và progesterone giảm sâu.',
+    suitability: 'Thích hợp cho: Miếng dán nhiệt, trà gừng, đồ dùng vệ sinh, thuốc giảm đau.'
+  },
+  'Nang trứng': {
+    symptoms: 'Tràn đầy năng lượng, da mịn màng, tinh thần sảng khoái.',
+    analysis: 'Cơ thể phát triển nang trứng, nồng độ estrogen bắt đầu tăng dần.',
+    suitability: 'Thích hợp cho: Chăm sóc da, bổ sung vitamin, collagen, đồ tập thể thao.'
+  },
+  'Rụng trứng': {
+    symptoms: 'Tăng tiết dịch âm đạo, đau nhói bụng dưới nhẹ, tăng ham muốn.',
+    analysis: 'Trứng rụng khỏi buồng trứng, nồng độ estrogen đạt đỉnh. Dễ thụ thai nhất.',
+    suitability: 'Thích hợp cho: Que thử rụng trứng, gel bôi trơn, vitamin tăng thụ thai.'
+  },
+  'Hoàng thể': {
+    symptoms: 'Nổi mụn, căng ngực, đầy hơi, thèm ăn, stress, hội chứng PMS.',
+    analysis: 'Progesterone tăng cao rồi giảm mạnh nếu không thụ thai.',
+    suitability: 'Thích hợp cho: Sữa rửa mặt trị mụn, trà thảo mộc ngủ ngon, nến thơm thư giãn.'
+  }
+};
+
+function getSuggestedPhases(symptom: string): string[] {
+  const val = symptom.toLowerCase().trim();
+  if (['đau bụng', 'đau đầu', 'đau lưng', 'mệt mỏi', 'chóng mặt', 'ngứa âm đạo', 'khô âm đạo', 'buồn nôn', 'đầy hơi', 'táo bón', 'tiêu chảy'].includes(val)) {
+    return ['Kinh nguyệt'];
+  }
+  if (['nổi mụn', 'ngực đau', 'thèm ăn', 'bực bội', 'buồn', 'lo lắng', 'thiếu năng lượng'].includes(val)) {
+    return ['Hoàng thể'];
+  }
+  if (['như lòng trắng trứng', 'ẩm ướt', 'dạng dịch'].includes(val)) {
+    return ['Rụng trứng'];
+  }
+  if (['vui vẻ', 'mạnh mẽ', 'phấn chấn', 'không có dịch'].includes(val)) {
+    return ['Nang trứng'];
+  }
+  return [];
+}
+
+const GOAL_OPTIONS = [
+  'Chăm sóc',
+  'Thư giãn',
+  'Làm đẹp',
+  'Vệ sinh',
+  'Bổ dung dinh dưỡng',
+  'Sức khỏe sinh sản',
+];
+
+const CATEGORY_OPTIONS = [
+  'Chăm sóc cơ thể',
+  'Sức khỏe mỗi ngày',
+  'Quà theo dịp',
+  'Cho người ấy',
+  'Chăm sóc cá nhân',
+  'Dinh dưỡng',
+  'Mỹ phẩm / Làm đẹp',
+];
+
 function splitTags(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
@@ -620,11 +699,154 @@ export default function AffiliateAdminPanel() {
             <FormSection title="Phân loại gợi ý" description="Các nhãn giúp AI và trang sản phẩm chọn đúng ngữ cảnh.">
               <div className="grid gap-4 md:grid-cols-2">
                 <Input label="Nguồn / shop" value={form.sourceName} onChange={(event) => setForm({ ...form, sourceName: event.target.value })} placeholder="Tên shop" />
-                <Input label="Danh mục" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Chăm sóc tại nhà" />
+                <div className="space-y-2">
+                  <Input label="Danh mục" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Chăm sóc tại nhà" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {CATEGORY_OPTIONS.map((tag) => {
+                      const selected = form.category.split(',').map(t => t.trim()).includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            const current = form.category.split(',').map(t => t.trim()).filter(Boolean);
+                            const next = current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag];
+                            setForm({ ...form, category: next.join(', ') });
+                          }}
+                          className={`rounded-xl px-3 py-1 text-xs font-bold transition active:scale-95 ${
+                            selected
+                              ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/20'
+                              : 'bg-slate-50 border border-slate-100 text-slate-600 hover:bg-slate-100/70'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-              <Input label="Tags triệu chứng" value={form.symptomTags} onChange={(event) => setForm({ ...form, symptomTags: event.target.value })} placeholder="Đau bụng, mệt mỏi..." />
-              <Input label="Tags giai đoạn" value={form.phaseTags} onChange={(event) => setForm({ ...form, phaseTags: event.target.value })} placeholder="Kinh nguyệt, hoàng thể..." />
-              <Input label="Tags mục tiêu" value={form.goalTags} onChange={(event) => setForm({ ...form, goalTags: event.target.value })} placeholder="Chăm sóc, thư giãn..." />
+              <div className="space-y-2">
+                <Input label="Tags triệu chứng" value={form.symptomTags} onChange={(event) => setForm({ ...form, symptomTags: event.target.value })} placeholder="Đau bụng, mệt mỏi..." />
+                <div className="flex flex-wrap gap-1.5">
+                  {SYMPTOM_OPTIONS.map((tag) => {
+                    const selected = form.symptomTags.split(',').map(t => t.trim()).includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const current = form.symptomTags.split(',').map(t => t.trim()).filter(Boolean);
+                          const isAdding = !current.includes(tag);
+                          const next = isAdding ? [...current, tag] : current.filter(t => t !== tag);
+                          
+                          let nextPhaseTags = form.phaseTags;
+                          if (isAdding) {
+                            const suggested = getSuggestedPhases(tag);
+                            if (suggested.length > 0) {
+                              const currentPhases = form.phaseTags.split(',').map(t => t.trim()).filter(Boolean);
+                              const newPhases = [...currentPhases];
+                              let added = false;
+                              suggested.forEach(p => {
+                                if (!newPhases.includes(p)) {
+                                  newPhases.push(p);
+                                  added = true;
+                                }
+                              });
+                              if (added) {
+                                nextPhaseTags = newPhases.join(', ');
+                                toast.success(`Gợi ý giai đoạn: ${suggested.join(', ')}`, { id: 'suggest-phase' });
+                              }
+                            }
+                          }
+                          setForm({ ...form, symptomTags: next.join(', '), phaseTags: nextPhaseTags });
+                        }}
+                        className={`rounded-xl px-3 py-1 text-xs font-bold transition active:scale-95 ${
+                          selected
+                            ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/20'
+                            : 'bg-slate-50 border border-slate-100 text-slate-600 hover:bg-slate-100/70'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Input label="Tags giai đoạn" value={form.phaseTags} onChange={(event) => setForm({ ...form, phaseTags: event.target.value })} placeholder="Kinh nguyệt, hoàng thể..." />
+                <div className="flex flex-wrap gap-1.5">
+                  {PHASE_OPTIONS.map((tag) => {
+                    const selected = form.phaseTags.split(',').map(t => t.trim()).includes(tag);
+                    const info = PHASE_INFOS[tag];
+                    return (
+                      <div key={tag} className="group relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = form.phaseTags.split(',').map(t => t.trim()).filter(Boolean);
+                            const next = current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag];
+                            setForm({ ...form, phaseTags: next.join(', ') });
+                          }}
+                          className={`rounded-xl px-3 py-1 text-xs font-bold transition active:scale-95 ${
+                            selected
+                              ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/20'
+                              : 'bg-slate-50 border border-slate-100 text-slate-600 hover:bg-slate-100/70'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                        {/* Hover Tooltip Box */}
+                        <div className="absolute bottom-full left-1/2 z-50 mb-2 hidden w-72 -translate-x-1/2 rounded-2xl border border-slate-100 bg-white p-4 shadow-xl group-hover:block pointer-events-none text-left">
+                          <p className="text-xs font-black text-slate-900 border-b border-slate-100 pb-1.5 mb-2 flex items-center gap-1.5">
+                            ✨ Giai đoạn: {tag}
+                          </p>
+                          <div className="space-y-2 text-[11px] leading-relaxed text-slate-600 font-medium">
+                            <p>🧬 <span className="font-extrabold text-slate-800">Cơ chế:</span> {info?.analysis}</p>
+                            <p>🤒 <span className="font-extrabold text-slate-800">Triệu chứng:</span> {info?.symptoms}</p>
+                            <p>🛍️ <span className="font-extrabold text-slate-800">Phù hợp nhất:</span> {info?.suitability}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Input label="Tags mục tiêu" value={form.goalTags} onChange={(event) => setForm({ ...form, goalTags: event.target.value })} placeholder="Chăm sóc, thư giãn..." />
+                <div className="flex flex-wrap gap-1.5">
+                  {GOAL_OPTIONS.map((tag) => {
+                    const selected = form.goalTags.split(',').map(t => t.trim()).includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const current = form.goalTags.split(',').map(t => t.trim()).filter(Boolean);
+                          const next = current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag];
+                          setForm({ ...form, goalTags: next.join(', ') });
+                        }}
+                        className={`rounded-xl px-3 py-1 text-xs font-bold transition active:scale-95 ${
+                          selected
+                            ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/20'
+                            : 'bg-slate-50 border border-slate-100 text-slate-600 hover:bg-slate-100/70'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 border border-slate-150 p-4 mt-3">
+                <p className="text-xs font-semibold text-slate-500 leading-relaxed">
+                  💡 **Mẹo về Sản phẩm Quà tặng / Phổ thông**: 
+                  Nếu đây là sản phẩm quà tặng (ví dụ: quà tặng bạn trai, quà tặng ngày lễ) hoặc đồ dùng phổ thông dùng được quanh năm: 
+                  **Hãy để trống hoàn toàn** mục *"Tags triệu chứng"* và *"Tags giai đoạn"*. Khi để trống, hệ thống sẽ tự động đề xuất sản phẩm này trong mọi giai đoạn chu kỳ và cho tất cả triệu chứng.
+                </p>
+              </div>
             </FormSection>
           </div>
           <button type="submit" className="hidden">Submit</button>

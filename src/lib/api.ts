@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import { toast } from 'react-hot-toast';
 import { buildLoginRedirect, clearAuthSession } from './session';
 
@@ -16,7 +16,42 @@ const api = axios.create({
   withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
+type CsrfResponse = {
+  success: boolean;
+  data?: {
+    csrfToken?: string;
+    headerName?: string;
+  };
+};
+
+let csrfToken: string | null = null;
+let csrfHeaderName = 'X-XSRF-TOKEN';
+let csrfRequest: Promise<void> | null = null;
+
+function isUnsafeMethod(method?: string) {
+  return ['post', 'put', 'patch', 'delete'].includes((method ?? 'get').toLowerCase());
+}
+
+async function ensureCsrfToken() {
+  if (csrfToken) return;
+  csrfRequest ??= api.get<CsrfResponse>('/auth/csrf').then(({ data }) => {
+    csrfToken = data.data?.csrfToken ?? null;
+    csrfHeaderName = data.data?.headerName ?? csrfHeaderName;
+  }).finally(() => {
+    csrfRequest = null;
+  });
+  await csrfRequest;
+}
+
+api.interceptors.request.use(async (config) => {
+  if (isUnsafeMethod(config.method) && !config.url?.includes('/auth/csrf')) {
+    await ensureCsrfToken();
+    if (csrfToken) {
+      const headers = AxiosHeaders.from(config.headers);
+      headers.set(csrfHeaderName, csrfToken);
+      config.headers = headers;
+    }
+  }
   return config;
 });
 
@@ -34,6 +69,9 @@ api.interceptors.response.use(
       url.includes('/auth/refresh') ||
       url.includes('/auth/forgot-password') ||
       url.includes('/auth/reset-password');
+    if (err.response?.status === 403 && err.config && isUnsafeMethod(err.config.method)) {
+      csrfToken = null;
+    }
     if ((err.response?.status === 401 || err.response?.status === 403) && !isAuthEndpoint) {
       const authPaths = ['/login', '/register', '/forgot-password'];
       if (authPaths.includes(window.location.pathname)) {

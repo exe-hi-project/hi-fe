@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
@@ -17,7 +17,7 @@ import api from '../lib/api';
 import PricingCard from '../components/PricingCard';
 import type { CycleInsights, CycleRecord, CoupleAnniversarySummary } from '../types/shared';
 import { normalizeAnniversarySummary } from '../utils/coupleAnniversaryCalendar';
-import { CYCLE_DAY_CLASSES, getCycleDayKind } from '../utils/cycleCalendar';
+import WeatherForecast from '../components/ui/WeatherForecast';
 
 /* ─── types & helpers ───────────────────────────────── */
 interface PartnerCyclesResponse {
@@ -47,17 +47,6 @@ function getGreeting() {
 }
 
 /* ─── static data ───────────────────────────────────── */
-function getWeekBars() {
-  const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-  const todayIndex = (new Date().getDay() + 6) % 7;
-  return days.map((day, i) => ({
-    day,
-    h: i === todayIndex ? '70%' : i < todayIndex ? '20%' : '0%',
-    cls: i === todayIndex ? 'bg-pink-400' : i < todayIndex ? 'bg-purple-200' : 'bg-gray-100',
-    active: i === todayIndex,
-  }));
-}
-
 function toLocalDate(value?: string | null) {
   return value ? new Date(`${value.slice(0, 10)}T00:00:00`) : null;
 }
@@ -70,17 +59,6 @@ function formatShortDate(value?: string | null) {
 function formatDateRange(start?: string | null, end?: string | null) {
   if (!start) return '--';
   return `${formatShortDate(start)}${end ? ` - ${formatShortDate(end)}` : ''}`;
-}
-
-function toIsoDate(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function getCurrentWeekDates() {
-  const today = new Date();
-  const mondayOffset = (today.getDay() + 6) % 7;
-  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayOffset);
-  return Array.from({ length: 7 }, (_, index) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index));
 }
 
 function getLocalCalendarDayDifference(target?: string | null, origin = new Date()) {
@@ -212,10 +190,6 @@ export default function FemaleDashboardPage() {
           ? 'Kỳ kinh ước tính'
           : 'ngày chưa ghi nhận';
   const ringStroke = periodStatus === 'DELAYED' ? '#94a3b8' : periodStatus === 'UPCOMING' ? '#c4b5fd' : '#f472b6';
-  const today = new Date();
-  const currentWeekDates = getCurrentWeekDates();
-  const monthLabel = today.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
-
   /* ── Modal state ── */
   const [dailyLogOpen, setDailyLogOpen] = useState(false);
   const [dailyLogMode, setDailyLogMode] = useState<DailyLogMode>('default');
@@ -278,11 +252,7 @@ export default function FemaleDashboardPage() {
                 </span>
               </h1>
             </div>
-            <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm px-4 py-2.5 rounded-2xl shadow-sm border border-white/80">
-              <span className="text-sm font-semibold text-slate-500">Dự báo hôm nay:</span>
-              <span className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wide">Năng lượng cao</span>
-              <span className="px-3 py-1 rounded-lg bg-blue-100  text-blue-700  text-xs font-bold uppercase tracking-wide">Da đẹp</span>
-            </div>
+            <WeatherForecast />
           </div>
 
           {/* ── Card grid ── */}
@@ -625,7 +595,7 @@ export default function FemaleDashboardPage() {
             </div>
 
             {/* ── 9. Upgrade Plans (full width) ── */}
-            <div className="md:col-span-4 rounded-3xl overflow-hidden relative bg-white/80 backdrop-blur-sm border border-pink-100/50 p-6 shadow-sm">
+            <div className="md:col-span-4">
               <PricingCard />
             </div>
 

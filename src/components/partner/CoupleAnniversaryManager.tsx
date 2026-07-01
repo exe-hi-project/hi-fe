@@ -12,32 +12,25 @@ import {
 import api from '../../lib/api';
 import CoupleAnniversaryPreviewCalendar from './CoupleAnniversaryPreviewCalendar';
 import AnniversaryEventModal from './AnniversaryEventModal';
-import { normalizeAnniversarySummary, STICKER_MAP } from '../../utils/coupleAnniversaryCalendar';
+import { normalizeAnniversarySummary } from '../../utils/coupleAnniversaryCalendar';
 import type {
   CoupleAnniversarySummary,
   CoupleAnniversaryEvent,
 } from '../../types/shared';
 import Button from '../ui/Button';
+import Spinner from '../ui/Spinner';
+import { AnniversarySticker } from './AnniversaryVisuals';
 
 interface CoupleAnniversaryManagerProps {
   variant: 'female' | 'male';
 }
 
-const COLOR_LABELS: Record<string, string> = {
-  pink: 'Hồng ngọt ngào',
-  rose: 'Đỏ nồng nàn',
-  violet: 'Tím lãng mạn',
-  sky: 'Xanh thanh bình',
-  emerald: 'Xanh ngọc bích',
-  amber: 'Vàng ấm áp',
-};
-
 export default function CoupleAnniversaryManager({ variant }: CoupleAnniversaryManagerProps) {
   const isMale = variant === 'male';
   const queryClient = useQueryClient();
-  const accentText = isMale ? 'text-blue-600' : 'text-pink-600';
   const accentBg = isMale ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700';
-  const accentBorder = isMale ? 'focus:border-blue-400 focus:ring-blue-100' : 'focus:border-pink-400 focus:ring-pink-100';
+  const accentBorder = isMale ? 'border-blue-100' : 'border-pink-100';
+  const accentText = isMale ? 'text-blue-600' : 'text-pink-600';
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalDate, setModalDate] = useState('');
@@ -95,7 +88,7 @@ export default function CoupleAnniversaryManager({ variant }: CoupleAnniversaryM
   if (isLoading) {
     return (
       <div className="flex min-h-60 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-pink-500" />
+        <Spinner className={isMale ? 'text-blue-500' : 'text-pink-500'} />
       </div>
     );
   }
@@ -118,88 +111,59 @@ export default function CoupleAnniversaryManager({ variant }: CoupleAnniversaryM
   };
 
   return (
-    <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-      {/* Cột chính bên trái: Lịch kỷ niệm */}
-      <div className="md:col-span-2">
+    <div className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+      <div className="min-w-0">
         <CoupleAnniversaryPreviewCalendar
           enabled={true}
           variant={variant}
-          className="w-full h-full"
+          className="w-full"
         />
       </div>
 
-      {/* Cột phụ bên phải: Ngày bên nhau & Tip bento card */}
-      <div className="space-y-6 flex flex-col justify-between">
-        {/* Hành trình yêu thương Card */}
-        <div className="relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm flex flex-col justify-between flex-1 min-h-[160px] bento-card-hover">
-          <div className="absolute -right-20 -top-20 h-44 w-44 rounded-full bg-pink-100/40 blur-3xl pointer-events-none" />
-          <div className="relative flex flex-col justify-between h-full">
-            <div>
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${accentBg}`}>
-                <Heart size={14} weight="fill" />
-                Hành trình yêu thương
-              </span>
-              <h2 className="mt-4 text-2xl font-black tracking-tight text-slate-900 leading-tight">
-                {summary?.daysTogether !== null && summary?.daysTogether !== undefined ? (
-                  <>
-                    {summary.startDate?.title || 'Đồng hành'}{' '}
-                    <span
-                      className="text-3xl font-black tracking-tight inline-block align-middle"
-                      style={{
-                        background: 'linear-gradient(135deg, #7ecae8 0%, #c9a8e0 48%, #f9a8c9 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                      }}
-                    >
-                      {summary.daysTogether}
-                    </span>{' '}
-                    ngày
-                  </>
-                ) : (
-                  'Chưa thiết lập ngày bên nhau'
-                )}
-              </h2>
-              <p className="mt-2 text-xs font-semibold text-slate-400">
-                {summary?.startDate
-                  ? `Từ: ${new Date(summary.startDate.eventDate).toLocaleDateString('vi-VN', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })}`
-                  : 'Hãy cài đặt ngày hai bạn bắt đầu bên nhau nhé.'}
-              </p>
-            </div>
-            <Button onClick={openEditStart} className="mt-5 w-full">
-              {summary?.startDate ? 'Cài đặt giao diện' : 'Chọn ngày'}
-            </Button>
-          </div>
-        </div>
+      <div className="grid gap-6">
+        <aside className="rounded-2xl border border-white bg-white p-6 shadow-sm">
+          <span className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-extrabold uppercase ${accentBg}`}>
+            <Heart size={14} weight="fill" />
+            Hành trình yêu thương
+          </span>
+          <h2 className="mt-4 text-2xl font-extrabold leading-snug text-slate-900">
+            {summary?.daysTogether !== null && summary?.daysTogether !== undefined ? (
+              <>
+                {summary.startDate?.title || 'Ngày bên nhau'}{' '}
+                <span className="bg-gradient-to-r from-violet-400 to-sky-400 bg-clip-text text-3xl text-transparent">
+                  {summary.daysTogether}
+                </span>{' '}
+                ngày
+              </>
+            ) : 'Chưa thiết lập ngày bên nhau'}
+          </h2>
+          <p className="mt-2 text-xs font-semibold text-slate-400">
+            {summary?.startDate
+              ? `Từ: ${new Date(summary.startDate.eventDate).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}`
+              : 'Hãy chọn ngày hai bạn bắt đầu bên nhau nhé.'}
+          </p>
+          <Button onClick={openEditStart} className="mt-5 w-full">
+            {summary?.startDate ? 'Cài đặt giao diện' : 'Chọn ngày'}
+          </Button>
+        </aside>
 
-        {/* Tip / Mẹo nhỏ thêm kỷ niệm Card */}
-        <div className="relative overflow-hidden rounded-[2rem] border border-pink-100 bg-gradient-to-br from-pink-50/50 to-violet-50/50 p-6 shadow-sm flex flex-col justify-between flex-1 min-h-[160px] bento-card-hover">
-          <div>
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-pink-500 shadow-sm border border-pink-100/30">
-              <span className="material-symbols-outlined text-[20px]">insights</span>
-            </div>
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Yêu thương lan tỏa</h3>
-            <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              Mỗi ngày kỷ niệm được lưu trữ sẽ giúp hai bạn dễ dàng xem lại các cột mốc ý nghĩa trong mối quan hệ.
-            </p>
+        <aside className={`rounded-2xl border bg-pink-50/50 p-6 shadow-sm ${accentBorder}`}>
+          <div className={`grid size-10 place-items-center rounded-xl bg-white shadow-sm ${accentText}`}>
+            <Sparkle size={20} weight="fill" />
           </div>
-          <button
-            onClick={openAddEvent}
-            className={`mt-4 w-full inline-flex h-10 items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all ${accentBg} hover:scale-[1.02] active:scale-[0.98] cursor-pointer`}
-          >
-            <Plus size={14} weight="bold" />
+          <h3 className="mt-4 text-sm font-extrabold uppercase text-slate-900">Yêu thương lan tỏa</h3>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            Mỗi ngày kỷ niệm được lưu trữ sẽ giúp hai bạn dễ dàng xem lại các cột mốc ý nghĩa trong mối quan hệ.
+          </p>
+          <Button onClick={openAddEvent} variant="secondary" fullWidth className="mt-5">
+            <Plus size={15} weight="bold" className="mr-2" />
             Thêm kỷ niệm mới
-          </button>
-        </div>
+          </Button>
+        </aside>
       </div>
 
-      {/* 4. Special Memories/Dates list */}
-      <div className="md:col-span-3">
-        <section className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <div className="lg:col-span-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h2 className="text-xl font-black text-slate-900">Những ngày kỷ niệm đặc biệt</h2>
@@ -216,7 +180,7 @@ export default function CoupleAnniversaryManager({ variant }: CoupleAnniversaryM
                 >
                   <div className="flex items-start gap-4">
                     <div className={`grid size-12 shrink-0 place-items-center rounded-2xl bg-white shadow-sm border border-slate-100 text-2xl`}>
-                      {STICKER_MAP[event.sticker] || STICKER_MAP.heart}
+                      <AnniversarySticker name={event.sticker} size={30} />
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">

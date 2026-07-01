@@ -17,6 +17,8 @@ interface AffiliateProduct {
   sourceName?: string;
 }
 
+const RECOMMENDATION_LIMIT = 3;
+
 function money(value?: number) {
   if (!value) return '';
   return `${Math.round(value).toLocaleString('vi-VN')}đ`;
@@ -45,13 +47,31 @@ export default function AffiliateRecommendations({
   const productsQuery = useQuery({
     queryKey: ['affiliate-recommendations', symptomCategory, phase],
     queryFn: () => api.get('/affiliate-products/recommendations', {
-      params: { symptomCategory, phase, limit: compact ? 3 : 6 },
+      params: { symptomCategory, phase, limit: RECOMMENDATION_LIMIT },
     }).then(({ data }) => data.products as AffiliateProduct[]),
     staleTime: 5 * 60_000,
   });
 
-  const products = productsQuery.data ?? [];
-  if (productsQuery.isLoading || products.length === 0) return null;
+  const fallbackProductsQuery = useQuery({
+    queryKey: ['affiliate-recommendation-fallbacks'],
+    queryFn: () => api.get('/affiliate-products', {
+      params: { active: true, limit: 12 },
+    }).then(({ data }) => data.products as AffiliateProduct[]),
+    enabled: !productsQuery.isLoading && (productsQuery.data?.length ?? 0) < RECOMMENDATION_LIMIT,
+    staleTime: 5 * 60_000,
+  });
+
+  const recommendedProducts = productsQuery.data ?? [];
+  const fallbackProducts = fallbackProductsQuery.data ?? [];
+  const products = [...recommendedProducts, ...fallbackProducts]
+    .filter((product, index, list) => {
+      const key = product._id ?? product.affiliateUrl;
+      return list.findIndex((item) => (item._id ?? item.affiliateUrl) === key) === index;
+    })
+    .slice(0, RECOMMENDATION_LIMIT);
+  const isLoading = productsQuery.isLoading || (recommendedProducts.length < RECOMMENDATION_LIMIT && fallbackProductsQuery.isLoading);
+
+  if (isLoading || products.length === 0) return null;
 
   return (
     <section className="rounded-[2rem] border border-pink-100/80 bg-gradient-to-br from-white via-pink-50/70 to-sky-50/70 p-5 shadow-sm">
@@ -71,7 +91,7 @@ export default function AffiliateRecommendations({
         </Link>
       </div>
 
-      <div className={`mt-5 grid gap-4 ${compact ? 'md:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
+      <div className={`mt-5 grid gap-4 ${compact ? 'sm:grid-cols-2 xl:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
         {products.map((product) => (
           <article key={product._id} className="overflow-hidden rounded-3xl border border-white/80 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
             {product.imageUrl ? (

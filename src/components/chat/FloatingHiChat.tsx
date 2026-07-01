@@ -202,7 +202,7 @@ export default function FloatingHiChat() {
           <section className="flex min-w-0 flex-1 flex-col">
             <div className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-3">
               <div className="flex items-center gap-3">
-                <HiLogo size={40} />
+                <HiLogo size={40} radius={18} />
                 <div>
                   <p
                     className="text-base font-black tracking-tight"
@@ -313,7 +313,7 @@ export default function FloatingHiChat() {
       <button type="button" onClick={() => setOpen((value) => !value)} className="flex size-14 items-center justify-center rounded-full border border-slate-100 bg-white shadow-xl transition-all hover:-translate-y-1 hover:shadow-2xl" aria-label="Mở Hi AI chat">
         {open
           ? <span className="material-symbols-outlined text-[26px] text-slate-500">close</span>
-          : <HiLogo size={52} />}
+          : <HiLogo size={52} radius={18} />}
       </button>
     </div>
   );
