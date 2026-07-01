@@ -80,6 +80,15 @@ export const anniversaryDotClass: Record<CoupleAnniversaryColor, string> = {
   amber: 'bg-amber-500',
 };
 
+export const anniversaryIconClass: Record<CoupleAnniversaryColor, string> = {
+  pink: 'text-pink-500',
+  rose: 'text-rose-500',
+  violet: 'text-violet-500',
+  sky: 'text-sky-500',
+  emerald: 'text-emerald-500',
+  amber: 'text-amber-500',
+};
+
 export function anniversaryEffectClass(effect?: CoupleAnniversaryEffect | string) {
   if (effect === 'sparkle') return 'animate-anniversary-sparkle ring-1 ring-white/80';
   if (effect === 'float') return '[&_.anniversary-icon]:animate-float';

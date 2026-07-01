@@ -9,6 +9,13 @@ import type {
   CoupleAnniversaryEffect,
 } from '../../types/shared';
 import Button from '../ui/Button';
+import {
+  ANNIVERSARY_STICKERS,
+  ANNIVERSARY_STICKER_LABELS,
+  ANNIVERSARY_SYMBOL_LABELS,
+  AnniversarySticker,
+  AnniversarySymbol,
+} from './AnniversaryVisuals';
 
 interface AnniversaryEventModalProps {
   open: boolean;
@@ -36,14 +43,12 @@ const EFFECT_LABELS: Record<CoupleAnniversaryEffect, string> = {
 };
 
 import {
-  STICKER_EMOJIS,
   ICONS,
-  ICON_LABELS,
 } from '../../utils/coupleAnniversaryCalendar';
 
 const COLORS: CoupleAnniversaryColor[] = ['pink', 'rose', 'violet', 'sky', 'emerald', 'amber'];
 const EFFECTS: CoupleAnniversaryEffect[] = ['none', 'sparkle', 'float', 'glow', 'confetti'];
-const STICKERS = Object.keys(STICKER_EMOJIS);
+const STICKERS = ANNIVERSARY_STICKERS;
 
 export default function AnniversaryEventModal({
   open,
@@ -257,34 +262,47 @@ export default function AnniversaryEventModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Icon biểu tượng</label>
-              <select
-                value={eventIcon}
-                onChange={(e) => setEventIcon(e.target.value)}
-                className={`mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:ring-4 ${accentBorder}`}
-              >
-                {ICONS.map((ic) => (
-                  <option key={ic} value={ic}>
-                    {ICON_LABELS[ic] || ic}
-                  </option>
-                ))}
-              </select>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Icon biểu tượng</label>
+            <div className="mt-2 grid grid-cols-6 gap-2">
+              {ICONS.map((icon) => (
+                <button
+                  key={icon}
+                  type="button"
+                  onClick={() => setEventIcon(icon)}
+                  className={`grid aspect-square place-items-center rounded-xl border transition active:scale-95 ${
+                    eventIcon === icon
+                      ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-500 hover:border-pink-200 hover:bg-pink-50 hover:text-pink-600'
+                  }`}
+                  title={ANNIVERSARY_SYMBOL_LABELS[icon] || icon}
+                  aria-label={ANNIVERSARY_SYMBOL_LABELS[icon] || icon}
+                >
+                  <AnniversarySymbol name={icon} size={19} />
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sticker hình dán</label>
-              <select
-                value={eventSticker}
-                onChange={(e) => setEventSticker(e.target.value)}
-                className={`mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:ring-4 ${accentBorder}`}
-              >
-                {STICKERS.map((st) => (
-                  <option key={st} value={st}>
-                    {STICKER_EMOJIS[st] || st}
-                  </option>
-                ))}
-              </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Sticker hình dán</label>
+            <div className="mt-2 grid grid-cols-7 gap-2">
+              {STICKERS.map((sticker) => (
+                <button
+                  key={sticker}
+                  type="button"
+                  onClick={() => setEventSticker(sticker)}
+                  className={`grid aspect-square place-items-center rounded-xl border bg-white transition active:scale-95 ${
+                    eventSticker === sticker
+                      ? 'border-pink-400 ring-2 ring-pink-100'
+                      : 'border-slate-200 hover:border-pink-200 hover:bg-pink-50'
+                  }`}
+                  title={ANNIVERSARY_STICKER_LABELS[sticker] || sticker}
+                  aria-label={ANNIVERSARY_STICKER_LABELS[sticker] || sticker}
+                >
+                  <AnniversarySticker name={sticker} size={25} />
+                </button>
+              ))}
             </div>
           </div>
 

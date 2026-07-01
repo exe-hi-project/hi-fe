@@ -1,25 +1,16 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import Navbar from '../components/layout/Navbar';
 import PageBackdrop from '../components/layout/PageBackdrop';
-import DailyLogModal from '../components/health/DailyLogModal';
 import Spinner from '../components/ui/Spinner';
 import PremiumLockCard from '../components/subscription/PremiumLockCard';
 import api from '../lib/api';
 import type { CycleInsights, CycleRecord, DailyLog } from '../types/shared';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  CartesianGrid
-} from 'recharts';
+
+const DailyLogModal = lazy(() => import('../components/health/DailyLogModal'));
+const CycleChartPanel = lazy(() => import('../components/cycles/CycleChartPanel'));
 
 const PHASES = [
   { label: 'Kinh nguyệt', bg: '#fecdd3', light: '#fff1f2' },
@@ -289,7 +280,7 @@ export default function CyclesPage() {
                               return (
                                 <span
                                   key={dayIndex}
-                                  className={`flex h-7 items-center justify-center rounded-lg text-[10px] font-extrabold ${isPeriodDay ? 'bg-rose-200 text-rose-800' : 'bg-slate-50 text-slate-400'}`}
+                                  className={`flex aspect-square h-auto min-h-[24px] sm:h-7 items-center justify-center rounded-lg text-[10px] font-extrabold ${isPeriodDay ? 'bg-rose-200 text-rose-800' : 'bg-slate-50 text-slate-400'}`}
                                 >
                                   {dayIndex + 1}
                                 </span>
@@ -448,43 +439,13 @@ export default function CyclesPage() {
                               );
                             })}
                           </div>
-                          {symptomHistoryQuery.isLoading ? (
-                            <div className="py-6"><Spinner /></div>
-                          ) : (symptomHistoryQuery.data?.dailyLogs ?? []).length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-pink-100 bg-pink-50/40 p-4 text-sm font-semibold text-slate-500">
-                              Chưa có triệu chứng nào được ghi trong kỳ này.
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {(symptomHistoryQuery.data?.dailyLogs ?? []).map((log) => (
-                                <div key={log._id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <p className="font-black text-slate-800">{fmt(log.logDate)}</p>
-                                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-pink-500">
-                                      Lượng kinh: {log.flowIntensity === 'NONE' ? 'Không có' : log.flowIntensity === 'LIGHT' ? 'Ít' : log.flowIntensity === 'MEDIUM' ? 'Vừa' : 'Nhiều'}
-                                    </span>
-                                  </div>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {log.hasClots && <span className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-500">Có cục máu đông</span>}
-                                    {typeof log.moodScore === 'number' && <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">Mood: {log.moodScore}/5</span>}
-                                    {(log.symptoms ?? []).map((symptom) => (
-                                      <span key={`${log._id}-${symptom.symptomId}`} className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm">
-                                        {symptom.symptomName ?? `Triệu chứng #${symptom.symptomId}`} · {symptom.severity}
-                                      </span>
-                                    ))}
-                                  </div>
-                                  {log.notes && <p className="mt-3 rounded-xl bg-white p-3 text-xs font-semibold leading-relaxed text-slate-500">{log.notes}</p>}
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
               ) : insights?.advancedAnalyticsAvailable ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6" style={{ contentVisibility: 'auto', containIntrinsicSize: '720px' }}>
                   <div className="md:col-span-2 rounded-3xl border border-white/80 bg-white/90 p-6 shadow-sm backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
@@ -533,78 +494,9 @@ export default function CyclesPage() {
                             <p className="text-[10px] text-slate-400 mt-0.5 max-w-[240px]">Hi đang đợi bạn ghi nhận thêm chu kỳ để vẽ nên sơ đồ sức khỏe của riêng bạn đó! ✨</p>
                           </div>
                         ) : (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart
-                              data={(insights?.cycleTrendPoints ?? []).slice(-8).map((point) => {
-                                const dateObj = new Date(`${point.startDate.slice(0, 10)}T00:00:00`);
-                                const label = dateObj.toLocaleDateString('vi-VN', { month: 'short' });
-                                const full = dateObj.toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' });
-                                return {
-                                  name: label,
-                                  'Chu kỳ': point.cycleLength ?? avgLen ?? 28,
-                                  'Kinh nguyệt': point.periodLength ?? avgPeriod ?? 5,
-                                  fullDate: full,
-                                  isOutlier: point.outlier,
-                                };
-                              })}
-                              margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
-                            >
-                              <defs>
-                                <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#f472b6" stopOpacity={0.4}/>
-                                  <stop offset="95%" stopColor="#a78bfa" stopOpacity={0.0}/>
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                              <XAxis
-                                dataKey="name"
-                                tickLine={false}
-                                axisLine={false}
-                                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
-                              />
-                              <YAxis
-                                domain={['auto', 'auto']}
-                                tickLine={false}
-                                axisLine={false}
-                                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
-                              />
-                              <RechartsTooltip
-                                content={({ active, payload }) => {
-                                  if (active && payload && payload.length) {
-                                    const data = payload[0].payload;
-                                    return (
-                                      <div className="bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg border border-pink-100 text-xs font-bold text-slate-700">
-                                        <p className="text-slate-400 mb-1">{data.fullDate}</p>
-                                        <p className="flex items-center gap-1.5 text-pink-500">
-                                          <span className="w-2 h-2 rounded-full bg-pink-400" />
-                                          Chu kỳ: {data['Chu kỳ']} ngày
-                                        </p>
-                                        <p className="flex items-center gap-1.5 text-violet-500">
-                                          <span className="w-2 h-2 rounded-full bg-violet-400" />
-                                          Kinh nguyệt: {data['Kinh nguyệt']} ngày
-                                        </p>
-                                        {data.isOutlier && (
-                                          <p className="text-[10px] text-amber-500 mt-1 font-extrabold flex items-center gap-1">
-                                            <span className="material-symbols-outlined text-xs">warning</span>
-                                            Chu kỳ bất thường
-                                          </p>
-                                        )}
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                }}
-                              />
-                              <Area
-                                type="monotone"
-                                dataKey="Chu kỳ"
-                                stroke="#f472b6"
-                                strokeWidth={2}
-                                fillOpacity={1}
-                                fill="url(#trendGradient)"
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
+                          <Suspense fallback={<div className="h-full w-full rounded-2xl bg-white/70" />}>
+                            <CycleChartPanel kind="trend" insights={insights} avgLen={avgLen} avgPeriod={avgPeriod} />
+                          </Suspense>
                         )}
                       </div>
                     </div>
@@ -637,67 +529,9 @@ export default function CyclesPage() {
                           <p className="text-[10px] text-slate-400 mt-0.5 max-w-[240px]">Hãy ghi chép thông tin chu kỳ đầu tiên của bạn để Hi giúp bạn theo dõi nhé! ❤️</p>
                         </div>
                       ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={[...cycles].reverse().slice(-6).map((cycle) => {
-                              const dateObj = new Date(cycle.startDate);
-                              return {
-                                name: dateObj.toLocaleDateString('vi-VN', { month: 'short' }),
-                                'Chu kỳ': cycle.cycleLength || 28,
-                                'Kinh nguyệt': cycle.periodLength || 5,
-                                fullDate: dateObj.toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' }),
-                              };
-                            })}
-                            margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
-                            barGap={4}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                            <XAxis
-                              dataKey="name"
-                              tickLine={false}
-                              axisLine={false}
-                              tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
-                            />
-                            <YAxis
-                              tickLine={false}
-                              axisLine={false}
-                              tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
-                            />
-                            <RechartsTooltip
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  const data = payload[0].payload;
-                                  return (
-                                    <div className="bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg border border-pink-100 text-xs font-bold text-slate-700">
-                                      <p className="text-slate-400 mb-1">Bắt đầu: {data.fullDate}</p>
-                                      <p className="flex items-center gap-1.5 text-pink-500">
-                                        <span className="w-2.5 h-2.5 rounded-sm bg-pink-400" />
-                                        Chu kỳ: {data['Chu kỳ']} ngày
-                                      </p>
-                                      <p className="flex items-center gap-1.5 text-rose-500">
-                                        <span className="w-2.5 h-2.5 rounded-sm bg-rose-400" />
-                                        Kinh nguyệt: {data['Kinh nguyệt']} ngày
-                                      </p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                            <Bar
-                              dataKey="Chu kỳ"
-                              fill="#f472b6"
-                              radius={[4, 4, 0, 0]}
-                              maxBarSize={20}
-                            />
-                            <Bar
-                              dataKey="Kinh nguyệt"
-                              fill="#f87171"
-                              radius={[4, 4, 0, 0]}
-                              maxBarSize={20}
-                            />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <Suspense fallback={<div className="h-full w-full rounded-2xl bg-slate-50" />}>
+                          <CycleChartPanel kind="length-bars" cycles={cycles} />
+                        </Suspense>
                       )}
                     </div>
                     <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-slate-500">
@@ -709,7 +543,7 @@ export default function CyclesPage() {
                   <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-white/80">
                     <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
                       <span className="material-symbols-outlined text-rose-400 text-[22px]">monitor_heart</span>
-                      Anh huong trieu chung theo chu ky
+                      Ảnh hưởng triệu chứng theo chu kỳ
                     </h3>
                     {phaseImpacts.length === 0 ? (
                       <div className="flex h-full w-full flex-col items-center justify-center text-center py-6">
@@ -730,7 +564,7 @@ export default function CyclesPage() {
                     ) : (
                       <div className="space-y-5">
                         <div className="p-3 rounded-2xl bg-rose-50/60 border border-rose-100">
-                          <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wide mb-1">Diem tac dong tong</p>
+                          <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wide mb-1">Điểm tác động tổng</p>
                           <p className="text-2xl font-extrabold text-slate-900">{Math.round(overallSymptomImpact)}<span className="text-sm text-slate-400">/100</span></p>
                         </div>
 
@@ -753,7 +587,7 @@ export default function CyclesPage() {
 
                         {topSymptomsByImpact.length > 0 ? (
                           <div className="space-y-2">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Top trieu chung gay bien dong</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Top triệu chứng gây biến động</p>
                             {topSymptomsByImpact.map((symptom) => (
                               <div key={symptom.symptomId} className="flex items-center justify-between rounded-xl border border-rose-100 bg-white px-3 py-2">
                                 <span className="text-sm font-bold text-slate-700">{symptom.symptomName}</span>
@@ -782,16 +616,20 @@ export default function CyclesPage() {
         </main>
 
       </div>
-      <DailyLogModal
-        open={logModalOpen}
-        mode="default"
-        initialDate={logModalDate}
-        onClose={() => setLogModalOpen(false)}
-        onSaved={() => {
-          symptomHistoryQuery.refetch();
-          historyQuery.refetch();
-        }}
-      />
+      {logModalOpen && (
+        <Suspense fallback={null}>
+          <DailyLogModal
+            open={logModalOpen}
+            mode="default"
+            initialDate={logModalDate}
+            onClose={() => setLogModalOpen(false)}
+            onSaved={() => {
+              symptomHistoryQuery.refetch();
+              historyQuery.refetch();
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

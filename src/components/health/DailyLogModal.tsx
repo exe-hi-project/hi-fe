@@ -28,34 +28,83 @@ interface SymptomGroup {
 const FLOW_OPTIONS: Array<{ value: FlowIntensity; label: string; icon: string }> = [
   { value: 'NONE', label: 'Không có', icon: 'water_drop' },
   { value: 'LIGHT', label: 'Ít', icon: 'water_drop' },
-  { value: 'MEDIUM', label: 'Vừa', icon: 'humidity_mid' },
-  { value: 'HEAVY', label: 'Nhiều', icon: 'humidity_high' },
+  { value: 'MEDIUM', label: 'Vừa', icon: 'water_drop' },
+  { value: 'HEAVY', label: 'Nhiều', icon: 'water_drop' },
 ];
 
 const GROUPS: SymptomGroup[] = [
   { category: 'EMOTIONAL', title: 'Tâm trạng', description: 'Bạn có thể chọn nhiều cảm xúc trong ngày.', icon: 'mood', accentClassName: 'text-amber-500 bg-amber-50' },
   { category: 'PHYSICAL', title: 'Triệu chứng cơ thể', description: 'Ghi lại các dấu hiệu bạn đang cảm nhận.', icon: 'monitor_heart', accentClassName: 'text-rose-500 bg-rose-50' },
-  { category: 'OTHER', title: 'Tiêu hóa', description: 'Các thay đổi tiêu hóa thường gặp trong chu kỳ.', icon: 'gastroenterology', accentClassName: 'text-fuchsia-500 bg-fuchsia-50' },
+  { category: 'OTHER', title: 'Tiêu hóa', description: 'Các thay đổi tiêu hóa thường gặp trong chu kỳ.', icon: 'spa', accentClassName: 'text-fuchsia-500 bg-fuchsia-50' },
   { category: 'FLUID', title: 'Tiết dịch âm đạo', description: 'Chọn mô tả phù hợp nhất trong ngày.', icon: 'water_drop', accentClassName: 'text-violet-500 bg-violet-50', singleSelect: true },
 ];
 
 const COMMON_NAMES = ['Đau bụng', 'Mệt mỏi', 'Đầy hơi', 'Đau đầu', 'Ngực đau', 'Mất ngủ'];
 
 const ICON_BY_NAME: Record<string, string> = {
-  'Đau bụng': 'sick',
-  'Đau đầu': 'neurology',
-  'Mệt mỏi': 'battery_low',
-  'Đầy hơi': 'air',
-  'Nổi mụn': 'dermatology',
-  'Đau lưng': 'accessibility_new',
+  'Đau bụng': 'monitor_heart',
+  'Đau đầu': 'psychology',
+  'Mệt mỏi': 'nightlight',
+  'Đầy hơi': 'foggy',
+  'Nổi mụn': 'face',
+  'Đau lưng': 'monitor_heart',
   'Ngực đau': 'favorite',
-  'Buồn nôn': 'sentiment_dissatisfied',
-  'Mất ngủ': 'bedtime',
-  'Chóng mặt': 'motion_blur',
-  'Thèm ăn': 'restaurant',
-  'Ngứa âm đạo': 'medical_services',
+  'Buồn nôn': 'mood',
+  'Mất ngủ': 'nightlight',
+  'Chóng mặt': 'progress_activity',
+  'Thèm ăn': 'local_mall',
+  'Ngứa âm đạo': 'privacy_tip',
   'Khô âm đạo': 'water_drop',
 };
+
+const DISPLAY_NAME_FIXES: Record<string, string> = {
+  'spotted form': 'Dạng đốm',
+  spotting: 'Dạng đốm',
+};
+
+function getDisplayName(symptom: SymptomDictionary) {
+  const name = symptom.name.trim();
+  const directFix = DISPLAY_NAME_FIXES[name.toLocaleLowerCase('en-US')];
+  if (directFix) return directFix;
+
+  const lowerName = name.toLocaleLowerCase('vi-VN');
+  const compactName = lowerName.replace(/\s+/g, ' ');
+
+  if (name.includes('�')) {
+    if (/^ch.*ng mặt/.test(compactName)) return 'Chóng mặt';
+    if (/^kh.*m đạo/.test(compactName)) return 'Khô âm đạo';
+    if (/^ng.*m đạo/.test(compactName)) return 'Ngứa âm đạo';
+    if (/^th.*m ăn/.test(compactName)) return 'Thèm ăn';
+    if (/^ti.*u chảy/.test(compactName)) return 'Tiêu chảy';
+    if (/^t.*o b.*n/.test(compactName)) return 'Táo bón';
+    if (/^bu.*n n.*n/.test(compactName)) return 'Buồn nôn';
+    if (/^d.*ng d.*nh/.test(compactName)) return 'Dạng dính';
+    if (/^kh.*ng c.* d.*ch/.test(compactName)) return 'Không có dịch';
+    if (/^nh.* l.*ng trắng trứng/.test(compactName)) return 'Như lòng trắng trứng';
+    if (/^trắng, v.*n c.*c/.test(compactName)) return 'Trắng, vón cục';
+    if (/^x.*m$/.test(compactName)) return 'Xám';
+  }
+
+  return name;
+}
+
+function getDisplayKey(symptom: SymptomDictionary) {
+  return getDisplayName(symptom).toLocaleLowerCase('vi-VN');
+}
+
+function dedupeSymptoms(symptoms: SymptomDictionary[], selectedSymptoms: Set<number>) {
+  const byDisplayName = new Map<string, SymptomDictionary>();
+
+  symptoms.forEach((symptom) => {
+    const key = getDisplayKey(symptom);
+    const current = byDisplayName.get(key);
+    if (!current || selectedSymptoms.has(symptom.id)) {
+      byDisplayName.set(key, symptom);
+    }
+  });
+
+  return Array.from(byDisplayName.values());
+}
 
 function toIsoDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -77,8 +126,8 @@ function formatDate(value: string) {
 function getIcon(symptom: SymptomDictionary) {
   if (symptom.category === 'EMOTIONAL') return 'mood';
   if (symptom.category === 'FLUID') return 'water_drop';
-  if (symptom.category === 'OTHER') return 'gastroenterology';
-  return ICON_BY_NAME[symptom.name] ?? 'monitor_heart';
+  if (symptom.category === 'OTHER') return 'spa';
+  return ICON_BY_NAME[getDisplayName(symptom)] ?? 'monitor_heart';
 }
 
 export default function DailyLogModal({ open, mode, initialDate, onClose, onSaved }: DailyLogModalProps) {
@@ -153,13 +202,14 @@ export default function DailyLogModal({ open, mode, initialDate, onClose, onSave
   const dictionary = hasDetailedMoods
     ? rawDictionary.filter((symptom) => symptom.name !== 'Tâm trạng thay đổi')
     : rawDictionary;
+  const dedupedDictionary = dedupeSymptoms(dictionary, selectedSymptoms);
   const normalizedSearch = search.trim().toLocaleLowerCase('vi-VN');
   const visibleGroups = GROUPS.map((group) => ({
     ...group,
-    symptoms: dictionary.filter((symptom) => symptom.category === group.category && (!normalizedSearch || symptom.name.toLocaleLowerCase('vi-VN').includes(normalizedSearch))),
+    symptoms: dedupedDictionary.filter((symptom) => symptom.category === group.category && (!normalizedSearch || getDisplayKey(symptom).includes(normalizedSearch))),
   })).filter((group) => group.symptoms.length > 0);
   const commonSymptoms = COMMON_NAMES
-    .map((name) => dictionary.find((symptom) => symptom.name === name))
+    .map((name) => dedupedDictionary.find((symptom) => getDisplayName(symptom) === name))
     .filter((symptom): symptom is SymptomDictionary => !!symptom);
 
   const toggleSymptom = (symptom: SymptomDictionary) => {
@@ -409,7 +459,7 @@ function SymptomChip({ symptom, active, onClick }: { symptom: SymptomDictionary;
       className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-bold transition-all active:scale-[0.98] ${active ? 'border-rose-400 bg-rose-500 text-white shadow-sm' : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-rose-200 hover:bg-rose-50'}`}
     >
       <span className="material-symbols-outlined text-[17px]">{getIcon(symptom)}</span>
-      {symptom.name}
+      {getDisplayName(symptom)}
     </button>
   );
 }

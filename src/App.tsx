@@ -91,6 +91,41 @@ function DashboardRedirect() {
   return <Navigate to={user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard'} replace />;
 }
 
+function FloatingHiChatGate() {
+  const { token, user, isBootstrapping } = useAuthStore();
+  const location = useLocation();
+  const path = location.pathname;
+  const hiddenOnRoute =
+    path === '/' ||
+    path.startsWith('/login') ||
+    path.startsWith('/register') ||
+    path.startsWith('/forgot-password') ||
+    path.startsWith('/reset-password') ||
+    path.startsWith('/onboarding') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/terms') ||
+    path.startsWith('/privacy') ||
+    path.startsWith('/help');
+
+  if (isBootstrapping || !token || user?.role === 'admin' || hiddenOnRoute) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <FloatingHiChat />
+    </Suspense>
+  );
+}
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-pink-50/40">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-pink-100 border-t-pink-500" />
+    </div>
+  );
+}
+
 export default function App() {
   const { bootstrapSession, socialLogin } = useAuthStore();
   const navigate = useNavigate();
@@ -155,8 +190,9 @@ export default function App() {
   }, [location.hash, socialLogin, navigate]);
 
   return (
-    <Suspense fallback={null}>
-    <Routes>
+    <>
+      <Suspense fallback={<RouteFallback />}>
+      <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
@@ -191,8 +227,9 @@ export default function App() {
         <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       </Route>
-    </Routes>
-    <FloatingHiChat />
-    </Suspense>
+      </Routes>
+      </Suspense>
+      <FloatingHiChatGate />
+    </>
   );
 }

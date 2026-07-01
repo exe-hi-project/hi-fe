@@ -48,34 +48,34 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
   });
 
   const dashboardLinks = isAdmin
-    ? [{ to: '/admin', label: 'Quản trị', icon: 'admin_panel_settings' }]
+    ? [{ to: '/admin', label: 'Quản trị', icon: 'verified_user' }]
     : user?.gender === 'female'
       ? [
-          { to: '/female-dashboard', label: 'Tổng quan', icon: 'dashboard' },
-          { to: '/cycles', label: 'Chu kỳ', icon: 'water_drop' },
+          { to: '/female-dashboard', label: 'Tổng quan', icon: 'bar_chart' },
+          { to: '/cycles', label: 'Chu kỳ', icon: 'calendar_month' },
           { to: '/partner', label: 'Người ấy', icon: 'favorite' },
           { to: '/products', label: 'Sản phẩm', icon: 'shopping_bag' },
-          { to: notificationSettingsPath, label: 'Cài đặt thông báo', icon: 'tune' },
+          { to: notificationSettingsPath, label: 'Cài đặt thông báo', icon: 'notifications_active' },
         ]
       : [
-          { to: '/male-dashboard', label: 'Tổng quan', icon: 'dashboard' },
+          { to: '/male-dashboard', label: 'Tổng quan', icon: 'bar_chart' },
           { to: '/partner', label: 'Người ấy', icon: 'favorite' },
           { to: '/products', label: 'Sản phẩm', icon: 'shopping_bag' },
-          { to: notificationSettingsPath, label: 'Cài đặt thông báo', icon: 'tune' },
+          { to: notificationSettingsPath, label: 'Cài đặt thông báo', icon: 'notifications_active' },
         ];
 
   const menuItems = isAdmin
     ? [
-        { to: '/admin', icon: 'admin_panel_settings', label: 'Quản trị hệ thống' },
+        { to: '/admin', icon: 'verified_user', label: 'Quản trị hệ thống' },
         { to: '/settings', icon: 'manage_accounts', label: 'Hồ sơ cá nhân' },
       ]
     : [
-        { to: user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard', icon: 'dashboard', label: 'Tổng quan' },
+        { to: user?.gender === 'female' ? '/female-dashboard' : '/male-dashboard', icon: 'bar_chart', label: 'Tổng quan' },
         { to: '/partner', icon: 'favorite', label: 'Người ấy' },
         { to: '/products', icon: 'shopping_bag', label: 'Sản phẩm chăm sóc' },
-        { to: notificationSettingsPath, icon: 'tune', label: 'Cài đặt thông báo' },
+        { to: notificationSettingsPath, icon: 'notifications_active', label: 'Cài đặt thông báo' },
         { to: '/settings', icon: 'manage_accounts', label: 'Hồ sơ cá nhân' },
-        { to: user?.gender === 'female' ? '/cycles' : '/calendar', icon: 'water_drop', label: user?.gender === 'female' ? 'Chu kỳ của tôi' : 'Lịch của bạn' },
+        { to: user?.gender === 'female' ? '/cycles' : '/calendar', icon: 'calendar_month', label: user?.gender === 'female' ? 'Chu kỳ của tôi' : 'Lịch của bạn' },
       ];
 
   const [dropOpen, setDropOpen] = useState(false);
@@ -165,8 +165,8 @@ export default function Navbar({ showAnchors = false }: NavbarProps) {
                     <span className="material-symbols-outlined text-[16px] text-white">person</span>
                   </div>
                   <span className="hidden text-sm font-bold text-slate-900 sm:block">{user?.name?.split(' ').pop()}</span>
-                  <span className={`material-symbols-outlined text-lg text-slate-400 transition-transform duration-200 ${dropOpen ? 'rotate-180' : ''}`}>
-                    expand_more
+                  <span className={`material-symbols-outlined text-lg text-slate-400 transition-transform duration-200 ${dropOpen ? 'rotate-90' : ''}`}>
+                    chevron_right
                   </span>
                 </button>
 

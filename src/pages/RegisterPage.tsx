@@ -211,7 +211,7 @@ export default function RegisterPage() {
       <div className="flex-1 flex flex-col overflow-y-auto bg-white/80" style={{ scrollbarWidth: 'none' }}>
 
         {/* Logo */}
-        <Link to="/" className="px-8 py-5 lg:px-12 lg:py-6 flex items-center gap-3 flex-shrink-0 w-fit">
+        <Link to="/" className="px-5 py-5 sm:px-8 lg:px-12 lg:py-6 flex items-center gap-3 flex-shrink-0 w-fit">
           <HiLogo size={38} />
           <span
             className="text-xl font-black tracking-tight"
@@ -220,7 +220,7 @@ export default function RegisterPage() {
         </Link>
 
         {/* Form area */}
-        <div className="flex-1 flex flex-col justify-center px-8 lg:px-12 xl:px-16 pb-6">
+        <div className="flex-1 flex flex-col justify-center px-5 sm:px-8 lg:px-12 xl:px-16 pb-6">
 
           {showOtpScreen ? (
             <div className="animate-fade-in flex flex-col justify-center">
@@ -310,7 +310,7 @@ export default function RegisterPage() {
               <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
 
                 {/* Row 1: Name + Email */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {/* Name */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-bold text-gray-800">Họ và tên</label>
@@ -343,7 +343,7 @@ export default function RegisterPage() {
                 </div>
 
                 {/* Row 2: Password + Confirm */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {/* Password */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-bold text-gray-800">Mật khẩu</label>
@@ -444,7 +444,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Footer */}
-        <div className="px-8 lg:px-12 py-4 flex-shrink-0">
+        <div className="px-5 sm:px-8 lg:px-12 py-4 flex-shrink-0">
           <div className="flex gap-6 text-xs text-gray-400">
             <Link to="/terms" className="hover:text-gray-600 transition-colors">Điều khoản sử dụng</Link>
             <Link to="/privacy" className="hover:text-gray-600 transition-colors">Chính sách bảo mật</Link>
@@ -471,7 +471,7 @@ export default function RegisterPage() {
                 style={{ opacity: i === activeSlide ? 1 : 0, transform: i === activeSlide ? 'scale(1)' : 'scale(1.03)', pointerEvents: i === activeSlide ? 'auto' : 'none' }}
               >
                 <img
-                  src="/images/LogRe.png"
+                  src="/images/LogRe.webp"
                   alt="Sức khỏe phái đẹp"
                   className="w-full h-full object-cover object-center"
                 />

@@ -5,7 +5,7 @@
 @layer base {
   * { box-sizing: border-box; }
   html, body, button, input, select, textarea {
-    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   body {
     background-color: #fdf2f8;
@@ -116,9 +116,27 @@
 .lp-root {
   min-height: 100vh;
   background-color: #fdfbf7;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #1e293b;
   overflow-x: hidden;
+}
+
+.material-symbols-outlined {
+  direction: ltr;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-family: 'Material Symbols Outlined';
+  font-feature-settings: 'liga';
+  font-style: normal;
+  font-weight: normal;
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  letter-spacing: normal;
+  line-height: 1;
+  overflow: hidden;
+  text-transform: none;
+  white-space: nowrap;
+  width: 1em;
+  word-wrap: normal;
 }
 
 .lp-blob {
@@ -240,8 +258,8 @@
 }
 
 @keyframes anniversary-glow {
-  0%, 100% { box-shadow: 0 0 4px rgba(244, 114, 182, 0.4); }
-  50% { box-shadow: 0 0 16px rgba(244, 114, 182, 0.8), 0 0 24px rgba(244, 114, 182, 0.4); }
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(244, 114, 182, 0.24); }
+  50% { box-shadow: inset 0 0 0 2px rgba(244, 114, 182, 0.52); }
 }
 
 @keyframes anniversary-confetti {
@@ -268,6 +286,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
   .animate-anniversary-sparkle,
   .animate-float,
   .animate-anniversary-glow,
