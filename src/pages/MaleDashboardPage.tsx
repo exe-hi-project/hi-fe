@@ -441,7 +441,7 @@ export default function MaleDashboardPage() {
             <HealthVideoSection />
           </div>
 
-          <div className="mt-6 rounded-[2rem] border border-blue-100 bg-white/95 p-6 shadow-lg shadow-blue-100/40 backdrop-blur">
+          <div className="mt-6">
             <PricingCard />
           </div>
         </main>

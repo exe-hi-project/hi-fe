@@ -118,6 +118,14 @@ function FloatingHiChatGate() {
   );
 }
 
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-pink-50/40">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-pink-100 border-t-pink-500" />
+    </div>
+  );
+}
+
 export default function App() {
   const { bootstrapSession, socialLogin } = useAuthStore();
   const navigate = useNavigate();
@@ -183,7 +191,7 @@ export default function App() {
 
   return (
     <>
-      <Suspense fallback={null}>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />

@@ -11,6 +11,7 @@ import {
   normalizeAnniversarySummary,
   toLocalIsoDate,
 } from '../../utils/coupleAnniversaryCalendar';
+import { AnniversarySymbol } from './AnniversaryVisuals';
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -109,7 +110,7 @@ export default function CoupleAnniversaryCompactCard({
                     <p className="truncate text-xs font-black text-slate-800">{item.event.title}</p>
                     <p className="text-[11px] font-bold opacity-70">{shortDate(item.displayDate)}</p>
                   </div>
-                  <span className="material-symbols-outlined text-[18px]">{item.event.icon}</span>
+                  <AnniversarySymbol name={item.event.icon} size={18} className="anniversary-icon" />
                 </div>
               ))}
             </div>
@@ -164,9 +165,7 @@ export default function CoupleAnniversaryCompactCard({
                   <span>{date.getDate()}</span>
                   {decorated && (
                     <span className="anniversary-icon absolute -right-0.5 -top-0.5 sm:-right-1 sm:-top-1 grid size-3.5 sm:size-5 place-items-center rounded-full bg-white/90 shadow-sm border border-slate-100">
-                      <span className="material-symbols-outlined text-[9px] sm:text-[12px]" style={{ color: event.color === 'sky' ? '#0ea5e9' : event.color === 'emerald' ? '#10b981' : event.color === 'amber' ? '#f59e0b' : event.color === 'violet' ? '#8b5cf6' : event.color === 'rose' ? '#f43f5e' : '#ec4899' }}>
-                        {event.icon}
-                      </span>
+                      <AnniversarySymbol name={event.icon} size={12} />
                     </span>
                   )}
                 </div>

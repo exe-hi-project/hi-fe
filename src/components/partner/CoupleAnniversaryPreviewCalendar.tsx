@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import type { CoupleAnniversarySummary } from '../../types/shared';
 import {
+  type AnniversaryOccurrence,
   getDayAnniversaryOccurrences,
   anniversaryBackground,
   anniversaryEffectClass,
   normalizeAnniversarySummary,
   toLocalIsoDate,
 } from '../../utils/coupleAnniversaryCalendar';
+import { AnniversarySticker, AnniversarySymbol } from './AnniversaryVisuals';
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -40,6 +43,7 @@ export default function CoupleAnniversaryPreviewCalendar({
 }: CoupleAnniversaryPreviewCalendarProps) {
   const isMale = variant === 'male';
   const [weeksOffset, setWeeksOffset] = useState(0);
+  const [selectedOccurrence, setSelectedOccurrence] = useState<AnniversaryOccurrence | null>(null);
 
   const today = new Date();
   const anchor = new Date(today.getFullYear(), today.getMonth(), today.getDate() + weeksOffset * 7);
@@ -66,17 +70,17 @@ export default function CoupleAnniversaryPreviewCalendar({
   const anniversaries = anniversariesQuery.data;
 
   return (
-    <div className={`rounded-[2rem] border p-6 shadow-md backdrop-blur bg-white/95 ${isMale ? 'border-blue-100' : 'border-pink-100'} ${className}`}>
-      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <section className={`rounded-2xl border bg-white p-4 shadow-sm sm:p-6 ${isMale ? 'border-blue-100' : 'border-pink-100'} ${className}`}>
+      <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${isMale ? 'text-blue-500' : 'text-pink-500'}`}>Lịch kỷ niệm</p>
-          <div className="flex items-center gap-2">
-            <h4 className="text-base font-extrabold text-slate-900" style={{ fontFamily: "'Inter', sans-serif" }}>{shownMonths}</h4>
+          <p className={`text-xs font-bold ${isMale ? 'text-blue-600' : 'text-pink-600'}`}>Lịch kỷ niệm</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h4 className="text-lg font-extrabold capitalize text-slate-900">{shownMonths}</h4>
             {weeksOffset !== 0 && (
               <button
                 type="button"
                 onClick={() => setWeeksOffset(0)}
-                className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold transition-all border shadow-sm active:scale-95 cursor-pointer ${
+                className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition active:scale-95 ${
                   isMale
                     ? 'bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-100/50'
                     : 'bg-pink-50 hover:bg-pink-100 text-pink-600 border-pink-100/50'
@@ -87,25 +91,24 @@ export default function CoupleAnniversaryPreviewCalendar({
             )}
           </div>
         </div>
-        <p className="text-[11px] font-semibold text-slate-400">Các mốc ngày đặc biệt của hai bạn</p>
+        <p className="hidden max-w-48 text-right text-xs font-medium leading-relaxed text-slate-400 sm:block">Ba tuần gần nhất của hai bạn</p>
       </div>
 
-      <div className="relative px-7">
-        {/* Nút lướt về sau (quá khứ) */}
+      <div className="relative">
         <button
           type="button"
           onClick={() => setWeeksOffset((prev) => prev - 3)}
-          className={`absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 active:scale-90 transition-all select-none z-10 cursor-pointer ${
-            isMale ? 'text-blue-500 hover:text-blue-600' : 'text-pink-500 hover:text-pink-600'
+          className={`absolute -left-2 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg border bg-white shadow-sm transition hover:-translate-y-[55%] active:scale-95 ${
+            isMale ? 'border-blue-100 text-blue-600' : 'border-pink-100 text-pink-600'
           }`}
-          aria-label="Previous weeks"
+          aria-label="Xem ba tuần trước"
         >
-          <span className="material-symbols-outlined font-black text-3xl">chevron_left</span>
+          <CaretLeft size={16} weight="bold" />
         </button>
 
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1.5 px-5 sm:gap-2 sm:px-6">
           {WEEKDAYS.map((day) => (
-            <div key={day} className="py-1 text-center text-[10px] font-extrabold text-slate-400">
+            <div key={day} className="py-1 text-center text-[10px] font-bold text-slate-400">
               {day}
             </div>
           ))}
@@ -116,53 +119,95 @@ export default function CoupleAnniversaryPreviewCalendar({
             const primary = occurrences[0];
             const event = primary?.event;
             const decorated = Boolean(primary && event);
+            const dayOfWeek = date.getDay();
+            const tooltipPosition = dayOfWeek === 0 || dayOfWeek === 6
+              ? 'right-0'
+              : dayOfWeek === 1 || dayOfWeek === 2
+                ? 'left-0'
+                : 'left-1/2 -translate-x-1/2';
 
             return (
-              <div
+              <button
+                type="button"
                 key={iso}
+                onClick={() => {
+                  if (!primary) return;
+                  setSelectedOccurrence((current) => current?.key === primary.key ? null : primary);
+                }}
+                disabled={!decorated}
                 className={[
-                  'relative flex aspect-square sm:aspect-[1.3] min-h-[48px] sm:min-h-[72px] flex-col items-center justify-between p-1 sm:p-2 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-extrabold transition-all border',
+                  'group relative isolate flex h-12 min-w-0 rounded-xl border p-1.5 text-left text-xs transition sm:h-16 sm:p-2',
                   decorated
-                    ? `${anniversaryBackground(event.color, event.effect)} ${anniversaryEffectClass(event.effect)}`
-                    : 'border-slate-50/50 bg-slate-50/80 text-slate-500',
-                  isToday ? 'outline outline-2 outline-slate-800 outline-offset-2' : '',
+                    ? `${anniversaryBackground(event.color, event.effect)} ${anniversaryEffectClass(event.effect)} cursor-pointer hover:-translate-y-0.5 hover:shadow-md`
+                    : 'border-slate-100 bg-slate-50/70 text-slate-500',
+                  isToday ? 'ring-2 ring-slate-700 ring-offset-1' : '',
+                  selectedOccurrence && primary && selectedOccurrence.key === primary.key ? 'ring-2 ring-pink-400 ring-offset-1' : '',
                 ].join(' ')}
-                title={decorated ? `${event.title}` : undefined}
+                aria-label={decorated ? `Xem chi tiết ${event.title}` : undefined}
               >
-                <span className="self-start text-[10px] font-bold text-slate-400">{date.getDate()}</span>
+                <span className="relative z-10 text-[10px] font-bold text-slate-500">{date.getDate()}</span>
                 {decorated && (
-                  <div className="w-full text-center flex flex-col items-center justify-center sm:justify-between gap-0.5 mt-0.5 flex-1 min-h-0">
-                    <span className="material-symbols-outlined text-[13px] sm:text-[15px] flex-shrink-0" style={{ color: event.color === 'sky' ? '#0ea5e9' : event.color === 'emerald' ? '#10b981' : event.color === 'amber' ? '#f59e0b' : event.color === 'violet' ? '#8b5cf6' : event.color === 'rose' ? '#f43f5e' : '#ec4899' }}>
-                      {event.icon}
-                    </span>
+                  <div className="absolute inset-x-1 bottom-1 flex min-w-0 items-center gap-1 sm:inset-x-2 sm:bottom-2">
+                    <AnniversarySymbol name={event.icon} size={14} className="anniversary-icon shrink-0 text-current" />
                     <span
-                      className="text-[10px] font-extrabold text-slate-800 truncate max-w-full hidden sm:block px-1"
-                      style={{ fontFamily: "'Inter', sans-serif" }}
+                      className="hidden min-w-0 truncate text-[10px] font-bold text-slate-700 sm:block"
                       title={event.title}
                     >
                       {event.title}
                     </span>
                   </div>
                 )}
-              </div>
+                {decorated && (
+                  <span className={`pointer-events-none absolute bottom-[calc(100%+8px)] z-30 hidden w-56 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl opacity-0 transition group-hover:opacity-100 sm:block ${tooltipPosition}`}>
+                    <span className="flex items-start gap-2.5">
+                      <AnniversarySticker name={event.sticker} size={28} className="shrink-0" />
+                      <span className="min-w-0">
+                        <strong className="block text-xs font-extrabold text-slate-900">{event.title}</strong>
+                        <span className="mt-0.5 block text-[10px] font-semibold text-slate-400">
+                          {new Date(`${primary.displayDate}T00:00:00`).toLocaleDateString('vi-VN')}
+                        </span>
+                        {event.note && <span className="mt-1 block text-[11px] leading-relaxed text-slate-600">{event.note}</span>}
+                      </span>
+                    </span>
+                  </span>
+                )}
+              </button>
             );
           })}
         </div>
 
-        {/* Nút lướt tới (tương lai) */}
         <button
           type="button"
           onClick={() => setWeeksOffset((prev) => prev + 3)}
-          className={`absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 active:scale-90 transition-all select-none z-10 cursor-pointer ${
-            isMale ? 'text-blue-500 hover:text-blue-600' : 'text-pink-500 hover:text-pink-600'
+          className={`absolute -right-2 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg border bg-white shadow-sm transition hover:-translate-y-[55%] active:scale-95 ${
+            isMale ? 'border-blue-100 text-blue-600' : 'border-pink-100 text-pink-600'
           }`}
-          aria-label="Next weeks"
+          aria-label="Xem ba tuần tiếp theo"
         >
-          <span className="material-symbols-outlined font-black text-3xl">chevron_right</span>
+          <CaretRight size={16} weight="bold" />
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100/50 pt-3" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {selectedOccurrence && (
+        <div className={`mt-4 flex items-start gap-3 rounded-xl border p-3 ${isMale ? 'border-blue-100 bg-blue-50/50' : 'border-pink-100 bg-pink-50/50'}`}>
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white shadow-sm">
+            <AnniversarySticker name={selectedOccurrence.event.sticker} size={30} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <strong className="text-sm font-extrabold text-slate-900">{selectedOccurrence.event.title}</strong>
+              <span className="text-[11px] font-bold text-slate-400">
+                {new Date(`${selectedOccurrence.displayDate}T00:00:00`).toLocaleDateString('vi-VN')}
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              {selectedOccurrence.event.note || (selectedOccurrence.isStartDate ? 'Cột mốc ngày hai bạn bắt đầu bên nhau.' : 'Ngày kỷ niệm đặc biệt của hai bạn.')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
           <span className="size-2 rounded-full bg-pink-400" />
           Kỷ niệm yêu thương
@@ -172,7 +217,7 @@ export default function CoupleAnniversaryPreviewCalendar({
           Ngày đặc biệt
         </span>
       </div>
-    </div>
+    </section>
   );
 }
 

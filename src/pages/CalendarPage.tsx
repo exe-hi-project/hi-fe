@@ -7,6 +7,7 @@ import type { CycleInsights, CycleRecord, CoupleAnniversarySummary, CoupleAnnive
 import { CYCLE_DAY_CLASSES, CYCLE_LEGEND, getCycleDayKind, toIsoDate } from '../utils/cycleCalendar';
 import { getDayAnniversaryOccurrences, anniversaryBackground, anniversaryEffectClass } from '../utils/coupleAnniversaryCalendar';
 import AnniversaryEventModal from '../components/partner/AnniversaryEventModal';
+import { AnniversarySymbol } from '../components/partner/AnniversaryVisuals';
 import { useAuthStore } from '../store/authStore';
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -175,7 +176,7 @@ export default function CalendarPage() {
                     <span>{day}</span>
                     {decorated && (
                       <span className="anniversary-icon absolute -right-0.5 -top-0.5 sm:-right-1 sm:-top-1 grid size-3.5 sm:size-5 place-items-center rounded-full bg-white/90 shadow-sm border border-slate-100 ring-1 ring-black/5">
-                        <span className="material-symbols-outlined text-[9px] sm:text-[12px] font-bold text-slate-700">{event.icon}</span>
+                        <AnniversarySymbol name={event.icon} size={12} className="text-slate-700" />
                       </span>
                     )}
                   </button>
